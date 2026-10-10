@@ -15,3 +15,7 @@ config.json
 .env
 venv/
 .venv/
+
+# Scratch directory
+scratch/
+

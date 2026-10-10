@@ -10,7 +10,7 @@ from enki.core.ollama_client import OllamaClient
 from enki.memory.database import MemoryDatabase
 from enki.memory.profile_manager import ProfileManager
 from enki.memory.reflector import ReflectorDaemon
-from enki.memory.recall import is_recall_triggered, build_fts_query, format_recall_block
+from enki.memory.recall import is_recall_triggered, build_fts_query, format_recall_block, execute_passive_recall
 from enki.core.react_loop import ReActCoordinator
 from enki.cli.memory_commands import handle_memory_command, handle_reflect_command
 
@@ -156,7 +156,8 @@ class EnkiConsole:
                     facts_count = len(self.profile_mgr.get_all_facts())
                     pending_count = len(self.reflector.get_pending_proposals())
                     print(f"\n--- Status Sistem ENKI ---")
-                    print(f"  Model        : {self.config.model}")
+                    model_display = self.config.model + (" (Chat-Only)" if "coder" in self.config.model else "")
+                    print(f"  Model        : {model_display}")
                     print(f"  Num Context  : {self.config.num_ctx}")
                     print(f"  Temperature  : {self.config.temperature}")
                     print(f"  Mute Status  : {self.config.is_muted}")
@@ -199,7 +200,7 @@ class EnkiConsole:
             # 1. Catat turn user ke DB secara deterministik
             self.db.add_turn(self.session_id, "user", user_input)
 
-            # 2. Cek Recall Otomatis Deterministik
+            # 2. Cek Recall: Aktif (Trigger Leksikal) vs Pasif (Ambang Batas Substantif)
             recall_content = None
             if is_recall_triggered(user_input):
                 fts_query = build_fts_query(user_input)
@@ -207,7 +208,12 @@ class EnkiConsole:
                     snippets = self.db.search_fts(fts_query, exclude_session_id=self.session_id, limit=3)
                     if snippets:
                         recall_content = format_recall_block(snippets, max_tokens=300)
-                        print(f"[Memory Recall] Menemukan {len(snippets)} cuplikan masa lalu yang relevan.")
+                        print(f"[Memory Recall Aktif] Menemukan {len(snippets)} cuplikan masa lalu yang relevan.")
+            else:
+                passive_block = execute_passive_recall(user_input, self.db, self.session_id, max_tokens=300)
+                if passive_block:
+                    recall_content = passive_block
+                    print(f"[Memory Recall Pasif] Menyuntikkan konteks latar percakapan lama.")
 
             # 3. Assembler Prompt & Pre-flight check
             self.assembler.profile = self.profile_mgr.get_profile_text()
