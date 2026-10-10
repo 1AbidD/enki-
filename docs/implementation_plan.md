@@ -15,7 +15,8 @@ Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbat
     * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.2 GB, Context: 4096, VRAM Used: **2386 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
     * `nomic-embed-text:latest` : **100% GPU** (Ukuran: 323 MB, VRAM Used: **636 MiB**).
   * Saat beralih model via `/coder` atau saat embedding dimuat di bawah kebijakan `=1`, model sebelumnya langsung dieviktasi otomatis dari VRAM.
-  * *Catatan Pengukuran `=3`:* Eksperimen `=3` terbukti memungkinkan koeksistensi model di VRAM (chat, coder, embedding), namun statusnya adalah **terukur, tidak dipakai; embedding butuh >=2**. Kebijakan produksi dan benchmark tetap mengunci strictly `=1`.
+  * *Catatan Pengukuran `=3`:* Eksperimen `=3` membuktikan koeksistensi model coder (2.2 GB) + nomic-embed-text (323 MB) pada 2779 MiB VRAM. Model chat (`qwen2.5:3b`) dan coder (`qwen2.5-coder:3b`) tidak pernah berdampingan bersamaan di VRAM. Status pengukuran ini adalah **terukur, tidak dipakai; embedding butuh >=2**. Kebijakan resmi produksi dan benchmark mengunci strictly `=1`.
+  * *Kondisi Eksekusi Set 2 & Set 3:* Set 2 dan Set 3 (dijalankan 12:43–12:52 WIB) dijalankan di bawah environment bawaan Ollama (`OLLAMA_MAX_LOADED_MODELS: 0`) dan tanpa pencatatan header environment di berkas JSONL.
 * **Reflector Model Safety:** `reflect_session` dan perintah `/reflect` mengunci pemanggilan model ke `qwen2.5:3b`, menjamin refleksi memori tidak pernah berjalan pada model coder.
 * **Pengakuan Batas Model 3B:** Model 3B tidak dapat diandalkan untuk menyaring serangan jailbreak atau memvalidasi string shell bebas secara otonom. Oleh karena itu, string perintah bebas dihapus total, dan seluruh aksi sistem wajib dikonfirmasi manusia `[y/N]`.
 
@@ -184,7 +185,10 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 1. **Timeout = Gagal:** Di seluruh evaluator benchmark (Set 2, Set 3, Set 4), jika `is_timeout == True`, maka `is_success`, `routing_ok`, dan `fidelity_ok` wajib `False`.
 2. **Pencatatan Waktu ISO UTC:** Setiap turn mencatat `started_at` dan `ended_at` dalam format ISO UTC (`YYYY-MM-DDTHH:MM:SS.ffffffZ`).
 3. **BenchmarkLock Anti-Konkurensi:** Menyimpan PID dan timestamp mulai. Jika lock dipegang PID yang masih hidup (`psutil.pid_exists(pid) == True`), runner menolak keras. Jika dipegang PID yang sudah mati (stale lock), lock diambil alih otomatis dengan pesan log jelas.
-4. **Klasifikasi Prompt MEM Set 4A:** Runner mengklasifikasikan prompt MEM menjadi 3 kelompok: `has_active_trigger`, `has_marker`, dan `none`. Gate evaluasi HANYA dihitung dari kelompok `active + marker`. Kelompok `none` dilaporkan terpisah sebagai keterbatasan teridentifikasi.
+4. **Klasifikasi Mode MEM Set 4A (Mode Profile vs Mode Recall):** Runner mengklasifikasikan prompt MEM menjadi dua mode:
+   - **Mode Profile:** Fakta tentang pengguna diinjeksi ke dalam berkas `profile.json` melalui `ProfileManager` dan dimuat dalam system prompt base.
+   - **Mode Recall:** Fakta sesi masa lampau diinjeksi sebagai riwayat percakapan terdahulu di `sessions.db` (pernyataan natural pengguna dan balasan konfirmasi asisten) dan dicari menggunakan SQLite FTS5 Active Recall saat terdapat pemicu leksikal.
+   - *Komposisi Wajib:* 12 MEM (terdiri dari mode profil dan mode recall, dengan syarat mutlak minimal 4 prompt Mode Recall), 6 workspace / git / test, dan 12 Negatif (minimal 4 berpemicu aktif).
 
 ### Kriteria Kelulusan Set 4A (Ditulis Di Muka Sebelum Run):
 1. **Routing Positif:** $\ge 90.0\%$ (dihitung per prompt unik $n$ dan per run)
@@ -192,14 +196,20 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 3. **Fidelity Jawaban:** $\ge 85.0\%$ dari run yang memanggil tool yang benar
 4. **Total Timeout:** $= 0$
 5. **Argumen Invalid:** $= 0$
-6. **0 Recall Block pada Negatif Tanpa Pemicu:** $0$ kasus injeksi recall tidak sah pada prompt negatif murni tanpa pemicu.
+6. **Kriteria Negatif Murni & Berpemicu Aktif:**
+   - **Pada Negatif Berpemicu ($n$ dilaporkan):** False tool call $= 0$ dan kebocoran nilai kunci memori $= 0$. Injeksi blok recall aktif pada negatif berpemicu dilaporkan secara terpisah (tidak menggagalkan gate).
+   - **Pada Negatif Tanpa Pemicu ($n$ dilaporkan):** Blok recall $= 0$ (tidak boleh ada injeksi recall sama sekali).
 7. **Kriteria Sukses MEM:** Nilai kunci wajib muncul di jawaban akhir DAN tidak memanggil tool lain.
 8. **Validasi Komposisi MEM:** Dari 12 prompt MEM Set 4A (6 built-in mode profile + 6 user), wajib minimal 4 prompt berstatus Mode Recall. Runner melakukan hard fail jika mode recall $< 4$.
 
+### Kunci Integritas Ujian & Disclaimer Evaluasi Pengetahuan Umum:
+* **Kunci Integritas Set 4:** File prompt pengguna diverifikasi secara kriptografis menggunakan SHA256 digest `4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55`. Runner Set 4 menolak keras untuk berjalan jika hash tidak cocok dengan kunci ini.
+* **Disclaimer Halusinasi Pengetahuan Umum:** Benchmark ini HANYA menguji ketaatan routing alat, tidak adanya tool call palsu, ketiadaan kebocoran fakta memori, dan penyampaian fakta profil/sesi. Benchmark TIDAK memverifikasi kebenaran faktual jawaban pengetahuan umum, karena model 3B memiliki kecenderungan halusinasi pada fakta umum (sebagai contoh, pada SMOKE_P06 model menjawab "Carl David Anderson" untuk penemu mikroskop elektron alih-alih Ernst Ruska).
+
 ### Komposisi 30 Prompt Set 4A:
-* **12 Memori (MEM):** 6 buatan asisten (Mode Profile via `profile.json`), 6 dari user (diharapkan 4 Mode Recall + 2 Mode Profile).
+* **12 Memori (MEM):** 6 buatan asisten (Mode Profile via `profile.json`), 6 dari user (diharapkan minimal 4 Mode Recall).
 * **6 Positif Workspace / Git / Test:** 4 dari user, 2 buatan asisten.
-* **12 Negatif Murni (No Tool):** 5 dari user, 7 buatan asisten.
+* **12 Negatif Murni (No Tool):** 5 dari user, 7 buatan asisten (minimal 4 berpemicu aktif).
 
 ---
 
@@ -218,11 +228,11 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Proposal queue dan perintah CLI `/memory`.
 * Suite unit test memori terisolasi (14 unit test lulus).
 
-### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (DALAM PROSES)
+### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (BELUM LULUS GATE - Set 3 gagal gate 2026-10-10, redesign harness & isolasi, menunggu Set 4)
 * Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests`, `list_dir`, `read_file`, `search_memory`.
 * Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya.
-* Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4.
-* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, dan benchmark lock (78 unit test terdaftar secara resmi di docs/test_ids.txt: 75 lulus, 3 benchmark dilewati saat discovery via skipTest).
+* Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4 (status: EKSPERIMENTAL, GAGAL GATE, DEFAULT OFF).
+* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, dan benchmark lock (80 unit test terdaftar secara resmi di docs/test_ids.txt: 77 lulus, 3 benchmark dilewati saat discovery via skipTest).
 * Persiapan pengujian Set 4A dan Set 4R.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)

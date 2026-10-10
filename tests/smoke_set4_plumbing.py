@@ -77,9 +77,9 @@ SMOKE_PROMPTS = [
         "expected_key": "json",
         "memory_inject": (
             "user",
-            "kamu ingat kemarin kita sepakat pakai format log apa di microservice?",
+            "Untuk standar format log semua microservice backend, kita sepakat pakai structured JSON log.",
             "assistant",
-            "Kemarin kita sepakat memakai format structured JSON log di microservice."
+            "Baik, format structured JSON log dicatat sebagai standar logging microservice."
         )
     },
     # 6. NEG Berpemicu Aktif
@@ -187,6 +187,12 @@ def run_smoke():
 
     # 1. Tulis Metadata Header
     header = create_benchmark_jsonl_header()
+    # Warm-up model sebelum timing
+    try:
+        client.chat(model=model, messages=[{"role": "user", "content": "ping"}], max_tokens=2)
+    except Exception:
+        pass
+
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(json.dumps(header, ensure_ascii=False) + "\n")
 
@@ -198,6 +204,7 @@ def run_smoke():
     print("=" * 70)
 
     for p in SMOKE_PROMPTS:
+        confirmed_log.clear()  # Reset konfirmasi perintah per turn
         t_start = time.time()
         tool_calls_rec = []
         tool_obs_rec = []
@@ -214,14 +221,16 @@ def run_smoke():
 
         # Evaluasi Active Recall jika ada pemicu
         recall_content = None
-        recall_injected = False
+        active_recall_injected = False
+        recall_source = "none"
         if is_recall_triggered(p["prompt"]):
             fts_q = build_fts_query(p["prompt"])
             if fts_q:
                 snips = db.search_fts(fts_q, exclude_session_id=session_id, limit=3)
                 if snips:
                     recall_content = format_recall_block(snips, max_tokens=300)
-                    recall_injected = True
+                    active_recall_injected = True
+                    recall_source = "active_fts5"
 
         chunks = []
         final_metrics = {}
@@ -256,6 +265,8 @@ def run_smoke():
             timeout_reason = "no_first_token"
 
         ended_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        total_turn_duration_sec = round(time.time() - t_start, 3)
+        final_metrics["total_turn_duration_sec"] = total_turn_duration_sec
         final_text = "".join(chunks).strip()
 
         first_tool_call = None
@@ -287,8 +298,10 @@ def run_smoke():
             "expected_key": p.get("expected_key"),
             "called_tool": first_tool_call,
             "called_arg": first_tool_arg,
-            "passive_recall_injected": recall_injected,
-            "passive_recall_content": recall_content,
+            "active_recall_injected": active_recall_injected,
+            "passive_recall_injected": False,
+            "recall_source": recall_source,
+            "recall_content": recall_content,
             "tool_calls": tool_calls_rec,
             "tool_observations": tool_obs_rec,
             "final_response": final_text,
@@ -296,7 +309,8 @@ def run_smoke():
             "evaluation": eval_res,
             "metrics": final_metrics,
             "started_at": started_at,
-            "ended_at": ended_at
+            "ended_at": ended_at,
+            "total_turn_duration_sec": total_turn_duration_sec
         }
 
         with open(out_file, "a", encoding="utf-8") as f:

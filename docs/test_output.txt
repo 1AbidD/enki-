@@ -12,6 +12,10 @@ test_benchmark_lock_rejects_living_pid (test_benchmark_harness_unit.TestBenchmar
 Memastikan BenchmarkLock menolak proses jika lock file dipegang PID yang masih hidup. ... ok
 test_classify_mem_prompt_groups (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_classify_mem_prompt_groups)
 Memastikan klasifikasi prompt MEM akurat untuk 3 kelompok. ... ok
+test_confirmed_commands_isolation_per_turn (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_confirmed_commands_isolation_per_turn)
+Memastikan confirmed_log direset per turn dan tidak menumpuk ke record turn berikutnya. ... ok
+test_fidelity_failure_forces_is_success_false (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_fidelity_failure_forces_is_success_false)
+Memastikan jika fidelity_ok=False, maka is_success WAJIB False, ... ok
 test_synthetic_record_normal_success_when_no_timeout (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_synthetic_record_normal_success_when_no_timeout)
 Memastikan evaluasi normal menghasilkan True jika is_timeout=False. ... ok
 test_synthetic_record_timeout_forces_failure (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_synthetic_record_timeout_forces_failure)
@@ -141,10 +145,10 @@ Memastikan tidak ada API atau parameter yang menerima string perintah bebas untu
 test_python_version_execution_and_confirmation (test_shell_tools.TestFixedArgumentTools.test_python_version_execution_and_confirmation)
 Memastikan python_version mengeksekusi dengan aman dan meminta konfirmasi. ... ok
 test_run_unittests_execution_and_confirmation (test_shell_tools.TestFixedArgumentTools.test_run_unittests_execution_and_confirmation)
-Memastikan run_unittests mengeksekusi python -m unittest. ... ok
+Memastikan run_unittests mengeksekusi python -m unittest discover dengan start dir yang tepat. ... ok
 
 ----------------------------------------------------------------------
-Ran 78 tests in 7.762s
+Ran 80 tests in 9.737s
 
 OK (skipped=3)
 

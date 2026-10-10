@@ -79,7 +79,8 @@ class TestFixedArgumentTools(unittest.TestCase):
         self.assertEqual(recorded_cmds, ["python --version"])
 
     def test_run_unittests_execution_and_confirmation(self):
-        """Memastikan run_unittests mengeksekusi python -m unittest."""
+        """Memastikan run_unittests mengeksekusi python -m unittest discover dengan start dir yang tepat."""
+        # 1. Tanpa folder tests/ -> discover .
         recorded_cmds = []
         def mock_reject(cmd: str) -> bool:
             recorded_cmds.append(cmd)
@@ -92,7 +93,24 @@ class TestFixedArgumentTools(unittest.TestCase):
         )
         self.assertFalse(ok)
         self.assertTrue(is_policy_rejection)
-        self.assertEqual(recorded_cmds, ["python -m unittest"])
+        self.assertEqual(recorded_cmds, ["python -m unittest discover ."])
+
+        # 2. Dengan folder tests/ -> discover tests
+        tests_dir = self.workspace / "tests"
+        tests_dir.mkdir(exist_ok=True)
+        recorded_cmds_2 = []
+        def mock_reject_2(cmd: str) -> bool:
+            recorded_cmds_2.append(cmd)
+            return False
+
+        ok2, is_policy_rejection2, msg2 = execute_run_unittests(
+            workspace_root=self.workspace,
+            confirm_func=mock_reject_2,
+            audit_log_path=self.audit_log
+        )
+        self.assertFalse(ok2)
+        self.assertTrue(is_policy_rejection2)
+        self.assertEqual(recorded_cmds_2, ["python -m unittest discover tests"])
 
     def test_list_dir_safe_listing_and_traversal_blocking(self):
         """Memastikan list_dir membaca folder workspace dan memblokir path traversal."""

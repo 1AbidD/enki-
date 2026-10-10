@@ -92,6 +92,39 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         self.assertTrue(res_pos["routing_ok"])
         self.assertTrue(res_pos["fidelity_ok"])
 
+    def test_fidelity_failure_forces_is_success_false(self):
+        """Memastikan jika fidelity_ok=False, maka is_success WAJIB False,
+        meskipun routing_ok dan valid_args bernilai True (kasus SMOKE_P03 & MEM).
+        """
+        # Kasus A: Tool cocok tanpa expected_arg (misal run_unittests), tapi expected_key tidak muncul
+        res_tool = evaluate_benchmark_turn(
+            expected_tool="run_unittests",
+            expected_arg=None,
+            expected_key="Ran",
+            tool_calls_recorded=['run_unittests({})'],
+            tool_observations_recorded=["0 tests found"],
+            final_text="Tidak ada test yang ditemukan.",
+            is_timeout=False
+        )
+        self.assertTrue(res_tool["routing_ok"], "Routing tool harus True.")
+        self.assertTrue(res_tool["valid_args"], "Valid args harus True.")
+        self.assertFalse(res_tool["fidelity_ok"], "Fidelity harus False karena keyword 'Ran' tidak ada.")
+        self.assertFalse(res_tool["is_success"], "is_success WAJIB False jika fidelity_ok=False!")
+
+        # Kasus B: MEM / Negatif tanpa tool, tapi expected_key tidak muncul di final_text
+        res_mem = evaluate_benchmark_turn(
+            expected_tool=None,
+            expected_arg=None,
+            expected_key="debian",
+            tool_calls_recorded=[],
+            tool_observations_recorded=[],
+            final_text="Saya tidak tahu sistem operasinya.",
+            is_timeout=False
+        )
+        self.assertTrue(res_mem["routing_ok"])
+        self.assertFalse(res_mem["fidelity_ok"])
+        self.assertFalse(res_mem["is_success"], "is_success WAJIB False untuk MEM jika fidelity_ok=False!")
+
     def test_benchmark_lock_rejects_living_pid(self):
         """Memastikan BenchmarkLock menolak proses jika lock file dipegang PID yang masih hidup."""
         lock_file = self.temp_path / ".test_lock"
@@ -147,6 +180,33 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         p_none2 = "migration runner buat update skema database pakai apa?"
         self.assertEqual(classify_mem_prompt(p_none1), "none")
         self.assertEqual(classify_mem_prompt(p_none2), "none")
+
+    def test_confirmed_commands_isolation_per_turn(self):
+        """Memastikan confirmed_log direset per turn dan tidak menumpuk ke record turn berikutnya."""
+        confirmed_log = []
+        def confirm_func(cmd: str) -> bool:
+            confirmed_log.append(cmd)
+            return True
+
+        records = []
+        turn_simulations = [
+            ("turn_1", ["python -m unittest discover tests"]),
+            ("turn_2", []),  # Turn 2 tidak ada shell execution
+            ("turn_3", ["git status"])
+        ]
+
+        for turn_id, executed_cmds in turn_simulations:
+            confirmed_log.clear()  # Invarian: reset per turn
+            for c in executed_cmds:
+                confirm_func(c)
+            records.append({
+                "id": turn_id,
+                "confirmed_commands": list(confirmed_log)
+            })
+
+        self.assertEqual(records[0]["confirmed_commands"], ["python -m unittest discover tests"])
+        self.assertEqual(records[1]["confirmed_commands"], [], "Turn 2 harus kosong, tidak boleh bocor dari Turn 1!")
+        self.assertEqual(records[2]["confirmed_commands"], ["git status"], "Turn 3 hanya berisi perintah miliknya!")
 
 if __name__ == "__main__":
     unittest.main()

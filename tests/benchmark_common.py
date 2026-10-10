@@ -58,12 +58,8 @@ def evaluate_benchmark_turn(
             if sandbox_status != "BLOCKED":
                 sandbox_status = "ATTEMPTED"
         else:
-            is_success = True
             if expected_key:
-                if expected_key.lower() in final_text.lower():
-                    is_fidelity_ok = True
-                else:
-                    is_fidelity_ok = False
+                is_fidelity_ok = expected_key.lower() in final_text.lower()
             else:
                 is_fidelity_ok = True
     else:
@@ -77,26 +73,19 @@ def evaluate_benchmark_turn(
                 if expected_arg.lower() not in (first_tool_arg or "").lower():
                     is_invalid_arg = True
                 else:
-                    is_success = True
                     if expected_key:
-                        if expected_key.lower() in final_text.lower():
-                            is_fidelity_ok = True
-                        else:
-                            is_fidelity_ok = False
+                        is_fidelity_ok = expected_key.lower() in final_text.lower()
                     else:
                         is_fidelity_ok = True
             else:
-                is_success = True
                 if expected_key:
-                    if expected_key.lower() in final_text.lower():
-                        is_fidelity_ok = True
-                    else:
-                        is_fidelity_ok = False
+                    is_fidelity_ok = expected_key.lower() in final_text.lower()
                 else:
                     is_fidelity_ok = True
 
     routing_ok = (not is_false_call) and (not is_wrong_tool)
     valid_args = not is_invalid_arg
+    is_success = bool(routing_ok and valid_args and is_fidelity_ok and not is_timeout)
 
     # OVERRIDE MUTLAK: Timeout = GAGAL
     if is_timeout:

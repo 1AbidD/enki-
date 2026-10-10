@@ -51,6 +51,22 @@ def check_ollama_idle(client: OllamaClient):
         print(f"[PREFLIGHT CHECK] Tidak dapat menjalankan 'ollama ps': {e}")
 
 USER_PROMPTS_FILE = ROOT_DIR / "tests" / "set4_user_prompts.txt"
+EXPECTED_SET4_PROMPTS_SHA256 = "4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55"
+
+DEFAULT_USER_PROFILE_FACTS = {
+    "user_role": "Software engineer yang fokus pada backend services dan cloud infrastructure.",
+    "os_workstation": "Menggunakan Fedora Linux 40 Workstation dengan GNOME 46 pada laptop ThinkPad.",
+    "primary_editor": "Editor kode utama adalah Neovim dengan LazyVim dan tmux.",
+    "default_shell": "Shell terminal default adalah Zsh dengan prompt Starship.",
+    "preferred_languages": "Bahasa pemrograman utama sehari-hari adalah Go dan Rust untuk performa tinggi.",
+    "indentation_style": "Standar indentasi kode: tab untuk Go, 4 spasi untuk Python, dan 2 spasi untuk YAML.",
+    "package_manager": "Manajemen paket Python memakai uv dan mise untuk mengelola runtime toolchains.",
+    "git_commit_convention": "Menulis commit git mengikuti standar Conventional Commits bahasa Inggris.",
+    "terminal_font": "Font terminal memakai JetBrains Mono Nerd Font ukuran 11.",
+    "timezone_work": "Zona waktu kerja Asia/Jakarta (WIB, UTC+7) dengan jam kerja 09.00 - 18.00 WIB.",
+    "communication_style": "Menyukai komunikasi bahasa Indonesia yang santai, ringkas, dan to-the-point.",
+    "review_preference": "Lebih menyukai cuplikan diff kode ringkas daripada penjelasan naratif panjang."
+}
 
 # ----------------------------------------------------------------------
 # 15 Prompt Buatan Asisten untuk Melengkapi Set 4A (Total 30)
@@ -67,7 +83,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "feature flag service aplikasi web kita pakai engine apa?",
         "expected_tool": None,
         "expected_key": "flipt",
-        "memory_inject": ("user", "feature flag service aplikasi web kita pakai engine apa?", "assistant", "Feature flag service web kita memakai Flipt open source.")
+        "memory_inject": ("user", "Untuk feature flag di service web kita, kita tetapkan memakai Flipt open source.", "assistant", "Baik, engine feature flag tercatat menggunakan Flipt.")
     },
     {
         "id": "S4A_P17_MEM",
@@ -76,7 +92,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "backend distributed tracing transaksi di proyekku dikirim ke software apa?",
         "expected_tool": None,
         "expected_key": "jaeger",
-        "memory_inject": ("user", "backend distributed tracing transaksi di proyekku dikirim ke software apa?", "assistant", "Distributed tracing transaksi proyekku dikirim dan divisualisasikan menggunakan Jaeger.")
+        "memory_inject": ("user", "Semua data distributed tracing transaksi di proyekku dikirimkan ke Jaeger.", "assistant", "Siap, visualisasi tracing diarahkan ke Jaeger.")
     },
     {
         "id": "S4A_P18_MEM",
@@ -85,7 +101,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "sast tool scanner keamanan kode sumber tim kita pakai apa?",
         "expected_tool": None,
         "expected_key": "semgrep",
-        "memory_inject": ("user", "sast tool scanner keamanan kode sumber tim kita pakai apa?", "assistant", "Scanner SAST keamanan kode sumber tim kita menggunakan Semgrep rules.")
+        "memory_inject": ("user", "Untuk SAST scanner keamanan kode sumber tim kita, kita sepakat pakai Semgrep.", "assistant", "Tercatat, analisis SAST menggunakan Semgrep rules.")
     },
     {
         "id": "S4A_P19_MEM",
@@ -94,7 +110,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "tool pengujian load testing performa endpoint http apa?",
         "expected_tool": None,
         "expected_key": "k6",
-        "memory_inject": ("user", "tool pengujian load testing performa endpoint http apa?", "assistant", "Pengujian load testing performa endpoint HTTP dilakukan memakai k6 script.")
+        "memory_inject": ("user", "Pengujian load testing performa endpoint HTTP proyek kita dilakukan dengan k6 script.", "assistant", "Oke, skrip load testing menggunakan k6.")
     },
     {
         "id": "S4A_P20_MEM",
@@ -103,7 +119,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "migration runner buat update skema database pakai apa?",
         "expected_tool": None,
         "expected_key": "liquibase",
-        "memory_inject": ("user", "migration runner buat update skema database pakai apa?", "assistant", "Migration runner otomatis untuk pembaruan skema database memakai Liquibase CLI.")
+        "memory_inject": ("user", "Untuk migration runner pembaruan skema database, kita putuskan pakai Liquibase CLI.", "assistant", "Baik, migration database memakai Liquibase.")
     },
     {
         "id": "S4A_P21_MEM",
@@ -112,7 +128,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "ingress controller routing trafik klaster kubernetes apa?",
         "expected_tool": None,
         "expected_key": "emissary",
-        "memory_inject": ("user", "ingress controller routing trafik klaster kubernetes apa?", "assistant", "Ingress controller perutean trafik jaringan klaster Kubernetes menggunakan Emissary.")
+        "memory_inject": ("user", "Perutean trafik klaster Kubernetes kita menggunakan ingress controller Emissary.", "assistant", "Siap, ingress controller diset ke Emissary.")
     },
 
     # 2 WORKSPACE (1 FILE / LIST, 1 GIT)
@@ -281,6 +297,15 @@ def load_user_prompts(prompts_path: Path) -> List[Dict[str, Any]]:
     """
     if not prompts_path.exists():
         raise RuntimeError(f"File prompt user tidak ditemukan: {prompts_path}")
+
+    import hashlib
+    raw_bytes = prompts_path.read_bytes()
+    actual_hash = hashlib.sha256(raw_bytes).hexdigest()
+    if actual_hash != EXPECTED_SET4_PROMPTS_SHA256:
+        raise RuntimeError(
+            f"[FATAL SHA256 MISMATCH]: Hash file prompt ({actual_hash}) tidak cocok dengan kunci ujian ({EXPECTED_SET4_PROMPTS_SHA256})! "
+            f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
+        )
 
     valid_prompts = []
     lines = prompts_path.read_text(encoding="utf-8").splitlines()
@@ -470,16 +495,22 @@ def run_single_benchmark_turn(
             nonlocal timeout_reason
             timeout_reason = "turn_timeout"
 
+    t_turn_start = time.time()
+
     # Evaluasi recall deterministik di muka (Active Recall jika ada pemicu leksikal)
-    recall_injected = False
+    active_recall_injected = False
+    passive_recall_injected = False
+    recall_source = None
     recall_content = None
+
     if is_recall_triggered(user_prompt):
         fts_q = build_fts_query(user_prompt)
         if fts_q:
             snips = db.search_fts(fts_q, exclude_session_id=session_id, limit=3)
             if snips:
                 recall_content = format_recall_block(snips, max_tokens=300)
-                recall_injected = True
+                active_recall_injected = True
+                recall_source = "active_fts5"
 
     chunks = []
     final_metrics = {}
@@ -514,6 +545,8 @@ def run_single_benchmark_turn(
         timeout_reason = "no_first_token"
 
     ended_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    total_turn_duration_sec = round(time.time() - t_turn_start, 3)
+    final_metrics["total_turn_duration_sec"] = total_turn_duration_sec
     final_text = "".join(chunks).strip()
 
     first_tool_call = None
@@ -545,8 +578,10 @@ def run_single_benchmark_turn(
         "expected_key": expected_key,
         "called_tool": first_tool_call,
         "called_arg": first_tool_arg,
-        "passive_recall_injected": recall_injected,
-        "passive_recall_content": recall_content,
+        "active_recall_injected": active_recall_injected,
+        "passive_recall_injected": passive_recall_injected,
+        "recall_source": recall_source,
+        "recall_content": recall_content,
         "tool_calls": tool_calls_recorded,
         "tool_observations": tool_observations_recorded,
         "final_response": final_text,
@@ -554,7 +589,8 @@ def run_single_benchmark_turn(
         "evaluation": eval_res,
         "metrics": final_metrics,
         "started_at": started_at,
-        "ended_at": ended_at
+        "ended_at": ended_at,
+        "total_turn_duration_sec": total_turn_duration_sec
     }
 
 def run_benchmark_suite(
@@ -581,6 +617,8 @@ def run_benchmark_suite(
     db = MemoryDatabase(db_path=db_path)
 
     profile_mgr = ProfileManager(memory_dir=data_path / "memory")
+    for fk, fv in DEFAULT_USER_PROFILE_FACTS.items():
+        profile_mgr.add_fact(fk, fv)
 
     # Inisialisasi memori untuk prompt MEM (mode profile vs mode recall)
     for p in prompts:
@@ -600,6 +638,12 @@ def run_benchmark_suite(
     client = OllamaClient()
     if not client.is_ready():
         raise RuntimeError("Server Ollama tidak aktif!")
+
+    # Warm-up model sebelum timing benchmark run
+    try:
+        client.chat(model="qwen2.5:3b", messages=[{"role": "user", "content": "ping"}], max_tokens=2)
+    except Exception:
+        pass
 
     assembler = PromptAssembler(system_prompt=DEFAULT_SYSTEM_PROMPT, profile=profile_mgr.get_profile_text())
 

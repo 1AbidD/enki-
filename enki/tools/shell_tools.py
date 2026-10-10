@@ -138,8 +138,9 @@ def execute_run_unittests(
     """Mengeksekusi python -m unittest dari daftar argumen tetap.
     Returns: ToolExecutionResult
     """
-    cmd_display = "python -m unittest"
-    exec_argv = ["python", "-m", "unittest"]
+    start_dir = "tests" if (Path(workspace_root) / "tests").is_dir() else "."
+    cmd_display = f"python -m unittest discover {start_dir}"
+    exec_argv = ["python", "-m", "unittest", "discover", start_dir]
 
     confirmer = confirm_func if confirm_func is not None else default_cli_confirm
     if not confirmer(cmd_display):
