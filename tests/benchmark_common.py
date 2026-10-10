@@ -204,14 +204,20 @@ def get_ollama_registry_env() -> Dict[str, str]:
         env_vars["error"] = str(e)
     return env_vars
 
-def create_benchmark_jsonl_header(user_prompts_file: Optional[Path] = None) -> Dict[str, Any]:
-    """Menghasilkan metadata header untuk baris pertama file output JSONL benchmark:
+def create_benchmark_jsonl_header(
+    runner_num_ctx: int = 8192,
+    user_prompts_file: Optional[Path] = None
+) -> Dict[str, Any]:
+    r"""Menghasilkan metadata header untuk baris pertama file output JSONL benchmark:
     - ollama --version
-    - output ollama ps
-    - nilai OLLAMA_* dari registry
+    - output ollama ps (diambil saat header dibuat, setelah warm-up model)
+    - nilai OLLAMA_* dari Windows registry (HKCU:\Environment)
+    - runner_num_ctx: batas konteks yang dikirim oleh runner
     - git HEAD commit hash
-    - hash sha256 tests/set4_user_prompts.txt
     """
+    if isinstance(runner_num_ctx, Path):
+        user_prompts_file = runner_num_ctx
+        runner_num_ctx = 8192
     ollama_ver = "unknown"
     try:
         res = subprocess.run(["ollama", "--version"], capture_output=True, text=True, timeout=5)
@@ -234,10 +240,9 @@ def create_benchmark_jsonl_header(user_prompts_file: Optional[Path] = None) -> D
         git_head = f"error: {e}"
 
     prompts_sha256 = None
-    target_prompts_file = user_prompts_file or (Path(__file__).resolve().parent / "set4_user_prompts.txt")
-    if target_prompts_file.exists():
+    if user_prompts_file and user_prompts_file.exists():
         try:
-            content = target_prompts_file.read_bytes()
+            content = user_prompts_file.read_bytes()
             prompts_sha256 = hashlib.sha256(content).hexdigest()
         except Exception as e:
             prompts_sha256 = f"error: {e}"
@@ -248,6 +253,7 @@ def create_benchmark_jsonl_header(user_prompts_file: Optional[Path] = None) -> D
         "ollama_version": ollama_ver,
         "ollama_ps": ollama_ps_out,
         "ollama_registry_env": get_ollama_registry_env(),
+        "runner_num_ctx": runner_num_ctx,
         "git_head": git_head,
         "set4_user_prompts_sha256": prompts_sha256
     }

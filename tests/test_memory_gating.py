@@ -1,5 +1,10 @@
 import unittest
-from enki.core.react_loop import should_enable_memory_tool, get_active_tools_for_turn
+from enki.core.react_loop import (
+    should_enable_memory_tool,
+    should_enable_read_file,
+    should_enable_run_unittests,
+    get_active_tools_for_turn
+)
 
 class TestMemoryGating(unittest.TestCase):
     def test_recall_trigger_words(self):
@@ -81,6 +86,76 @@ class TestMemoryGating(unittest.TestCase):
         combo_names = [t["function"]["name"] for t in combo_tools]
         self.assertIn("search_memory", combo_names)
         self.assertIn("read_file", combo_names)
+
+    def test_read_file_gating_positives_and_negatives(self):
+        """Memastikan gating read_file tidak terpicu pada istilah umum bergaris-miring dan hanya terpicu path sah."""
+        # Kasus Negatif (HARUS False)
+        negatives = [
+            "dan/atau",
+            "input/output",
+            "TCP/IP",
+            "24/7",
+            "client/server",
+            "aplikasi ini berjalan 24/7 dengan model client/server serta input/output TCP/IP dan/atau UDP"
+        ]
+        for prompt in negatives:
+            with self.subTest(neg=prompt):
+                self.assertFalse(
+                    should_enable_read_file(prompt),
+                    f"read_file salah terpicu pada frasa negatif: {prompt}"
+                )
+
+        # Kasus Positif (HARUS True)
+        positives = [
+            "tolong baca file konfigurasi ini",
+            "bisa periksa berkas catatan proyek?",
+            "buka ./settings.py sekarang",
+            "lihat ../tests/test_mock.py",
+            "baca D:/workspace/project/README.md",
+            "periksa isi enki/core/react_loop.py",
+            "tampilkan docs/implementation_plan.md",
+            "baca file config.json"
+        ]
+        for prompt in positives:
+            with self.subTest(pos=prompt):
+                self.assertTrue(
+                    should_enable_read_file(prompt),
+                    f"read_file gagal terpicu pada frasa positif yang sah: {prompt}"
+                )
+
+    def test_run_unittests_gating_positives_and_negatives(self):
+        """Memastikan run_unittests tidak terpicu tes non-software dan hanya terpicu pengujian kode/proyek."""
+        # Kasus Negatif (HARUS False)
+        negatives = [
+            "coba tes kamera",
+            "cek tes suara",
+            "test drive",
+            "coba run test kamera",
+            "cek tes mikrofon di laptop",
+            "mari kita lakukan blood test"
+        ]
+        for prompt in negatives:
+            with self.subTest(neg=prompt):
+                self.assertFalse(
+                    should_enable_run_unittests(prompt),
+                    f"run_unittests salah terpicu pada frasa non-software: {prompt}"
+                )
+
+        # Kasus Positif (HARUS True)
+        positives = [
+            "jalankan unit test sekarang",
+            "coba jalanin semua test di proyek ini",
+            "tolong run pytest untuk validasi",
+            "jalankan tes kode sebelum commit",
+            "run seluruh test unit di direktori tests",
+            "coba jalankan unittest modul ini"
+        ]
+        for prompt in positives:
+            with self.subTest(pos=prompt):
+                self.assertTrue(
+                    should_enable_run_unittests(prompt),
+                    f"run_unittests gagal terpicu pada frasa pengujian kode yang sah: {prompt}"
+                )
 
 if __name__ == "__main__":
     unittest.main()

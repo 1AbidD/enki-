@@ -1,0 +1,14 @@
+{
+  "record_type": "benchmark_header",
+  "timestamp_utc": "2026-10-10T11:25:41.904619+00:00",
+  "ollama_version": "ollama version is 0.33.0",
+  "ollama_ps": "NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              \nqwen2.5:3b    357c53fb659c    2.3 GB    100% GPU     8192       4 minutes from now",
+  "ollama_registry_env": {
+    "OLLAMA_MAX_LOADED_MODELS": "1",
+    "OLLAMA_NUM_PARALLEL": "1",
+    "OLLAMA_FLASH_ATTENTION": "true"
+  },
+  "runner_num_ctx": 8192,
+  "git_head": "b5e817f0872e65d60a80152be32634795400ce6f",
+  "set4_user_prompts_sha256": null
+}

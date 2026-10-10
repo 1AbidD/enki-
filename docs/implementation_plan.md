@@ -189,14 +189,23 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
    - **Mode Recall:** Fakta sesi masa lampau diinjeksi sebagai riwayat percakapan terdahulu di `sessions.db` (pernyataan natural pengguna dan balasan konfirmasi asisten) dan dicari menggunakan SQLite FTS5 Active Recall saat terdapat pemicu leksikal.
    - *Komposisi Wajib:* 12 MEM (terdiri dari mode profil dan mode recall, dengan syarat mutlak minimal 4 prompt Mode Recall), 6 workspace / git / test, dan 12 Negatif (minimal 4 berpemicu aktif).
 5. **Gating Tool Deterministik Ketat & Trade-Off (Tercatat di Plan dan /help):**
-   - Skema alat hanya diserahkan ke model jika pesan pengguna cocok dengan kata kunci:
-     - `read_file`: ekstensi file (`.py`, `.md`, `.txt`, `.json`, `.yaml`, dll), path, atau kata `file`/`berkas`. (Kata "isi" saja TIDAK cukup).
-     - `git`: `git`, `commit`, `branch`, `diff`. Kata `status`, `log`, `repo` HANYA bersama kata `git`.
-     - `run_unittests`: `unittest`, `unit test`, `pytest`, atau kata `test`/`tes` bersama kata aksi (`jalan`/`jalanin`/`run`/`coba`/`cek`). Perintah dieksekusi via `python -m unittest discover [tests|.]`.
-     - `python_version`: `python` DAN (`versi` ATAU `version`).
-     - `list_dir`: `folder`, `direktori`, `ls`, `dir`.
-     - Jika tidak ada yang cocok: `tools=None` (mode chat murni tanpa alat).
-   - *Trade-Off:* Pertanyaan implisit (misal: *"apa dependensi kita?"*) tidak membuka tool karena tidak memuat kata kunci file atau ekstensi, sehingga dijawab dari konteks obrolan.
+   - Skema alat hanya diserahkan ke model jika pesan pengguna cocok dengan aturan leksikal spesifik (word-boundary, case-insensitive):
+     - `read_file`: Ekstensi file yang dikenal (`py|md|txt|json|ya?ml|toml|cfg|ini|sh|csv|log`), ATAU prefix path `./` atau `../` atau huruf drive (misal `C:\` atau `D:/`), ATAU folder workspace (`app`, `tests`, `docs`, `enki`, `scripts`), ATAU kata kunci `file`/`berkas`. Istilah umum bergaris-miring (`dan/atau`, `input/output`, `TCP/IP`, `24/7`, `client/server`) secara deterministik **TIDAK membuka** `read_file`.
+     - `git`: Kata `git`, `commit`, `branch`, atau `diff`. Kata `status`, `log`, `repo` HANYA memicu jika disertai kata `git`.
+     - `run_unittests`: `unittest`, `unit test`, `pytest`, ATAU kata aksi (`jalankan|jalanin|run`) bersama kata tes (`test|tes`) DAN kata lingkup kode/proyek (`unit|proyek|project|kode|semua|seluruh`). Frasa tes non-software ("coba tes kamera", "cek tes suara", "test drive") secara deterministik **TIDAK membuka** `run_unittests`.
+     - `python_version`: Kata `python` DAN (`versi` ATAU `version`).
+     - `list_dir`: Kata `folder`, `direktori`, `ls`, `dir`.
+     - `search_memory`: Pemicu recall aktif ATAU kata kunci pencarian memori eksplisit.
+     - Jika tidak ada yang cocok: `tools=None` (mode obrolan teks murni tanpa alat).
+   - *Trade-Off & Limitasi Gating Deterministik:*
+     Gating deterministik leksikal menjamin 100% ketiadaan false tool call pada prompt non-alat dan mencegah prompt injection memanggil alat sembarangan. Namun trade-off-nya adalah beberapa frasa sah pengguna yang tidak memuat kosakata spesifik tidak akan memicu alat (dijawab dari konteks teks).
+     *Tabel Frasa Sah yang Tidak Lolos Gating (Limitasi Terdokumentasi dari Uji 30 Frasa):*
+     - `read_file`: *"bisa bantu baca skrip implementasi utama kita?"* (intensi sah membaca skrip, namun tidak memuat ekstensi file, path, atau kata 'file'/'berkas').
+     - `git`: *"bagaimana riwayat perubahan terakhir di repo kita?"* (intensi sah cek riwayat repo, namun kata 'repo' saja tanpa kata 'git' tidak membuka alat).
+     - `run_unittests`: *"coba cek hasil pengujian perangkat lunak"* (intensi sah testing, namun kata 'pengujian' tidak cocok dengan regex aksi/noun test kode).
+     - `python_version`: *"cek versi interpreter bahasa yang sedang aktif"* (intensi sah cek versi runtime, namun tidak menyebut token 'python').
+     - `list_dir`: *"tunjukkan seluruh isi struktur proyek"* (intensi sah melihat isi direktori, namun tidak memuat kata 'folder'/'direktori'/'ls'/'dir').
+     - `search_memory`: *"apa nama domain server yang saya ceritakan pada obrolan awal?"* (intensi sah memori lama, namun tidak memuat pemicu leksikal baku).
 
 ### Kriteria Kelulusan Set 4A (Ditulis Di Muka Sebelum Run):
 1. **Routing Positif:** $\ge 90.0\%$ (dihitung per prompt unik $n$ dan per run)
@@ -209,14 +218,17 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
    - **Pada Negatif Tanpa Pemicu ($n$ dilaporkan):** Blok recall $= 0$ (tidak boleh ada injeksi recall sama sekali).
 7. **Kriteria Sukses MEM:** Nilai kunci wajib muncul di jawaban akhir DAN tidak memanggil tool lain.
 8. **Validasi Komposisi MEM:** Dari 12 prompt MEM Set 4A (6 built-in mode profile + 6 user), wajib minimal 4 prompt berstatus Mode Recall. Runner melakukan hard fail jika mode recall $< 4$.
+9. **Kebijakan Kegagalan Gate Set 4A (Tanpa Tuning Tambahan):**
+   Jika Set 4A gagal melewati gate kriteria kelulusan, **TIDAK BOLEH dilakukan tuning prompt atau penyesuaian ad-hoc tambahan terhadap model**. Keputusan kelanjutan arah proyek / jalur penyederhanaan (misalnya beralih ke moda chat-only tanpa ReAct, atau simplifikasi lainnya) sepenuhnya berada di tangan pengguna.
 
-### Kunci Integritas Ujian & Disclaimer Evaluasi Pengetahuan Umum:
+### Kunci Integritas Ujian, Spesifikasi Profil, & Catatan Smoke:
 * **Kunci Integritas Set 4:** File prompt pengguna diverifikasi secara kriptografis menggunakan kunci SHA256 pengguna yang didaftarkan di `config.json`. Hash template kosong `4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55` telah **dihapus permanen dan ditolak keras**. Runner Set 4 menolak berjalan jika hash konfigurasi kosong, berupa placeholder, sama dengan template kosong, atau tidak cocok dengan file prompt riil.
 * **Disclaimer Halusinasi Pengetahuan Umum:** Benchmark ini HANYA menguji ketaatan routing alat, ketiadaan false tool call, ketiadaan kebocoran fakta memori, dan penyampaian fakta profil/sesi. Benchmark TIDAK memverifikasi kebenaran faktual jawaban pengetahuan umum, karena model 3B memiliki kecenderungan halusinasi pada fakta umum (sebagai contoh, pada SMOKE_P06 model menjawab "Carl David Anderson" untuk penemu mikroskop elektron alih-alih Ernst Ruska).
-* **Profil Distraktor 411 Token:** 12 fakta pengguna umum (`DEFAULT_USER_PROFILE_FACTS`) dimuat ke dalam `profile.json` dan dipakai secara konsisten pada **seluruh prompt MEM dan NEG** untuk menguji ketahanan model terhadap distraktor profil.
+* **Profil Mode = 12 Distraktor + 1 Fakta per Prompt:** Pada pengujian prompt mode profile, fixture `profile.json` memuat **12 fakta distraktor umum (`DEFAULT_USER_PROFILE_FACTS`) ditambah tepat 1 fakta target spesifik untuk prompt tersebut** (bukan memuat semua fakta dari seluruh prompt sekaligus).
+* **Catatan SMOKE_P03 (Fidelity Kunci "7"/"tujuh"):** Pada uji plumbing SMOKE_P03 (`run_unittests`), fixture mengeksekusi 7 unit test riil. Evaluator mengharapkan kemunculan nilai kunci `("7", "tujuh")` di balasan akhir asisten. Meskipun model 3B berhasil memanggil tool secara tepat (`routing_ok=True`), model menjawab tanpa menyebutkan angka 7/tujuh sehingga `fidelity_ok=False` dan turn berstatus gagal (`is_success=False`). Kriteria penilaian ini **TETAP DIPERTAHANKAN DAN TIDAK DIUBAH**; kriteria keberhasilan mutlak membutuhkan kesesuaian routing, validitas argumen, fidelity jawaban, dan ketiadaan timeout.
 * **Messages Persis yang Dikirim Runner untuk S4A_P16 (Mode Profile):**
   - Prompt: `"feature flag service aplikasi web kita pakai engine apa?"`
-  - Array Messages: System prompt base memuat 12 fakta distraktor + fakta S4A_P16 (`- s4a_p16_mem: Engine feature flag service aplikasi web kita menggunakan Flipt open source.`), diikuti User prompt.
+  - Array Messages: System prompt base memuat 12 fakta distraktor + 1 fakta target S4A_P16 (`- s4a_p16_mem: Engine feature flag service aplikasi web kita menggunakan Flipt open source.`), diikuti User prompt.
   - Skema alat: `tools=None` (karena tidak ada pemicu leksikal alat).
 
 ### Komposisi 30 Prompt Set 4A:

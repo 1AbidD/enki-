@@ -191,19 +191,22 @@ def run_smoke():
     if out_file.exists():
         out_file.unlink()
 
-    # 1. Tulis Metadata Header
-    header = create_benchmark_jsonl_header()
-    # Warm-up model sebelum timing
+    model = "qwen2.5:3b"
+
+    # 1. Warm-up model sebelum timing & sebelum pembacaan ollama ps
+    print("[WARM-UP] Memuat model qwen2.5:3b ke VRAM dengan num_ctx=8192...")
     try:
-        client.chat(model=model, messages=[{"role": "user", "content": "ping"}], max_tokens=2)
-    except Exception:
-        pass
+        client.chat(model=model, messages=[{"role": "user", "content": "ping"}], num_predict=2, num_ctx=8192)
+    except Exception as e:
+        print(f"[WARM-UP WARNING] {e}")
+
+    # 2. Tulis Metadata Header (dibuat SETELAH warm-up agar ollama ps mencerminkan model yang sedang aktif)
+    header = create_benchmark_jsonl_header(runner_num_ctx=8192)
 
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(json.dumps(header, ensure_ascii=False) + "\n")
 
     session_id = db.create_session()
-    model = "qwen2.5:3b"
 
     print("=" * 70)
     print("MEMULAI SMOKE TEST PLUMBING (6 PROMPT - REAL REACT & OLLAMA)")

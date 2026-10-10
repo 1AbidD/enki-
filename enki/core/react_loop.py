@@ -140,8 +140,14 @@ FILE_KEYWORD_REGEX = re.compile(
     r'\b(file|berkas)\b',
     re.IGNORECASE
 )
-FILE_PATH_REGEX = re.compile(
-    r'[a-zA-Z0-9_\-\.]+[/\\][a-zA-Z0-9_\-\.]+',
+FILE_VALID_PATH_REGEX = re.compile(
+    r'(?:'
+    r'(?:\.{1,2}[/\\][\w\.\-/]+)'          # diawali ./ atau ../
+    r'|'
+    r'(?:\b[a-zA-Z]:[/\\][\w\.\-/]+)'      # diawali huruf drive
+    r'|'
+    r'(?:\b(?:app|tests?|docs?|enki|scripts?)[/\\][\w\.\-/]+)' # folder workspace
+    r')',
     re.IGNORECASE
 )
 
@@ -151,7 +157,7 @@ def should_enable_read_file(user_input: str) -> bool:
     return bool(
         FILE_EXTENSION_REGEX.search(user_input)
         or FILE_KEYWORD_REGEX.search(user_input)
-        or FILE_PATH_REGEX.search(user_input)
+        or FILE_VALID_PATH_REGEX.search(user_input)
     )
 
 GIT_PRIMARY_REGEX = re.compile(
@@ -169,12 +175,16 @@ UNITTESTS_EXPLICIT_REGEX = re.compile(
     r'\b(unittest|unit\s+test|pytest)\b',
     re.IGNORECASE
 )
+TEST_RUN_ACTION_REGEX = re.compile(
+    r'\b(jalankan|jalanin|run)\b',
+    re.IGNORECASE
+)
 TEST_NOUN_REGEX = re.compile(
     r'\b(test|tes)\b',
     re.IGNORECASE
 )
-TEST_ACTION_REGEX = re.compile(
-    r'\b(jalan|jalanin|run|coba|cek)\b',
+TEST_SCOPE_REGEX = re.compile(
+    r'\b(unit|proyek|project|kode|semua|seluruh)\b',
     re.IGNORECASE
 )
 
@@ -183,7 +193,11 @@ def should_enable_run_unittests(user_input: str) -> bool:
         return False
     if UNITTESTS_EXPLICIT_REGEX.search(user_input):
         return True
-    return bool(TEST_NOUN_REGEX.search(user_input) and TEST_ACTION_REGEX.search(user_input))
+    return bool(
+        TEST_RUN_ACTION_REGEX.search(user_input)
+        and TEST_NOUN_REGEX.search(user_input)
+        and TEST_SCOPE_REGEX.search(user_input)
+    )
 
 PYTHON_WORD_REGEX = re.compile(r'\bpython\b', re.IGNORECASE)
 VERSION_WORD_REGEX = re.compile(r'\b(versi|version)\b', re.IGNORECASE)
