@@ -11,10 +11,12 @@ from typing import Dict, Any, List, Optional
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
+import datetime
 from enki.core.ollama_client import OllamaClient
 from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT
 from enki.core.react_loop import ReActCoordinator
 from enki.memory.database import MemoryDatabase
+from tests.benchmark_common import evaluate_benchmark_turn
 
 # Definisi 20 Prompt Uji Baru (Set Kedua - DEV SET)
 BENCHMARK_PROMPTS_SET2 = [
@@ -217,8 +219,15 @@ def run_single_benchmark_turn(
     tool_calls_recorded = []
     tool_observations_recorded = []
 
+    is_timeout = False
+    timeout_reason = None
+
     def trace_cb(evt: str, msg: str):
-        if evt == "tool_call":
+        nonlocal is_timeout, timeout_reason
+        if evt == "timeout":
+            is_timeout = True
+            timeout_reason = "turn_timeout"
+        elif evt == "tool_call":
             tool_calls_recorded.append(msg)
         elif evt == "tool_result":
             tool_observations_recorded.append(msg)
@@ -234,6 +243,7 @@ def run_single_benchmark_turn(
 
     chunks = []
     final_metrics = {}
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
         for chunk, metrics in coordinator.run_react_turn(
             user_input=user_prompt,
@@ -248,9 +258,14 @@ def run_single_benchmark_turn(
                 chunks.append(chunk)
             if metrics:
                 final_metrics = metrics
+    except Exception as e:
+        if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+            is_timeout = True
+            timeout_reason = "http_request_timeout"
     finally:
         coordinator.execute_tool = orig_execute_tool
 
+    ended_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     final_text = "".join(chunks).strip()
 
     first_tool_call = None
@@ -262,50 +277,16 @@ def run_single_benchmark_turn(
             first_tool_call = raw_call[:paren_idx].strip()
             first_tool_arg = raw_call[paren_idx + 1 : -1].strip()
 
-    # Evaluasi kriteria
-    is_false_call = False
-    is_wrong_tool = False
-    is_invalid_arg = False
-    is_fidelity_ok = False
-    is_success = False
-    sandbox_status = "NONE"
-
-    if expected_tool is None:
-        # Prompt Negatif
-        if first_tool_call is not None:
-            is_false_call = True
-            sandbox_status = "BLOCKED" if "blocked" in "".join(tool_observations_recorded).lower() else "ATTEMPTED"
-        else:
-            is_success = True
-            is_fidelity_ok = True
-    else:
-        # Prompt Positif
-        if first_tool_call is None:
-            is_wrong_tool = True
-        elif first_tool_call != expected_tool:
-            is_wrong_tool = True
-        else:
-            # Tool benar, periksa argumen
-            if expected_arg:
-                arg_matched = expected_arg.lower() in (first_tool_arg or "").lower()
-                if not arg_matched:
-                    is_invalid_arg = True
-                else:
-                    if unique_token:
-                        if unique_token.lower() in final_text.lower():
-                            is_fidelity_ok = True
-                            is_success = True
-                        else:
-                            is_fidelity_ok = False
-                    else:
-                        is_fidelity_ok = True
-                        is_success = True
-            else:
-                is_fidelity_ok = True
-                is_success = True
-
-    routing_ok = (not is_false_call) and (not is_wrong_tool)
-    valid_args = not is_invalid_arg
+    eval_res = evaluate_benchmark_turn(
+        expected_tool=expected_tool,
+        expected_arg=expected_arg,
+        expected_key=unique_token,
+        tool_calls_recorded=tool_calls_recorded,
+        tool_observations_recorded=tool_observations_recorded,
+        final_text=final_text,
+        is_timeout=is_timeout,
+        timeout_reason=timeout_reason
+    )
 
     return {
         "id": prompt_item["id"],
@@ -315,22 +296,16 @@ def run_single_benchmark_turn(
         "called_arg": first_tool_arg,
         "tool_observations": tool_observations_recorded,
         "final_response": final_text,
-        "evaluation": {
-            "routing_ok": routing_ok,
-            "valid_args": valid_args,
-            "fidelity_ok": is_fidelity_ok,
-            "sandbox_status": sandbox_status,
-            "is_false_call": is_false_call,
-            "is_wrong_tool": is_wrong_tool,
-            "is_invalid_arg": is_invalid_arg,
-            "is_success": is_success
-        },
+        "evaluation": eval_res,
         "metrics": final_metrics,
-        "is_false_call": is_false_call,
-        "is_wrong_tool": is_wrong_tool,
-        "is_invalid_arg": is_invalid_arg,
-        "is_fidelity_ok": is_fidelity_ok,
-        "is_success": is_success,
+        "is_false_call": eval_res["is_false_call"],
+        "is_wrong_tool": eval_res["is_wrong_tool"],
+        "is_invalid_arg": eval_res["is_invalid_arg"],
+        "is_fidelity_ok": eval_res["fidelity_ok"],
+        "is_success": eval_res["is_success"],
+        "is_timeout": eval_res["is_timeout"],
+        "started_at": started_at,
+        "ended_at": ended_at,
         "final_text_preview": final_text[:120].replace("\n", " ")
     }
 
@@ -401,6 +376,8 @@ class TestReActBenchmarkSet2(unittest.TestCase):
                     "benchmark_set": "set_2_dev_set",
                     "run_idx": run_idx,
                     "id": res["id"],
+                    "started_at": res.get("started_at"),
+                    "ended_at": res.get("ended_at"),
                     "prompt_input": res["prompt_input"],
                     "tool_calls": res["tool_calls"],
                     "tool_observations": res["tool_observations"],

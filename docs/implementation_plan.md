@@ -57,15 +57,31 @@ $$\text{Sisa Token} = \text{num\_ctx} - (\text{System Base} + \text{Profile} + \
   [Instruksi Wajib]: Jawab berdasarkan hasil pencarian di atas. Jika hasil memuat jawabannya, sampaikan isinya. Jangan menambah saran umum.
   ```
 
-### B. Recall Pasif Deterministik (Dalam Kalibrasi Ulang)
-Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?"*), FTS5 dijalankan secara pasif dengan **ambang batas Document Frequency (DF)**.
-> **Status Kalibrasi:** Label "DIBEKUKAN" dicabut. Pada kalibrasi awal dev set, aturan DF $\le 5.0\%$ menghasilkan False Positive (FP) 35/40 (87.5%) pada query negatif dan gagal memenuhi gate kriteria 6 (FP rate $\le 10\%$). Recall pasif dibuka kembali untuk kalibrasi ulang multi-kondisi (Korpus Kecil A vs Korpus Realistis B) dan multi-aturan (R1, R2, R3, R4) sebelum benchmark Set 4.
+### B. Recall Pasif Deterministik (Aturan Resmi R3_strict & Evaluasi R4)
+Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?"*), FTS5 dijalankan secara pasif dengan **aturan resmi R3_strict**:
+> **Aturan Resmi R3_strict:**
+> 1. Wajib memiliki penanda konteks berbagi / kepemilikan (`kita`, `kami`, `tim kita`, `proyek kita`, `proyekku`, `task-ku`, `repo-ku`, `dulu`, `waktu itu`, `kemarin`, `pernah`).
+> 2. R1: Kandidat turn wajib mencocokkan minimal 2 token substantif berbeda dalam turn yang sama.
+> 3. Low-DF: Minimal 1 token yang cocok wajib memiliki Document Frequency rendah ($\text{DF} \le 5.0\%$).
 
-1. **Definisi Token Spesifik vs Umum:**
-   * Token dianggap **Umum** jika Document Frequency di corpus turn lampau $\text{DF} > 5.0\%$. Kata umum tidak boleh memicu recall sendirian.
-   * Token dianggap **Spesifik / Domain** jika $\text{DF} \le 5.0\%$.
-2. **Kondisi Lolos Injeksi (Evaluasi Ulang):**
-   * Diuji pada split 50/50 Dev & Holdout dengan perbandingan aturan R1, R2, R3, dan estimasi R4.
+#### Hasil Evaluasi Frozen Suite (21 Negatif Berpenanda & 13 Positif Tanpa Penanda):
+* **Kelompok Negatif Berpenanda (Berbagi Topik Developer dengan Korpus):**
+  * Korpus A (60 turns): False Proposals = 13/21 (61.90%), Wilson 95% CI = [40.88%, 79.25%].
+  * Korpus B (270 turns): False Proposals = 13/21 (61.90%), Wilson 95% CI = [40.88%, 79.25%].
+  * *Temuan Empiris & Gate:* False Proposal rate pada kelompok negatif berpenanda melebihi ambang batas 10% (karena pertanyaan teknis umum yang memakai kata ganti "kita" mencocokkan turn historis di mana topik teknis tersebut hanya muncul 1–2 kali sehingga DF-nya $\le 5\%$). Sesuai protokol, proses **BERHENTI DAN DILAPORKAN**.
+* **Kelompok Positif Tanpa Penanda (Keterbatasan Model):**
+  * Korpus A & B: Recall = 0/13 (0.00%), Wilson 95% CI = [0.00%, 22.81%].
+  * *Keterbatasan Terdokumentasi:* Aturan berbasis penanda leksikal tidak dapat memicu recall pasif pada pertanyaan memori yang tidak menyertakan penanda konteks berbagi.
+
+#### Hasil Pengukuran Riil R4 (Embedding nomic-embed-text di CPU/GPU):
+* **Model:** `nomic-embed-text:latest` (vektor 768 dimensi).
+* **Latensi CPU (`num_gpu=0`):** Dingin 858.69 ms (diukur), Panas 40.03 ms (diukur).
+* **Latensi GPU (Ollama default):** Dingin 26,156.34 ms (diukur), Panas 43.51 ms (diukur).
+* **Konsumsi Memori Host:** RAM sistem sebelum 12,078.7 MB, sesudah 12,367.4 MB (delta: +288.8 MB) (diukur).
+* **Verifikasi Eviction VRAM (`ollama ps`):**
+  * `qwen2.5:3b` : **2.2 GB, 100% GPU** (TETAP berada di VRAM, tidak didepak/evicted) (diukur).
+  * `nomic-embed-text:latest` : **376 MB, 100% CPU** (berjalan paralel tanpa mengganggu alokasi VRAM Qwen) (diukur).
+
 3. **Format Blok Konteks Latar (Tanpa Grounding Keras):**
    ```text
    <untrusted_memory_content source="sqlite_fts5_passive_recall">
@@ -149,9 +165,20 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 
 * **Set 1 (Tahap 0 Spike, 30 Prompt):** Status **DEV SET 1**. Akurasi tool-calling 91.11%.
 * **Set 2 (Tahap 3 Dev Set, 20 Prompt x 3 Runs):** Status **DEV SET 2**. Akurasi 81.7%. Menunjukkan keandalan grounding WAL (3/3 pass) dan eliminasi false call `search_memory` via deterministic gating.
-* **Set 3 (Tahap 3 Eks-Ujian, 24 Prompt x 3 Runs):** Status **DEV SET 3 (Eks-Ujian)**. Gagal gate (routing 61.1%, false call shell 22.2%). Menjadi dasar arsitektur fixed argument tools dan kalibrasi recall pasif.
+* **Set 3 (Tahap 3 Eks-Ujian, 24 Prompt x 3 Runs):** Status **DEV SET 3 (Eks-Ujian)**. Gagal gate.
+  * *Hasil Hitung Ulang dengan Aturan Timeout = Gagal:* S3_P24_NEG run 3 (timeout) dikoreksi menjadi FAIL.
+    - Success Rate: **47/72 (65.3%)** (angka lama: 48/72, 66.7%)
+    - Routing OK: **49/72 (68.1%)** (angka lama: 50/72, 69.4%)
+    - Fidelity OK: **47/72 (65.3%)** (angka lama: 48/72, 66.7%)
+  * *Catatan Waktu Proses:* Sekuensialitas eksekusi Set 2 dan Set 3 berstatus **tidak terbukti** karena timestamp interaksi antarmuka tidak mencerminkan lifecycle proses OS.
 * **Set 4R (Regresi Tahap 3, 10 Prompt x 3 Runs):** Status **REGRESSION SET (TIDAK IKUT GATE)**. Menguji 10 prompt bermasalah dari Set 3 (false call shell lama, timeout) untuk membuktikan tidak adanya regresi.
 * **Set 4A (Ujian Akhir, 30 Prompt x 3 Runs):** Status **UJIAN AKHIR (MENENTUKAN GATE)**.
+
+### Perbaikan Harness & Evaluator Benchmark (Aturan Mutlak):
+1. **Timeout = Gagal:** Di seluruh evaluator benchmark (Set 2, Set 3, Set 4), jika `is_timeout == True`, maka `is_success`, `routing_ok`, dan `fidelity_ok` wajib `False`.
+2. **Pencatatan Waktu ISO UTC:** Setiap turn mencatat `started_at` dan `ended_at` dalam format ISO UTC (`YYYY-MM-DDTHH:MM:SS.ffffffZ`).
+3. **BenchmarkLock Anti-Konkurensi:** Menyimpan PID dan timestamp mulai. Jika lock dipegang PID yang masih hidup (`psutil.pid_exists(pid) == True`), runner menolak keras. Jika dipegang PID yang sudah mati (stale lock), lock diambil alih otomatis dengan pesan log jelas.
+4. **Klasifikasi Prompt MEM Set 4A:** Runner mengklasifikasikan prompt MEM menjadi 3 kelompok: `has_active_trigger`, `has_marker`, dan `none`. Gate evaluasi HANYA dihitung dari kelompok `active + marker`. Kelompok `none` dilaporkan terpisah sebagai keterbatasan teridentifikasi.
 
 ### Kriteria Kelulusan Set 4A (Ditulis Di Muka Sebelum Run):
 1. **Routing Positif:** $\ge 90.0\%$ (dihitung per prompt unik $n$ dan per run)
@@ -162,7 +189,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 6. **Injeksi Recall Pasif ke Prompt Negatif:** $\le 10.0\%$
 
 ### Komposisi 30 Prompt Set 4A:
-* **12 Positif Memori (Recall Pasif):** 6 dari user, 6 buatan asisten.
+* **12 Positif Memori (Recall Pasif):** 6 dari user, 6 buatan asisten (3 berpenanda konteks, 3 tanpa penanda, tanpa overlap topik dengan korpus historis, max Jaccard < 0.15).
 * **6 Positif Workspace / Git / Test:** 4 dari user, 2 buatan asisten.
 * **12 Negatif Murni (No Tool):** 5 dari user, 7 buatan asisten.
 
@@ -186,8 +213,8 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 ### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (DALAM PROSES)
 * Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests`, `list_dir`, `read_file`, `search_memory`.
 * Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya.
-* Kalibrasi Document Frequency (DF $\le 5.0\%$) untuk recall pasif pada corpus realistis (>250 turns).
-* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection (57 unit test terdaftar: 54 lulus, 3 benchmark dilewati saat discovery).
+* Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4.
+* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, dan benchmark lock (63 unit test terdaftar: 60 lulus, 3 benchmark dilewati saat discovery).
 * Persiapan pengujian Set 4A dan Set 4R.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)

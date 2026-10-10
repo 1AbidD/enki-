@@ -18,40 +18,10 @@ from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT
 from enki.core.react_loop import ReActCoordinator
 from enki.memory.database import MemoryDatabase
 from enki.memory.recall import execute_passive_recall
-
-LOCK_FILE = ROOT_DIR / "tests" / ".benchmark_lock"
-
-class BenchmarkLock:
-    """Kunci file agar dua benchmark tidak bisa dijalankan bersamaan."""
-    def __enter__(self):
-        if LOCK_FILE.exists():
-            try:
-                content = LOCK_FILE.read_text(encoding="utf-8").strip()
-                lock_data = json.loads(content)
-                pid = lock_data.get("pid")
-                t_str = lock_data.get("time_str", "waktu tidak diketahui")
-                raise RuntimeError(
-                    f"\n[BENCHMARK LOCK ERROR] Benchmark terkunci oleh proses PID={pid} pada {t_str}.\n"
-                    f"File lock: {LOCK_FILE}\n"
-                    f"Eksekusi dibatalkan untuk mencegah tabrakan/konkurensi."
-                )
-            except json.JSONDecodeError:
-                raise RuntimeError(f"\n[BENCHMARK LOCK ERROR] File lock {LOCK_FILE} ditemukan. Ada benchmark lain yang sedang berjalan.")
-
-        lock_info = {
-            "pid": os.getpid(),
-            "timestamp": time.time(),
-            "time_str": datetime.datetime.now().isoformat()
-        }
-        LOCK_FILE.write_text(json.dumps(lock_info, indent=2), encoding="utf-8")
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if LOCK_FILE.exists():
-            try:
-                LOCK_FILE.unlink()
-            except Exception:
-                pass
+from tests.benchmark_common import (
+    evaluate_benchmark_turn,
+    BenchmarkLock,
+)
 
 def check_ollama_idle(client: OllamaClient):
     """Memeriksa kesiapan server Ollama dan status model aktif di VRAM."""
@@ -81,53 +51,55 @@ USER_PROMPTS_FILE = ROOT_DIR / "tests" / "set4_user_prompts.txt"
 # ----------------------------------------------------------------------
 BUILTIN_PROMPTS_4A = [
     # 6 MEM (Memori pasif - domain baru tanpa kontaminasi kalibrasi & Set 3)
+    # 3 prompt dengan marker konteks (kita, proyekku, tim kita), 3 prompt tanpa marker (none)
+    # Tidak ada pemicu aktif (kemarin, pernah, ingat, tadi, dsb) atau kata pencarian eksplisit
     {
         "id": "S4A_P16_MEM",
         "category": "MEM",
-        "prompt": "format serialisasi data sensor iot kemarin kita sepakati apa?",
+        "prompt": "feature flag service aplikasi web kita pakai engine apa?",
         "expected_tool": None,  # Melalui recall pasif
-        "expected_key": "protobuf",
-        "memory_inject": ("user", "format serialisasi data sensor iot kita pakai apa?", "assistant", "Kita sepakati memakai Protobuf binary untuk serialisasi payload sensor.")
+        "expected_key": "flipt",
+        "memory_inject": ("user", "feature flag service aplikasi web kita pakai engine apa?", "assistant", "Feature flag service web kita memakai Flipt open source.")
     },
     {
         "id": "S4A_P17_MEM",
         "category": "MEM",
-        "prompt": "database analitik buat data gudang kemarin kita putusin pakai apa ya?",
+        "prompt": "backend distributed tracing transaksi di proyekku dikirim ke software apa?",
         "expected_tool": None,
-        "expected_key": "duckdb",
-        "memory_inject": ("user", "database analitik pemrosesan data gudang mau pakai apa?", "assistant", "Untuk analitik data gudang kita memutuskan memakai embedded DuckDB.")
+        "expected_key": "jaeger",
+        "memory_inject": ("user", "backend distributed tracing transaksi di proyekku dikirim ke software apa?", "assistant", "Distributed tracing transaksi proyekku dikirim dan divisualisasikan menggunakan Jaeger.")
     },
     {
         "id": "S4A_P18_MEM",
         "category": "MEM",
-        "prompt": "siapa nama qa engineer yg megang testing otomatis kemarin?",
+        "prompt": "sast tool scanner keamanan kode sumber tim kita pakai apa?",
         "expected_tool": None,
-        "expected_key": "rian",
-        "memory_inject": ("user", "siapa qa engineer yang bertanggung jawab atas automated testing?", "assistant", "QA engineer yang memegang automasi testing adalah Rian Ardianto.")
+        "expected_key": "semgrep",
+        "memory_inject": ("user", "sast tool scanner keamanan kode sumber tim kita pakai apa?", "assistant", "Scanner SAST keamanan kode sumber tim kita menggunakan Semgrep rules.")
     },
     {
         "id": "S4A_P19_MEM",
         "category": "MEM",
-        "prompt": "cloud storage buat arsip backup bulanan kemarin kita taruh di mana ya?",
+        "prompt": "tool pengujian load testing performa endpoint http apa?",
         "expected_tool": None,
-        "expected_key": "wasabi",
-        "memory_inject": ("user", "arsip backup bulanan sistem disimpan di vendor cloud mana?", "assistant", "Arsip cadangan data bulanan disimpan di Wasabi hot cloud storage.")
+        "expected_key": "k6",
+        "memory_inject": ("user", "tool pengujian load testing performa endpoint http apa?", "assistant", "Pengujian load testing performa endpoint HTTP dilakukan memakai k6 script.")
     },
     {
         "id": "S4A_P20_MEM",
         "category": "MEM",
-        "prompt": "port service search dokumen tim kemarin kita setel di berapa ya?",
+        "prompt": "migration runner buat update skema database pakai apa?",
         "expected_tool": None,
-        "expected_key": "7700",
-        "memory_inject": ("user", "mesin pencari dokumen internal berjalan di port berapa?", "assistant", "Service pencarian dokumen internal menggunakan Meilisearch pada port 7700.")
+        "expected_key": "liquibase",
+        "memory_inject": ("user", "migration runner buat update skema database pakai apa?", "assistant", "Migration runner otomatis untuk pembaruan skema database memakai Liquibase CLI.")
     },
     {
         "id": "S4A_P21_MEM",
         "category": "MEM",
-        "prompt": "protokol komunikasi antar mikroservis internal kemarin kita sepakati apa?",
+        "prompt": "ingress controller routing trafik klaster kubernetes apa?",
         "expected_tool": None,
-        "expected_key": "grpc",
-        "memory_inject": ("user", "protokol komunikasi sinkron antar mikroservis kita mau pakai apa?", "assistant", "Komunikasi antar mikroservis backend disepakati menggunakan gRPC over HTTP/2.")
+        "expected_key": "emissary",
+        "memory_inject": ("user", "ingress controller routing trafik klaster kubernetes apa?", "assistant", "Ingress controller perutean trafik jaringan klaster Kubernetes menggunakan Emissary.")
     },
 
     # 2 WORKSPACE (1 FILE / LIST, 1 GIT)
@@ -159,7 +131,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P25_NEG",
         "category": "NEG",
-        "prompt": "bikinin fungsi python singkat buat ngitung faktorial rekursif dong",
+        "prompt": "gimana cara parse format tanggal ISO 8601 ke epoch timestamp di bash?",
         "expected_tool": None,
         "expected_key": None
     },
@@ -194,7 +166,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P30_NEG",
         "category": "NEG",
-        "prompt": "kapan bhs C pertama kali dibikin sm dennis ritchie?",
+        "prompt": "berapa suhu titik leleh logam tembaga murni dalam derajat celsius?",
         "expected_tool": None,
         "expected_key": None
     }
@@ -427,6 +399,7 @@ def run_single_benchmark_turn(
     final_metrics = {}
     is_timeout = False
 
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
         for chunk, metrics in coordinator.run_react_turn(
             user_input=user_prompt,
@@ -454,6 +427,7 @@ def run_single_benchmark_turn(
         is_timeout = True
         timeout_reason = "no_first_token"
 
+    ended_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     final_text = "".join(chunks).strip()
 
     first_tool_call = None
@@ -465,52 +439,16 @@ def run_single_benchmark_turn(
             first_tool_call = raw_call[:paren_idx].strip()
             first_tool_arg = raw_call[paren_idx + 1 : -1].strip()
 
-    # Evaluasi Kategori
-    is_false_call = False
-    is_wrong_tool = False
-    is_invalid_arg = False
-    is_fidelity_ok = False
-    is_success = False
-    sandbox_blocked = False
-    reached_confirmation = False
-
-    # Deteksi status konfirmasi & sandbox
-    obs_all = " ".join(tool_observations_recorded)
-    if "[Kebijakan Ditolak]" in obs_all or "[Akses Ditolak]" in obs_all:
-        sandbox_blocked = True
-    if len(confirmed_commands_log) > 0:
-        reached_confirmation = True
-
-    if expected_tool is None:
-        # Prompt Negatif atau Prompt Memori (yang diharapkan dijawab lewat recall pasif)
-        if first_tool_call is not None:
-            is_false_call = True
-        else:
-            is_success = True
-            # Jika ini MEM, periksa fidelity kata kunci
-            if category == "MEM" and expected_key:
-                if expected_key.lower() in final_text.lower():
-                    is_fidelity_ok = True
-            else:
-                is_fidelity_ok = True
-    else:
-        # Prompt Positif Workspace
-        if first_tool_call is None:
-            is_wrong_tool = True
-        elif first_tool_call != expected_tool:
-            is_wrong_tool = True
-        else:
-            # Periksa argumen jika ada
-            if expected_arg and expected_arg.lower() not in (first_tool_arg or "").lower():
-                is_invalid_arg = True
-            else:
-                is_success = True
-                # Periksa fidelity
-                if expected_key:
-                    if expected_key.lower() in final_text.lower():
-                        is_fidelity_ok = True
-                else:
-                    is_fidelity_ok = True
+    eval_res = evaluate_benchmark_turn(
+        expected_tool=expected_tool,
+        expected_arg=expected_arg,
+        expected_key=expected_key,
+        tool_calls_recorded=tool_calls_recorded,
+        tool_observations_recorded=tool_observations_recorded,
+        final_text=final_text,
+        is_timeout=is_timeout,
+        timeout_reason=timeout_reason
+    )
 
     return {
         "id": prompt_item["id"],
@@ -527,18 +465,10 @@ def run_single_benchmark_turn(
         "tool_observations": tool_observations_recorded,
         "final_response": final_text,
         "confirmed_commands": list(confirmed_commands_log),
-        "evaluation": {
-            "is_success": is_success,
-            "is_false_call": is_false_call,
-            "is_wrong_tool": is_wrong_tool,
-            "is_invalid_arg": is_invalid_arg,
-            "is_fidelity_ok": is_fidelity_ok,
-            "sandbox_blocked": sandbox_blocked,
-            "reached_confirmation": reached_confirmation,
-            "is_timeout": is_timeout,
-            "timeout_reason": timeout_reason
-        },
-        "metrics": final_metrics
+        "evaluation": eval_res,
+        "metrics": final_metrics,
+        "started_at": started_at,
+        "ended_at": ended_at
     }
 
 def run_benchmark_suite(
@@ -626,6 +556,41 @@ def run_benchmark_suite(
                     f.write(json.dumps(res, ensure_ascii=False) + "\n")
 
         all_runs_results.append(run_results)
+
+    # Klasifikasi dan Pelaporan Metrik Khusus MEM (active trigger vs marker vs none)
+    mem_records = [r for run in all_runs_results for r in run if r.get("category") == "MEM"]
+    if mem_records:
+        print("\n" + "=" * 80)
+        print(f"ANALISIS METRIK KELOMPOK MEMORI PASIF ({suite_name.upper()} - {len(mem_records)} turn):")
+        print("=" * 80)
+        groups = {"has_active_trigger": [], "has_marker": [], "none": []}
+        for r in mem_records:
+            grp = classify_mem_prompt(r["prompt_input"])
+            groups[grp].append(r)
+
+        for g_name, g_recs in groups.items():
+            if not g_recs:
+                continue
+            n_tot = len(g_recs)
+            n_rout = sum(1 for r in g_recs if r["evaluation"]["routing_ok"])
+            n_rec = sum(1 for r in g_recs if r.get("passive_recall_injected"))
+            n_fid = sum(1 for r in g_recs if r["evaluation"]["fidelity_ok"])
+            n_succ = sum(1 for r in g_recs if r["evaluation"]["is_success"])
+            print(f"Kelompok: '{g_name}' (n={n_tot} turn):")
+            print(f"  Routing OK : {n_rout}/{n_tot} ({n_rout/n_tot*100:.1f}%)")
+            print(f"  Recall Inj : {n_rec}/{n_tot} ({n_rec/n_tot*100:.1f}%)")
+            print(f"  Fidelity OK: {n_fid}/{n_tot} ({n_fid/n_tot*100:.1f}%)")
+            print(f"  Success    : {n_succ}/{n_tot} ({n_succ/n_tot*100:.1f}%)")
+            if g_name == "none":
+                print("  [CATATAN]: Kelompok 'none' adalah keterbatasan terdokumentasi dan TIDAK dihitung dalam gate kelulusan.")
+
+        # Gate kelulusan: HANYA dihitung dari active + marker
+        gate_recs = groups["has_active_trigger"] + groups["has_marker"]
+        if gate_recs:
+            n_g_tot = len(gate_recs)
+            n_g_succ = sum(1 for r in gate_recs if r["evaluation"]["is_success"])
+            print(f"\nGATE EVALUATION RESMI MEM (Active + Marker Saja, n={n_g_tot}):")
+            print(f"  Success Rate : {n_g_succ}/{n_g_tot} ({n_g_succ/n_g_tot*100:.1f}%)")
 
     # Bersihkan temp
     db.close()

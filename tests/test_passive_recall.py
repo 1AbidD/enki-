@@ -76,5 +76,53 @@ class TestPassiveRecall(unittest.TestCase):
             )
         print("=" * 50)
 
+    def test_r3_strict_mechanisms(self):
+        """Tes unit tanpa LLM untuk aturan resmi R3_strict:
+        1. Negatif berpenanda yang berbagi >= 2 token umum (high DF) TIDAK MEMICU.
+        2. Positif berpenanda dengan token ber-DF rendah MEMICU.
+        3. Positif tanpa penanda TIDAK MEMICU (keterbatasan terdokumentasi).
+        """
+        db_path = self.workspace / "test_r3_strict_mechanisms.db"
+        test_db = MemoryDatabase(db_path)
+        active_sess = test_db.create_session()
+
+        # Buat 25 turn background sehingga total turn >= 25 dan token umum memiliki DF > 5%
+        for i in range(1, 11):
+            s = test_db.create_session()
+            test_db.add_turn(s, "user", f"bagaimana koding fungsi python dan struktur kode aplikasi {i}?")
+            test_db.add_turn(s, "assistant", f"koding fungsi python aplikasi {i} harus terstruktur dan bersih.")
+
+        # Buat 1 sesi memori unik (DF rendah)
+        s_mem = test_db.create_session()
+        test_db.add_turn(s_mem, "user", "analitik data gudang kita memutuskan pakai software apa?")
+        test_db.add_turn(s_mem, "assistant", "Untuk analitik data gudang kita memutuskan memakai embedded DuckDB.")
+
+        # 1. Negatif berpenanda yang berbagi >= 2 token umum (koding, fungsi, python - semua DF > 5%)
+        neg_prompt = "gimana cara koding fungsi python yang rapi di aplikasi kita?"
+        neg_res = execute_passive_recall(neg_prompt, test_db, active_sess, df_threshold_pct=5.0)
+        self.assertIsNone(
+            neg_res,
+            "Negatif berpenanda dengan token ber-DF tinggi seharusnya TIDAK memicu recall pasif!"
+        )
+
+        # 2. Positif berpenanda (memiliki marker 'kita' dan token DF rendah 'gudang' / 'duckdb')
+        pos_marker_prompt = "analitik data gudang kita kemarin pakai software apa ya?"
+        pos_marker_res = execute_passive_recall(pos_marker_prompt, test_db, active_sess, df_threshold_pct=5.0)
+        self.assertIsNotNone(
+            pos_marker_res,
+            "Positif berpenanda dengan token ber-DF rendah seharusnya memicu recall pasif!"
+        )
+        self.assertIn("gudang", pos_marker_res.lower())
+
+        # 3. Positif tanpa penanda (tidak ada penanda konteks: keterbatasan terdokumentasi)
+        pos_no_marker_prompt = "database analitik pemrosesan data gudang apa?"
+        pos_no_marker_res = execute_passive_recall(pos_no_marker_prompt, test_db, active_sess, df_threshold_pct=5.0)
+        self.assertIsNone(
+            pos_no_marker_res,
+            "Positif tanpa penanda seharusnya TIDAK memicu (keterbatasan tercatat dari aturan berbasis marker)."
+        )
+
+        test_db.close()
+
 if __name__ == "__main__":
     unittest.main()

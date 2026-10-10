@@ -141,9 +141,15 @@ def execute_passive_recall(
         if not matched:
             continue
 
-        # Ambang batas evaluasi R3: Minimal 2 token cocok
+        # Ambang batas evaluasi R3_strict:
+        # Minimal 2 token cocok (R1) DAN minimal 1 token yang cocok ber-DF rendah (DF <= df_threshold_pct)
         if len(matched) >= 2:
-            qualifying_snippets.append(snip)
+            low_df_tokens = [
+                t for t in matched
+                if (db.get_term_turn_frequency(t) <= df_threshold_pct if hasattr(db, "get_term_turn_frequency") else True)
+            ]
+            if len(low_df_tokens) >= 1:
+                qualifying_snippets.append(snip)
 
     if not qualifying_snippets:
         return None
