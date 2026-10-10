@@ -1,3 +1,3 @@
 # Kunci integritas ujian Set 4 (tracked)
 SHA256 = [ISI: hash file promptku]
-FREEZE_COMMIT = [hash commit gating-freeze]
+FREEZE_COMMIT = ed406d8d4bf6a585b44617f7e368e43e866f179a
