@@ -1,5 +1,7 @@
 import sys
+import time
 import subprocess
+from pathlib import Path
 from typing import List, Dict
 
 from enki.config import AppConfig
@@ -9,6 +11,7 @@ from enki.memory.database import MemoryDatabase
 from enki.memory.profile_manager import ProfileManager
 from enki.memory.reflector import ReflectorDaemon
 from enki.memory.recall import is_recall_triggered, build_fts_query, format_recall_block
+from enki.core.react_loop import ReActCoordinator
 from enki.cli.memory_commands import handle_memory_command, handle_reflect_command
 
 def get_vram_info() -> str:
@@ -32,6 +35,12 @@ class EnkiConsole:
         self.profile_mgr = ProfileManager()
         self.reflector = ReflectorDaemon()
         self.assembler = PromptAssembler(system_prompt=DEFAULT_SYSTEM_PROMPT, profile=self.profile_mgr.get_profile_text())
+        self.coordinator = ReActCoordinator(
+            client=self.client,
+            assembler=self.assembler,
+            workspace_root=self.config.workspace_root,
+            db=self.db
+        )
         self.history: List[Dict[str, str]] = []
 
     def check_startup_reflection(self):
@@ -68,8 +77,10 @@ class EnkiConsole:
 
     def print_help(self):
         print("\n--- Perintah Tersedia ---")
-        print("  /memory <subcmd> : Manajemen memori (view, pending, approve, reject, edit, delete, log)")
+        print("  /memory <subcmd> : Manajemen memori (view, pending, approve, reject, edit, delete, log, stats)")
         print("  /reflect         : Jalankan refleksi atas sesi yang belum direfleksi")
+        print("  /coder           : Beralih ke model coding (qwen2.5-coder:3b)")
+        print("  /chat            : Beralih ke model percakapan utama (qwen2.5:3b)")
         print("  /mute            : Aktifkan mode senyap (0% beban audio)")
         print("  /unmute          : Nonaktifkan mode senyap")
         print("  /status          : Tampilkan status model, context limit, mute, dan VRAM")
@@ -104,6 +115,34 @@ class EnkiConsole:
                     break
                 elif cmd == "/help":
                     self.print_help()
+                    continue
+                elif cmd == "/coder":
+                    if self.config.model == "qwen2.5-coder:3b":
+                        print("[Model Switcher] Model sudah aktif pada qwen2.5-coder:3b.")
+                    else:
+                        print("[Model Switcher] Memuat qwen2.5-coder:3b ke GPU...")
+                        t0 = time.time()
+                        self.config.set_model("qwen2.5-coder:3b")
+                        try:
+                            self.client.chat(model="qwen2.5-coder:3b", messages=[{"role": "user", "content": "ping"}], num_ctx=self.config.num_ctx)
+                        except Exception as e:
+                            print(f"[Model Switcher Peringatan] Gagal memuat model: {e}")
+                        dur = round(time.time() - t0, 3)
+                        print(f"[Model Switcher] Aktif: qwen2.5-coder:3b (Waktu swap: {dur}s). VRAM: {get_vram_info()}")
+                    continue
+                elif cmd == "/chat":
+                    if self.config.model == "qwen2.5:3b":
+                        print("[Model Switcher] Model sudah aktif pada qwen2.5:3b.")
+                    else:
+                        print("[Model Switcher] Memuat qwen2.5:3b ke GPU...")
+                        t0 = time.time()
+                        self.config.set_model("qwen2.5:3b")
+                        try:
+                            self.client.chat(model="qwen2.5:3b", messages=[{"role": "user", "content": "ping"}], num_ctx=self.config.num_ctx)
+                        except Exception as e:
+                            print(f"[Model Switcher Peringatan] Gagal memuat model: {e}")
+                        dur = round(time.time() - t0, 3)
+                        print(f"[Model Switcher] Aktif: qwen2.5:3b (Waktu swap: {dur}s). VRAM: {get_vram_info()}")
                     continue
                 elif cmd == "/mute":
                     self.config.set_mute(True)
@@ -144,11 +183,13 @@ class EnkiConsole:
                     self.assembler.profile = self.profile_mgr.get_profile_text()
                     continue
                 elif cmd == "/reflect":
+                    if self.config.model != "qwen2.5:3b":
+                        print("[Reflect] Menjalankan refleksi menggunakan model percakapan (qwen2.5:3b)...")
                     handle_reflect_command(
                         db=self.db,
                         reflector=self.reflector,
                         client=self.client,
-                        model=self.config.model
+                        model="qwen2.5:3b"
                     )
                     continue
                 else:
@@ -168,9 +209,9 @@ class EnkiConsole:
                         recall_content = format_recall_block(snippets, max_tokens=300)
                         print(f"[Memory Recall] Menemukan {len(snippets)} cuplikan masa lalu yang relevan.")
 
-            # 3. Assembler Prompt (System + Profile + Recall + History + User)
+            # 3. Assembler Prompt & Pre-flight check
             self.assembler.profile = self.profile_mgr.get_profile_text()
-            messages, meta = self.assembler.assemble_messages(
+            _, meta = self.assembler.assemble_messages(
                 user_input=user_input,
                 history=self.history,
                 recall_content=recall_content,
@@ -181,20 +222,32 @@ class EnkiConsole:
             if est_tokens > self.config.num_ctx * 0.95:
                 print(f"[Peringatan] Estimasi token ({est_tokens}) mendekati batas num_ctx ({self.config.num_ctx}).")
 
-            # 4. Inference Call dengan Progressive Streaming
+            # 4. Inference Call via ReAct Loop
+            def trace_cb(evt: str, msg: str):
+                if evt == "tool_call":
+                    print(f"\n[Tool call] {msg}")
+                elif evt == "tool_result":
+                    print(f"[Tool result] {msg}")
+                elif evt in ["loop_guard", "timeout", "max_iterations"]:
+                    print(f"\n[{evt.upper()}] {msg}")
+
             print("\n[Jawaban]")
             content_chunks = []
             final_metrics = {}
             try:
-                for token, metrics in self.client.chat_stream(
+                for chunk, metrics in self.coordinator.run_react_turn(
+                    user_input=user_input,
+                    session_id=self.session_id,
+                    history=self.history,
                     model=self.config.model,
-                    messages=messages,
+                    recall_content=recall_content,
                     num_ctx=self.config.num_ctx,
-                    temperature=self.config.temperature
+                    temperature=self.config.temperature,
+                    trace_callback=trace_cb
                 ):
-                    if token:
-                        print(token, end="", flush=True)
-                        content_chunks.append(token)
+                    if chunk:
+                        print(chunk, end="", flush=True)
+                        content_chunks.append(chunk)
                     if metrics:
                         final_metrics = metrics
                 print()
@@ -207,14 +260,7 @@ class EnkiConsole:
             # 5. Catat turn assistant ke DB secara deterministik
             self.db.add_turn(self.session_id, "assistant", content)
 
-            # 6. Format Trace Tool Call (jika ada)
-            tool_calls = final_metrics.get("tool_calls")
-            if tool_calls:
-                for tc in tool_calls:
-                    fn = tc.get("function", {})
-                    print(f"\n[Tool call] {fn.get('name')}({fn.get('arguments')})")
-
-            # 7. Telemetri Eksekusi & Anggaran Context Riil
+            # 6. Telemetri Eksekusi & Anggaran Context Riil
             prompt_eval = final_metrics.get("prompt_eval_count", 0)
             eval_count = final_metrics.get("eval_count", 0)
             speed = final_metrics.get("eval_tok_per_sec", 0.0)

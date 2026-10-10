@@ -3,11 +3,14 @@ import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent.parent / "logs" / "sessions.db"
+from enki.config import get_log_dir
+
+def get_default_db_path() -> Path:
+    return get_log_dir() / "sessions.db"
 
 class MemoryDatabase:
-    def __init__(self, db_path: Path = DEFAULT_DB_PATH):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path: Optional[Path] = None):
+        self.db_path = Path(db_path) if db_path else get_default_db_path()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
@@ -47,7 +50,7 @@ class MemoryDatabase:
     def create_session(self, session_id: Optional[str] = None) -> str:
         """Membuat sesi obrolan baru."""
         if not session_id:
-            now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             session_id = f"session_{now_str}"
 
         started_at = datetime.datetime.now().isoformat()

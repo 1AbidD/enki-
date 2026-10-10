@@ -4,12 +4,16 @@ from pathlib import Path
 from typing import Dict, Any, Tuple, List, Optional
 from enki.core.prompt_assembler import estimate_tokens_local
 
-DEFAULT_MEMORY_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "memory"
+from enki.config import get_data_dir
+
+def get_default_memory_dir() -> Path:
+    return get_data_dir() / "memory"
+
 MAX_PROFILE_TOKENS = 500
 
 class ProfileManager:
-    def __init__(self, memory_dir: Path = DEFAULT_MEMORY_DIR):
-        self.memory_dir = Path(memory_dir)
+    def __init__(self, memory_dir: Optional[Path] = None):
+        self.memory_dir = Path(memory_dir) if memory_dir else get_default_memory_dir()
         self.memory_dir.mkdir(parents=True, exist_ok=True)
         self.profile_file = self.memory_dir / "profile.json"
         self.audit_log_file = self.memory_dir / "memory_audit.log"

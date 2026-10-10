@@ -10,7 +10,7 @@ from enki.memory.recall import (
     format_recall_block
 )
 from enki.memory.profile_manager import ProfileManager, MAX_PROFILE_TOKENS
-from enki.memory.reflector import contains_secret, FactProposal, ReflectorDaemon
+from enki.memory.reflector import contains_secret, contains_hypothesis, FactProposal, ReflectorDaemon
 from enki.core.prompt_assembler import PromptAssembler, estimate_tokens_local
 
 class TestMemoryUnit(unittest.TestCase):
@@ -248,6 +248,69 @@ class TestMemoryUnit(unittest.TestCase):
         # KASUS NEGATIF 2: Tanpa kata pemicu
         no_trigger = "Bagaimana cara deploy Cassandra?"
         self.assertFalse(is_recall_triggered(no_trigger), "Kalimat tanpa pemicu tidak boleh memicu recall")
+
+    # 7. Test Filter Hipotesis & Stats Metrik
+    def test_hypothesis_filter_and_stats(self):
+        """Memastikan usulan hipotetis ditolak kode, sedangkan preferensi 'kalau...' sah tetap lolos."""
+        # 1. Kasus penanda pengandaian yang WAJIB ditolak:
+        hypo_cases = [
+            "Kalau seandainya aku punya kesempatan kuliah lagi, aku pengen ambil bioteknologi.",
+            "klo gw jd CEO Google mah bakal gw bikin cloud gratis.",
+            "andaikan aku punya modal besar.",
+            "andai waktu bisa diulang.",
+            "misalkan saya jadi presiden.",
+            "seumpama kita punya server sendiri.",
+            "if I were a rich man."
+        ]
+        for h in hypo_cases:
+            self.assertTrue(contains_hypothesis(h), f"Harus terdeteksi sebagai hipotesis: '{h}'")
+            prop = FactProposal(key="hipotesis_test", value="nilai", source_quote=h)
+            ok, msg = self.reflector.validate_and_record_proposal(prop, [h], "test_hypo")
+            self.assertFalse(ok, f"Usulan hipotesis harus ditolak kode: '{h}'")
+            self.assertIn("penanda kalimat pengandaian", msg)
+
+        # 2. Kasus preferensi sah dengan kata 'kalau' yang WAJIB LOLOS:
+        valid_preference = "Kalau kasih penjelasan atau contoh kode, tolong selalu sertakan type annotations ya."
+        self.assertFalse(contains_hypothesis(valid_preference), "Preferensi sah tidak boleh dianggap hipotesis")
+        prop_valid = FactProposal(
+            key="preferensi_type_annotations",
+            value="Selalu menyertakan type annotations",
+            source_quote=valid_preference
+        )
+        ok_valid, msg_valid = self.reflector.validate_and_record_proposal(prop_valid, [valid_preference], "test_valid")
+        self.assertTrue(ok_valid, f"Preferensi sah wajib diterima kode: {msg_valid}")
+
+        # 3. Verifikasi metrik stats
+        stats = self.reflector.get_stats()
+        self.assertGreaterEqual(stats["discarded_hypothesis"], len(hypo_cases))
+        self.assertGreaterEqual(stats["pending"], 1)
+
+    # 8. Test Quote Recovery Guarantee
+    def test_quote_recovery_guarantee(self):
+        """Memastikan quote recovery HANYA menghasilkan substring yang persis ada di pesan user."""
+        user_turn = "Sekadar info, aku biasa ngoding di laptop Linux Ubuntu 22.04."
+        # LLM mengusulkan quote dengan huruf kapital 'Aku' bukan 'aku'
+        prop = FactProposal(
+            key="os_laptop",
+            value="Linux Ubuntu 22.04",
+            source_quote="Aku biasa ngoding di laptop Linux Ubuntu 22.04."
+        )
+        ok, msg = self.reflector.validate_and_record_proposal(prop, [user_turn], "test_recovery")
+        self.assertTrue(ok)
+        pending = self.reflector.get_pending_proposals()
+        saved = pending[-1]
+        # Quote tersimpan harus merupakan substring persis dari user_turn (huruf kecil 'aku')
+        self.assertIn(saved["source_quote"], user_turn)
+        self.assertTrue(saved["source_quote"].startswith("aku"))
+
+        # Jika LLM mengusulkan quote yang tidak ada di turn, harus ditolak
+        prop_fake = FactProposal(
+            key="os_laptop",
+            value="Windows 11",
+            source_quote="Aku pakai Windows 11 sehari-hari."
+        )
+        ok_fake, _ = self.reflector.validate_and_record_proposal(prop_fake, [user_turn], "test_recovery")
+        self.assertFalse(ok_fake, "Teks yang tidak ada di user turn tidak boleh di-recover")
 
 if __name__ == "__main__":
     unittest.main()

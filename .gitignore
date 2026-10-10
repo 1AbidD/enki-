@@ -1,6 +1,7 @@
 # Data dan logs
 data/
 logs/
+*.log
 
 # Cache Python
 __pycache__/

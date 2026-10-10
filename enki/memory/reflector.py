@@ -7,9 +7,10 @@ from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from enki.core.ollama_client import OllamaClient
-from enki.memory.database import MemoryDatabase
+from enki.config import get_data_dir
 
-DEFAULT_PROPOSALS_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "memory" / "pending_facts.json"
+def get_default_proposals_file() -> Path:
+    return get_data_dir() / "memory" / "pending_facts.json"
 
 # Pola rahasia yang wajib ditolak otomatis
 SECRET_PATTERNS = [
@@ -20,11 +21,23 @@ SECRET_PATTERNS = [
     re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')
 ]
 
+# Pola pengandaian / hipotesis yang wajib dibuang otomatis oleh kode
+HYPOTHESIS_PATTERNS = [
+    re.compile(r'\b(seandainya|andaikan|andai|misalkan|seumpama|if\s+i\s+were)\b', re.IGNORECASE),
+    re.compile(r'\b(kalau|kalo|klo|jika|sekiranya)\s+(aku|saya|gw|gue|ku)\s+j(adi|d)\b', re.IGNORECASE),
+]
+
 def contains_secret(text: str) -> bool:
     """Mendeteksi apakah teks mengandung token rahasia, password, atau API key."""
     if not text:
         return False
     return any(pattern.search(text) for pattern in SECRET_PATTERNS)
+
+def contains_hypothesis(text: str) -> bool:
+    """Mendeteksi apakah teks mengandung penanda pengandaian / hipotetis."""
+    if not text:
+        return False
+    return any(pattern.search(text) for pattern in HYPOTHESIS_PATTERNS)
 
 class FactProposal(BaseModel):
     key: str = Field(description="Nama kunci fakta terstruktur, misal: 'bahasa_pemrograman_favorit'")
@@ -78,15 +91,51 @@ CONTOH NEGATIF (Kembalikan {"proposals": []}):
 - User: "Password databaseku admin123!" -> {"proposals": []}"""
 
 class ReflectorDaemon:
-    def __init__(self, proposals_file: Path = DEFAULT_PROPOSALS_FILE):
-        self.proposals_file = Path(proposals_file)
+    def __init__(self, proposals_file: Optional[Path] = None, stats_file: Optional[Path] = None):
+        self.proposals_file = Path(proposals_file) if proposals_file else get_default_proposals_file()
         self.proposals_file.parent.mkdir(parents=True, exist_ok=True)
+        self.stats_file = Path(stats_file) if stats_file else self.proposals_file.parent / "memory_stats.json"
         self._ensure_file()
 
     def _ensure_file(self):
         if not self.proposals_file.exists():
             with open(self.proposals_file, "w", encoding="utf-8") as f:
                 json.dump([], f, indent=2)
+
+    def _load_stats(self) -> Dict[str, int]:
+        default_stats = {
+            "approved": 0,
+            "rejected": 0,
+            "edited": 0,
+            "discarded_secret": 0,
+            "discarded_hypothesis": 0,
+            "discarded_invalid_quote": 0,
+            "quote_recovery_count": 0
+        }
+        if not self.stats_file.exists():
+            return default_stats
+        try:
+            with open(self.stats_file, "r", encoding="utf-8") as f:
+                d = json.load(f)
+                for k, v in default_stats.items():
+                    d.setdefault(k, v)
+                return d
+        except Exception:
+            return default_stats
+
+    def _save_stats(self, stats: Dict[str, int]):
+        with open(self.stats_file, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2)
+
+    def get_stats(self) -> Dict[str, int]:
+        stats = self._load_stats()
+        stats["pending"] = len(self.get_pending_proposals())
+        stats["discarded_total"] = (
+            stats["discarded_secret"] +
+            stats["discarded_hypothesis"] +
+            stats["discarded_invalid_quote"]
+        )
+        return stats
 
     def load_proposals(self) -> List[Dict[str, Any]]:
         try:
@@ -115,6 +164,14 @@ class ReflectorDaemon:
                 break
         if target:
             self.save_proposals(proposals)
+            stats = self._load_stats()
+            if status == "APPROVED":
+                stats["approved"] += 1
+            elif status == "REJECTED":
+                stats["rejected"] += 1
+            if new_value:
+                stats["edited"] += 1
+            self._save_stats(stats)
         return target
 
     def validate_and_record_proposal(
@@ -124,9 +181,19 @@ class ReflectorDaemon:
         session_id: str
     ) -> Tuple[bool, str]:
         """Validasi kode deterministik atas proposal yang dihasilkan LLM."""
-        # 1. Tolak pola rahasia
+        # 1a. Tolak pola rahasia
         if contains_secret(proposal.key) or contains_secret(proposal.value) or contains_secret(proposal.source_quote):
+            stats = self._load_stats()
+            stats["discarded_secret"] += 1
+            self._save_stats(stats)
             return False, "Ditolak otomatis: Terdeteksi pola data rahasia (API key / password)."
+
+        # 1b. Tolak penanda kalimat pengandaian / hipotetis
+        if contains_hypothesis(proposal.key) or contains_hypothesis(proposal.value) or contains_hypothesis(proposal.source_quote):
+            stats = self._load_stats()
+            stats["discarded_hypothesis"] += 1
+            self._save_stats(stats)
+            return False, "Ditolak otomatis: Terdeteksi penanda kalimat pengandaian / hipotetis."
 
         # 2. Verifikasi quote verbatim di pesan user (case-insensitive substring check & quote recovery)
         quote = proposal.source_quote.strip()
@@ -139,12 +206,21 @@ class ReflectorDaemon:
         for turn in user_turns:
             idx = turn.lower().find(quote_lower)
             if idx != -1:
+                # Quote recovery HANYA mengambil substring yang persis ada di pesan user
                 exact_quote = turn[idx : idx + len(quote)]
                 verbatim_found = True
                 break
 
         if not verbatim_found:
+            stats = self._load_stats()
+            stats["discarded_invalid_quote"] += 1
+            self._save_stats(stats)
             return False, f"Ditolak: source_quote '{quote[:40]}...' tidak ditemukan secara verbatim di pesan user."
+
+        if exact_quote != quote:
+            stats = self._load_stats()
+            stats["quote_recovery_count"] += 1
+            self._save_stats(stats)
 
         quote = exact_quote
 

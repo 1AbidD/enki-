@@ -45,6 +45,8 @@ def build_fts_query(user_text: str) -> Optional[str]:
     # Menggunakan token terpisah dengan format kutipan ganda agar aman
     return " OR ".join(f'"{t}"' for t in substantive_tokens)
 
+from enki.core.sanitizer import sanitize_untrusted_text
+
 def format_recall_block(snippets: List[Dict[str, Any]], max_tokens: int = 300) -> Optional[str]:
     """Membungkus hasil cuplikan FTS5 dalam tag untrusted dan membatasi ukuran maksimal ~300 token."""
     if not snippets:
@@ -57,7 +59,8 @@ def format_recall_block(snippets: List[Dict[str, Any]], max_tokens: int = 300) -
 
     for item in snippets:
         role = item.get("role", "user")
-        content = item.get("content", "").replace("</untrusted_memory_content>", "")
+        # Menggunakan sanitizer universal untuk membuang segala varian tag untrusted_*
+        content = sanitize_untrusted_text(item.get("content", ""))
         lines.append(f"- {role.capitalize()}: {content.strip()}")
 
     lines.append('</untrusted_memory_content>')

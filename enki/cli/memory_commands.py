@@ -22,6 +22,7 @@ def handle_memory_command(
         print("  /memory edit <id> <val>   : Koreksi nilai usulan fakta sebelum disetujui")
         print("  /memory delete <key>      : Hapus fakta dari profil")
         print("  /memory log               : Lihat riwayat audit perubahan profil")
+        print("  /memory stats             : Lihat metrik usulan (diterima, ditolak, diedit, dibuang filter)")
         print("  /reflect                  : Jalankan refleksi manual atas sesi yang belum direfleksi\n")
         return
 
@@ -112,6 +113,19 @@ def handle_memory_command(
         key = args[1].strip()
         ok, msg = profile_mgr.delete_fact(key)
         print(f"[{'Sukses' if ok else 'Gagal'}] {msg}")
+
+    elif subcmd == "stats":
+        stats = reflector.get_stats()
+        print("\n--- Metrik Usulan Reflector (/memory stats) ---")
+        print(f"  • Usulan Pending Aktif   : {stats.get('pending', 0)}")
+        print(f"  • Disetujui (Approved)   : {stats.get('approved', 0)}")
+        print(f"  • Ditolak User (Rejected): {stats.get('rejected', 0)}")
+        print(f"  • Diedit User (Edited)   : {stats.get('edited', 0)}")
+        print(f"  • Dibuang Filter Kode    : {stats.get('discarded_total', 0)}")
+        print(f"      - Filter Rahasia     : {stats.get('discarded_secret', 0)}")
+        print(f"      - Filter Hipotesis   : {stats.get('discarded_hypothesis', 0)}")
+        print(f"      - Kutipan Mismatch   : {stats.get('discarded_invalid_quote', 0)}")
+        print(f"  • Quote Recovery Slicing : {stats.get('quote_recovery_count', 0)} kali\n")
 
     elif subcmd == "log":
         logs = profile_mgr.get_audit_log(limit=15)
