@@ -79,13 +79,17 @@ class EnkiConsole:
         print("\n--- Perintah Tersedia ---")
         print("  /memory <subcmd> : Manajemen memori (view, pending, approve, reject, edit, delete, log, stats)")
         print("  /reflect         : Jalankan refleksi atas sesi yang belum direfleksi")
-        print("  /coder           : Beralih ke model coding (qwen2.5-coder:3b)")
-        print("  /chat            : Beralih ke model percakapan utama (qwen2.5:3b)")
+        print("  /coder           : Beralih ke model coding (qwen2.5-coder:3b, mode chat-only)")
+        print("  /chat            : Beralih ke model percakapan utama (qwen2.5:3b, tools & memory)")
         print("  /mute            : Aktifkan mode senyap (0% beban audio)")
         print("  /unmute          : Nonaktifkan mode senyap")
         print("  /status          : Tampilkan status model, context limit, mute, dan VRAM")
         print("  /clear           : Bersihkan riwayat obrolan sesi aktif")
-        print("  /exit            : Keluar dari aplikasi\n")
+        print("  /exit            : Keluar dari aplikasi")
+        print("\n[Catatan Memori Lintas Sesi]:")
+        print("  Mengingat fakta dari sesi lampau mengandalkan profil permanen (profile.json)")
+        print("  dan pencarian aktif (active recall dengan kata pemicu: 'kemarin', 'ingat', 'pernah').")
+        print("  Fitur passive recall berstatus eksperimental dan nonaktif secara default (gagal gate evaluasi).\n")
 
     def run(self):
         self.print_banner()
@@ -209,7 +213,7 @@ class EnkiConsole:
                     if snippets:
                         recall_content = format_recall_block(snippets, max_tokens=300)
                         print(f"[Memory Recall Aktif] Menemukan {len(snippets)} cuplikan masa lalu yang relevan.")
-            else:
+            elif self.config.passive_recall:
                 passive_block = execute_passive_recall(user_input, self.db, self.session_id, max_tokens=300)
                 if passive_block:
                     recall_content = passive_block

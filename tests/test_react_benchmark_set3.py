@@ -249,6 +249,9 @@ def run_single_benchmark_turn_set3(
     expected_arg = prompt_item["expected_arg"]
     unique_token = prompt_item["unique_token"]
 
+    tool_calls_recorded = []
+    tool_observations_recorded = []
+
     is_timeout = False
     timeout_reason = None
 

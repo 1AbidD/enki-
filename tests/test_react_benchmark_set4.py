@@ -17,10 +17,16 @@ from enki.core.ollama_client import OllamaClient
 from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT
 from enki.core.react_loop import ReActCoordinator
 from enki.memory.database import MemoryDatabase
-from enki.memory.recall import execute_passive_recall
+from enki.memory.profile_manager import ProfileManager
+from enki.memory.recall import (
+    is_recall_triggered,
+    build_fts_query,
+    format_recall_block
+)
 from tests.benchmark_common import (
     evaluate_benchmark_turn,
     BenchmarkLock,
+    classify_mem_prompt,
 )
 
 def check_ollama_idle(client: OllamaClient):
@@ -56,14 +62,16 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P16_MEM",
         "category": "MEM",
+        "mode": "profile",
         "prompt": "feature flag service aplikasi web kita pakai engine apa?",
-        "expected_tool": None,  # Melalui recall pasif
+        "expected_tool": None,
         "expected_key": "flipt",
         "memory_inject": ("user", "feature flag service aplikasi web kita pakai engine apa?", "assistant", "Feature flag service web kita memakai Flipt open source.")
     },
     {
         "id": "S4A_P17_MEM",
         "category": "MEM",
+        "mode": "profile",
         "prompt": "backend distributed tracing transaksi di proyekku dikirim ke software apa?",
         "expected_tool": None,
         "expected_key": "jaeger",
@@ -72,6 +80,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P18_MEM",
         "category": "MEM",
+        "mode": "profile",
         "prompt": "sast tool scanner keamanan kode sumber tim kita pakai apa?",
         "expected_tool": None,
         "expected_key": "semgrep",
@@ -80,6 +89,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P19_MEM",
         "category": "MEM",
+        "mode": "profile",
         "prompt": "tool pengujian load testing performa endpoint http apa?",
         "expected_tool": None,
         "expected_key": "k6",
@@ -88,6 +98,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P20_MEM",
         "category": "MEM",
+        "mode": "profile",
         "prompt": "migration runner buat update skema database pakai apa?",
         "expected_tool": None,
         "expected_key": "liquibase",
@@ -96,6 +107,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P21_MEM",
         "category": "MEM",
+        "mode": "profile",
         "prompt": "ingress controller routing trafik klaster kubernetes apa?",
         "expected_tool": None,
         "expected_key": "emissary",
@@ -278,9 +290,19 @@ def load_user_prompts(prompts_path: Path) -> List[Dict[str, Any]]:
             prompt_text = parts[1]
             mem_sentence = parts[2]
             key_val = parts[3]
+            
+            if len(parts) >= 5 and parts[4].strip().lower() in ("recall", "profile"):
+                mode = parts[4].strip().lower()
+            else:
+                if is_recall_triggered(prompt_text) or any(w in prompt_text.lower() for w in ["riwayat", "sesi lampau", "obrolan lama", "catatan", "pernah kita", "kemarin"]):
+                    mode = "recall"
+                else:
+                    mode = "profile"
+
             valid_prompts.append({
                 "id": f"S4A_U{user_idx:02d}_MEM",
                 "category": "MEM",
+                "mode": mode,
                 "prompt": prompt_text,
                 "expected_tool": None,
                 "expected_key": key_val,
@@ -389,11 +411,16 @@ def run_single_benchmark_turn(
             nonlocal timeout_reason
             timeout_reason = "turn_timeout"
 
-    # Evaluasi passive recall deterministik di muka
+    # Evaluasi recall deterministik di muka (Active Recall jika ada pemicu leksikal)
     recall_injected = False
-    recall_content = execute_passive_recall(user_prompt, db, session_id, max_tokens=300, df_threshold_pct=5.0)
-    if recall_content:
-        recall_injected = True
+    recall_content = None
+    if is_recall_triggered(user_prompt):
+        fts_q = build_fts_query(user_prompt)
+        if fts_q:
+            snips = db.search_fts(fts_q, exclude_session_id=session_id, limit=3)
+            if snips:
+                recall_content = format_recall_block(snips, max_tokens=300)
+                recall_injected = True
 
     chunks = []
     final_metrics = {}
@@ -413,7 +440,7 @@ def run_single_benchmark_turn(
                 chunks.append(chunk)
             if metrics:
                 final_metrics = metrics
-    except TimeoutError as te:
+    except TimeoutError:
         is_timeout = True
         timeout_reason = "no_first_token" if len(chunks) == 0 else "http_request_timeout"
     except Exception as e:
@@ -494,19 +521,28 @@ def run_benchmark_suite(
     db_path = log_path / "sessions.db"
     db = MemoryDatabase(db_path=db_path)
 
-    # Inisialisasi memori masa lalu untuk prompt MEM
+    profile_mgr = ProfileManager(memory_dir=data_path / "memory")
+
+    # Inisialisasi memori untuk prompt MEM (mode profile vs mode recall)
     for p in prompts:
-        if p.get("memory_inject"):
-            u_role, u_msg, a_role, a_msg = p["memory_inject"]
-            sess = db.create_session()
-            db.add_turn(sess, u_role, u_msg)
-            db.add_turn(sess, a_role, a_msg)
+        if p.get("category") == "MEM":
+            mode = p.get("mode", "profile")
+            if mode == "profile":
+                f_key = p["id"].lower()
+                f_val = p["memory_inject"][3] if p.get("memory_inject") else p.get("expected_key")
+                profile_mgr.add_fact(f_key, f_val)
+            elif mode == "recall":
+                if p.get("memory_inject"):
+                    u_role, u_msg, a_role, a_msg = p["memory_inject"]
+                    sess = db.create_session()
+                    db.add_turn(sess, u_role, u_msg)
+                    db.add_turn(sess, a_role, a_msg)
 
     client = OllamaClient()
     if not client.is_ready():
         raise RuntimeError("Server Ollama tidak aktif!")
 
-    assembler = PromptAssembler(system_prompt=DEFAULT_SYSTEM_PROMPT, profile="")
+    assembler = PromptAssembler(system_prompt=DEFAULT_SYSTEM_PROMPT, profile=profile_mgr.get_profile_text())
 
     all_runs_results = []
     print("\n" + "=" * 80)
@@ -557,40 +593,35 @@ def run_benchmark_suite(
 
         all_runs_results.append(run_results)
 
-    # Klasifikasi dan Pelaporan Metrik Khusus MEM (active trigger vs marker vs none)
+    # Analisis Metrik MEM (Mode Profile vs Mode Recall)
     mem_records = [r for run in all_runs_results for r in run if r.get("category") == "MEM"]
     if mem_records:
         print("\n" + "=" * 80)
-        print(f"ANALISIS METRIK KELOMPOK MEMORI PASIF ({suite_name.upper()} - {len(mem_records)} turn):")
+        print(f"ANALISIS METRIK KELOMPOK MEMORI ({suite_name.upper()} - {len(mem_records)} turn):")
         print("=" * 80)
-        groups = {"has_active_trigger": [], "has_marker": [], "none": []}
+        modes = {"profile": [], "recall": []}
         for r in mem_records:
-            grp = classify_mem_prompt(r["prompt_input"])
-            groups[grp].append(r)
+            m = r.get("mode", "profile")
+            modes.setdefault(m, []).append(r)
 
-        for g_name, g_recs in groups.items():
-            if not g_recs:
+        for m_name, m_recs in modes.items():
+            if not m_recs:
                 continue
-            n_tot = len(g_recs)
-            n_rout = sum(1 for r in g_recs if r["evaluation"]["routing_ok"])
-            n_rec = sum(1 for r in g_recs if r.get("passive_recall_injected"))
-            n_fid = sum(1 for r in g_recs if r["evaluation"]["fidelity_ok"])
-            n_succ = sum(1 for r in g_recs if r["evaluation"]["is_success"])
-            print(f"Kelompok: '{g_name}' (n={n_tot} turn):")
-            print(f"  Routing OK : {n_rout}/{n_tot} ({n_rout/n_tot*100:.1f}%)")
-            print(f"  Recall Inj : {n_rec}/{n_tot} ({n_rec/n_tot*100:.1f}%)")
-            print(f"  Fidelity OK: {n_fid}/{n_tot} ({n_fid/n_tot*100:.1f}%)")
-            print(f"  Success    : {n_succ}/{n_tot} ({n_succ/n_tot*100:.1f}%)")
-            if g_name == "none":
-                print("  [CATATAN]: Kelompok 'none' adalah keterbatasan terdokumentasi dan TIDAK dihitung dalam gate kelulusan.")
+            n_tot = len(m_recs)
+            n_succ = sum(1 for r in m_recs if r["evaluation"]["is_success"])
+            n_tool_free = sum(1 for r in m_recs if r.get("called_tool") is None)
+            n_key_found = sum(1 for r in m_recs if r["evaluation"].get("valid_args", False) or (r.get("expected_key", "").lower() in r.get("final_response", "").lower()))
+            print(f"Mode MEM: '{m_name.upper()}' (n={n_tot} turn):")
+            print(f"  Tanpa Tool (0 tool call): {n_tool_free}/{n_tot} ({n_tool_free/n_tot*100:.1f}%)")
+            print(f"  Nilai Kunci Muncul      : {n_key_found}/{n_tot} ({n_key_found/n_tot*100:.1f}%)")
+            print(f"  Success (Kunci & NoTool): {n_succ}/{n_tot} ({n_succ/n_tot*100:.1f}%)")
 
-        # Gate kelulusan: HANYA dihitung dari active + marker
-        gate_recs = groups["has_active_trigger"] + groups["has_marker"]
-        if gate_recs:
-            n_g_tot = len(gate_recs)
-            n_g_succ = sum(1 for r in gate_recs if r["evaluation"]["is_success"])
-            print(f"\nGATE EVALUATION RESMI MEM (Active + Marker Saja, n={n_g_tot}):")
-            print(f"  Success Rate : {n_g_succ}/{n_g_tot} ({n_g_succ/n_g_tot*100:.1f}%)")
+        # Kriteria 6: 0 recall block pada NEG tanpa pemicu
+        neg_records = [r for run in all_runs_results for r in run if r.get("category") == "NEG"]
+        if neg_records:
+            neg_leaks = sum(1 for r in neg_records if r.get("passive_recall_injected"))
+            print(f"\nKRITERIA 6: 0 Recall Block pada Negatif Tanpa Pemicu:")
+            print(f"  Recall Block Terinjeksi di NEG: {neg_leaks}/{len(neg_records)} (Status: {'LULUS' if neg_leaks == 0 else 'GAGAL'})")
 
     # Bersihkan temp
     db.close()
@@ -620,6 +651,17 @@ if __name__ == "__main__":
     set_4a_prompts = user_prompts + BUILTIN_PROMPTS_4A
     print(f"Total prompt Set 4A (Ujian): {len(set_4a_prompts)}")
     print(f"Total prompt Set 4R (Regresi): {len(REGRESSION_PROMPTS_4R)}")
+
+    mem_4a = [p for p in set_4a_prompts if p.get("category") == "MEM"]
+    recall_mode_count = sum(1 for p in mem_4a if p.get("mode") == "recall")
+    print(f"Distribusi 12 MEM: {recall_mode_count} Mode Recall, {len(mem_4a) - recall_mode_count} Mode Profile.")
+    if recall_mode_count < 4:
+        sys.stderr.write(
+            f"\n[FATAL RUNNER ERROR]: Ditemukan hanya {recall_mode_count} prompt dengan mode recall "
+            f"dari total {len(mem_4a)} prompt MEM (diperlukan minimal 4 mode recall).\n"
+            f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN.\n"
+        )
+        sys.exit(1)
 
     results_dir = ROOT_DIR / "tests" / "results"
     results_dir.mkdir(parents=True, exist_ok=True)

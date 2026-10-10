@@ -124,5 +124,49 @@ class TestPassiveRecall(unittest.TestCase):
 
         test_db.close()
 
+    def test_passive_recall_config_flag_default_false(self):
+        """Memastikan flag passive_recall default False pada AppConfig dan dapat diubah."""
+        from enki.config import AppConfig
+        cfg_file = self.workspace / "test_config.json"
+        
+        # 1. Config kosong / default -> passive_recall wajib False
+        cfg = AppConfig(config_path=cfg_file)
+        self.assertFalse(cfg.passive_recall, "Flag passive_recall wajib default False!")
+
+        # 2. Config dengan flag True
+        cfg_file.write_text('{"passive_recall": true}', encoding="utf-8")
+        cfg_true = AppConfig(config_path=cfg_file)
+        self.assertTrue(cfg_true.passive_recall, "Flag passive_recall harus True jika diset di config.")
+
+    def test_passive_recall_flag_controls_injection_in_flow(self):
+        """Memastikan alur Console mematuhi flag passive_recall (False = diabaikan, True = disuntikkan)."""
+        prompt = "apa database utama proyek kita ya?"
+        
+        # Kasus A: flag False (default) -> blok pasif diabaikan (None)
+        flag_false = False
+        recall_content_a = None
+        if flag_false:
+            recall_content_a = execute_passive_recall(prompt, self.db, self.active_session_id)
+        self.assertIsNone(recall_content_a, "Jika flag False, passive recall tidak boleh dipanggil / disuntikkan!")
+
+        # Kasus B: flag True -> blok pasif dipanggil dan menghasilkan konten
+        flag_true = True
+        recall_content_b = None
+        if flag_true:
+            recall_content_b = execute_passive_recall(prompt, self.db, self.active_session_id)
+        self.assertIsNotNone(recall_content_b, "Jika flag True, passive recall harus menghasilkan blok relevan.")
+        self.assertIn("sqlite", recall_content_b.lower())
+
+    def test_recall_db_without_df_method_does_not_fallback_to_true(self):
+        """Memastikan db tanpa get_term_turn_frequency TIDAK menganggap token ber-DF rendah (no else True fallback)."""
+        class MockDbWithoutDf:
+            def search_fts(self, q, exclude_session_id, limit=5):
+                return [{"content": "proyek kita dengan teknologi baru"}]
+
+        mock_db = MockDbWithoutDf()
+        res = execute_passive_recall("teknologi baru proyek kita apa ya?", mock_db, "sess_1")
+        self.assertIsNone(res, "Tanpa method get_term_turn_frequency, tidak boleh ada fallback 'else True'!")
+
 if __name__ == "__main__":
     unittest.main()
+

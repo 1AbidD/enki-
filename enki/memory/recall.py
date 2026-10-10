@@ -146,7 +146,7 @@ def execute_passive_recall(
         if len(matched) >= 2:
             low_df_tokens = [
                 t for t in matched
-                if (db.get_term_turn_frequency(t) <= df_threshold_pct if hasattr(db, "get_term_turn_frequency") else True)
+                if (hasattr(db, "get_term_turn_frequency") and db.get_term_turn_frequency(t) <= df_threshold_pct)
             ]
             if len(low_df_tokens) >= 1:
                 qualifying_snippets.append(snip)

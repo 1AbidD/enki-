@@ -200,7 +200,6 @@ if __name__ == "__main__":
         print(f"   Wilson 95% CI   : [{pos['ci_95'][0]*100:.2f}%, {pos['ci_95'][1]*100:.2f}%]")
 
         if neg["fp_rate"] > 0.10:
-            print(f"\n[PERINGATAN KRITIS]: FP kelompok berpenanda ({neg['fp_rate']*100:.2f}%) MELEBIHI batas 10%! STOP DAN LAPORKAN!")
-            break
+            print(f"\n[PERINGATAN KRITIS]: FP kelompok berpenanda ({neg['fp_rate']*100:.2f}%) MELEBIHI batas 10%! GAGAL GATE!")
         else:
             print(f"   >>> Status Gate: LOLOS (FP <= 10%)")

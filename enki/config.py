@@ -30,6 +30,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "temperature": 0.2,
     "ollama_url": "http://127.0.0.1:11434",
     "is_muted": False,
+    "passive_recall": False,
     "workspace_root": str(Path(__file__).resolve().parent.parent)
 }
 
@@ -75,6 +76,10 @@ class AppConfig:
     @property
     def is_muted(self) -> bool:
         return bool(self._data.get("is_muted", False))
+
+    @property
+    def passive_recall(self) -> bool:
+        return bool(self._data.get("passive_recall", False))
 
     @property
     def workspace_root(self) -> Path:

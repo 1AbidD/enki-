@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from enki.core.ollama_client import OllamaClient
 from enki.config import get_data_dir
+from enki.memory.database import MemoryDatabase
 
 def get_default_proposals_file() -> Path:
     return get_data_dir() / "memory" / "pending_facts.json"

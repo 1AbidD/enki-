@@ -1,0 +1,185 @@
+test_cap_observations_cumulative (test_assembler.TestPromptAssembler.test_cap_observations_cumulative)
+Memastikan akumulasi observasi multi-step ReAct tidak melebihi batas total. ... ok
+test_history_pruning_when_full (test_assembler.TestPromptAssembler.test_history_pruning_when_full)
+Memastikan turn obrolan lama dipangkas ketika mendekati batas anggaran. ... ok
+test_total_prompt_never_exceeds_num_ctx (test_assembler.TestPromptAssembler.test_total_prompt_never_exceeds_num_ctx)
+Memastikan prompt hasil rakitan tidak melebihi num_ctx. ... ok
+test_truncate_tool_output_with_marker (test_assembler.TestPromptAssembler.test_truncate_tool_output_with_marker)
+Memastikan output tool yang panjang dipotong dengan penanda jelas. ... ok
+test_benchmark_lock_reclaims_stale_dead_pid (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_benchmark_lock_reclaims_stale_dead_pid)
+Memastikan BenchmarkLock mengambil alih lock jika PID di lock file sudah mati. ... ok
+test_benchmark_lock_rejects_living_pid (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_benchmark_lock_rejects_living_pid)
+Memastikan BenchmarkLock menolak proses jika lock file dipegang PID yang masih hidup. ... ok
+test_classify_mem_prompt_groups (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_classify_mem_prompt_groups)
+Memastikan klasifikasi prompt MEM akurat untuk 3 kelompok. ... ok
+test_synthetic_record_normal_success_when_no_timeout (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_synthetic_record_normal_success_when_no_timeout)
+Memastikan evaluasi normal menghasilkan True jika is_timeout=False. ... ok
+test_synthetic_record_timeout_forces_failure (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_synthetic_record_timeout_forces_failure)
+Memastikan record sintetis dengan is_timeout=True menghasilkan False untuk ... ok
+test_block_absolute_path_outside_workspace (test_file_tools.TestFileToolsSandbox.test_block_absolute_path_outside_workspace)
+Mencoba membaca file di luar drive / C:\Windows ditolak. ... ok
+test_block_binary_file (test_file_tools.TestFileToolsSandbox.test_block_binary_file)
+File binary dengan null bytes ditolak. ... ok
+test_block_large_file (test_file_tools.TestFileToolsSandbox.test_block_large_file)
+File melebihi batas 500 KB ditolak. ... ok
+test_block_path_traversal_dot_dot (test_file_tools.TestFileToolsSandbox.test_block_path_traversal_dot_dot)
+Mencoba path traversal '..' keluar workspace ditolak. ... ok
+test_block_protected_directories (test_file_tools.TestFileToolsSandbox.test_block_protected_directories)
+Folder .git dan data/memory diblokir. ... ok
+test_block_sensitive_files (test_file_tools.TestFileToolsSandbox.test_block_sensitive_files)
+File .env, *.pem, id_rsa* diblokir meskipun berada di dalam workspace. ... ok
+test_block_unc_path (test_file_tools.TestFileToolsSandbox.test_block_unc_path)
+Mencoba membaca UNC path ditolak keras. ... ok
+test_file_containing_rejection_string_is_not_rejected (test_file_tools.TestFileToolsSandbox.test_file_containing_rejection_string_is_not_rejected)
+File yang isinya mengandung string '[Akses Ditolak]' tidak boleh dianggap sebagai policy rejection. ... ok
+test_read_nested_valid_file (test_file_tools.TestFileToolsSandbox.test_read_nested_valid_file)
+Membaca file di subdirektori workspace berhasil. ... ok
+test_read_valid_file (test_file_tools.TestFileToolsSandbox.test_read_valid_file)
+Membaca file valid di dalam workspace berhasil dan dibungkus tag untrusted. ... ok
+test_negative_proof_detects_deliberate_leak (test_isolation_integrity.TestDirectoryIsolationIntegrity.test_negative_proof_detects_deliberate_leak)
+Uji negatif: Membuktikan bahwa verifikator hash PASTI mendeteksi file bocor jika ada file ditulis ke data/ asli. ... ok
+test_suites_isolation_runner (test_isolation_integrity.TestDirectoryIsolationIntegrity.test_suites_isolation_runner)
+Menjalankan seluruh 7 suite unit test dan memverifikasi data/ dan logs/ asli 100% tidak tersentuh. ... ----------------------------------------------------------------------
+Ran 56 tests in 3.436s
+
+OK
+ok
+test_explicit_memory_keywords (test_memory_gating.TestMemoryGating.test_explicit_memory_keywords)
+Memastikan kata kunci eksplisit memori mengaktifkan tool search_memory. ... ok
+test_get_active_tools_for_turn_schemas (test_memory_gating.TestMemoryGating.test_get_active_tools_for_turn_schemas)
+Memastikan tool search_memory benar-benar hilang dari daftar schema saat gating bernilai False. ... ok
+test_negative_prompts_do_not_enable_memory_tool (test_memory_gating.TestMemoryGating.test_negative_prompts_do_not_enable_memory_tool)
+Memastikan prompt umum/coding/resep/sapaan TIDAK mengaktifkan memory tool. ... ok
+test_recall_trigger_words (test_memory_gating.TestMemoryGating.test_recall_trigger_words)
+Memastikan kata-kata pemicu recall mengaktifkan tool search_memory. ... ok
+test_assembler_loads_profile_and_recall_within_budget (test_memory_unit.TestMemoryUnit.test_assembler_loads_profile_and_recall_within_budget)
+Memastikan assembler memuat fakta profil dan blok recall dengan batas context. ... ok
+test_build_fts_query_empty_if_only_stopwords (test_memory_unit.TestMemoryUnit.test_build_fts_query_empty_if_only_stopwords)
+Jika pesan hanya berisi kata pemicu dan stopword, query mengembalikan None. ... ok
+test_build_fts_query_strips_stopwords_and_triggers (test_memory_unit.TestMemoryUnit.test_build_fts_query_strips_stopwords_and_triggers)
+Memastikan kata pemicu dan stopword dibuang dari query FTS5. ... ok
+test_database_turns_and_unreflected_sessions (test_memory_unit.TestMemoryUnit.test_database_turns_and_unreflected_sessions)
+Memastikan sesi dan turns tercatat deterministik serta status unreflected bekerja. ... ok
+test_end_to_end_deterministic_recall_without_llm (test_memory_unit.TestMemoryUnit.test_end_to_end_deterministic_recall_without_llm)
+Menguji aliran recall ujung-ke-ujung: Sesi 1 topik unik -> Sesi 2 pemicu recall -> assembler. ... ok
+test_force_secret_proposals_rejected_by_queue_code (test_memory_unit.TestMemoryUnit.test_force_secret_proposals_rejected_by_queue_code)
+Memaksa usulan berisi rahasia lewat submit ke proposal queue dan assert ditolak oleh KODE. ... ok
+test_format_recall_block_untrusted_tag (test_memory_unit.TestMemoryUnit.test_format_recall_block_untrusted_tag)
+Memastikan cuplikan recall dibungkus tag untrusted dan sanitasi. ... ok
+test_hypothesis_filter_and_stats (test_memory_unit.TestMemoryUnit.test_hypothesis_filter_and_stats)
+Memastikan usulan hipotetis ditolak kode, sedangkan preferensi 'kalau...' sah tetap lolos. ... ok
+test_profile_audit_log_recorded (test_memory_unit.TestMemoryUnit.test_profile_audit_log_recorded)
+Memastikan setiap perubahan profil tercatat di memory_audit.log. ... ok
+test_profile_token_limit_enforcement (test_memory_unit.TestMemoryUnit.test_profile_token_limit_enforcement)
+Memastikan penambahan fakta ditolak jika melebihi batas 500 token. ... ok
+test_quote_recovery_guarantee (test_memory_unit.TestMemoryUnit.test_quote_recovery_guarantee)
+Memastikan quote recovery HANYA menghasilkan substring yang persis ada di pesan user. ... ok
+test_recall_trigger_word_boundaries (test_memory_unit.TestMemoryUnit.test_recall_trigger_word_boundaries)
+Memastikan trigger regex mematuhi batas kata (word-boundary). ... ok
+test_secret_pattern_rejection (test_memory_unit.TestMemoryUnit.test_secret_pattern_rejection)
+Memastikan proposal yang mengandung pola rahasia ditolak otomatis. ... ok
+test_deliberate_leak_triggers_isolation_failure (test_negative_isolation_failure.TestNegativeIsolationFailure.test_deliberate_leak_triggers_isolation_failure)
+Membuktikan bahwa menulis ke data/ asli terdeteksi dan memicu AssertionError pada checker isolasi. ... ok
+test_a_project_database_prompt_triggers_passive_recall (test_passive_recall.TestPassiveRecall.test_a_project_database_prompt_triggers_passive_recall)
+Uji (a): 'apa database utama proyek kita ya?' memunculkan blok recall pasif bila ada turn relevan. ... ok
+test_b_generic_prompts_do_not_trigger_passive_recall (test_passive_recall.TestPassiveRecall.test_b_generic_prompts_do_not_trigger_passive_recall)
+Uji (b): Pesan umum ('siapa pencipta python', 'resep nasi goreng') TIDAK memunculkan blok ... ok
+test_passive_recall_config_flag_default_false (test_passive_recall.TestPassiveRecall.test_passive_recall_config_flag_default_false)
+Memastikan flag passive_recall default False pada AppConfig dan dapat diubah. ... ok
+test_passive_recall_flag_controls_injection_in_flow (test_passive_recall.TestPassiveRecall.test_passive_recall_flag_controls_injection_in_flow)
+Memastikan alur Console mematuhi flag passive_recall (False = diabaikan, True = disuntikkan). ... ok
+test_r3_strict_mechanisms (test_passive_recall.TestPassiveRecall.test_r3_strict_mechanisms)
+Tes unit tanpa LLM untuk aturan resmi R3_strict: ... ok
+test_recall_db_without_df_method_does_not_fallback_to_true (test_passive_recall.TestPassiveRecall.test_recall_db_without_df_method_does_not_fallback_to_true)
+Memastikan db tanpa get_term_turn_frequency TIDAK menganggap token ber-DF rendah (no else True fallback). ... ok
+test_invalid_argument_allows_one_retry_then_disables_tools (test_policy_rejection.TestPolicyRejectionHandling.test_invalid_argument_allows_one_retry_then_disables_tools)
+Memastikan invalid argumen boleh diulang 1 kali, tetapi kegagalan argumen kedua ... ok
+test_policy_rejection_sends_next_iteration_without_tools (test_policy_rejection.TestPolicyRejectionHandling.test_policy_rejection_sends_next_iteration_without_tools)
+Memastikan penolakan kebijakan (path traversal di luar workspace) menyebabkan ... ok
+test_reading_file_with_rejection_string_does_not_trigger_policy_rejection (test_policy_rejection.TestPolicyRejectionHandling.test_reading_file_with_rejection_string_does_not_trigger_policy_rejection)
+Membaca file sah yang teksnya memuat '[Akses Ditolak]' TIDAK BOLEH memicu policy rejection di ReAct loop. ... ok
+test_unregistered_tool_triggers_policy_rejection_without_tools (test_policy_rejection.TestPolicyRejectionHandling.test_unregistered_tool_triggers_policy_rejection_without_tools)
+Memastikan tool yang tidak terdaftar memicu penolakan kebijakan dan iterasi berikutnya tanpa tools. ... ok
+test_code_level_injection_allowlist_command_aborts_without_subprocess (test_prompt_injection.TestPromptInjectionSecurity.test_code_level_injection_allowlist_command_aborts_without_subprocess)
+Tes tingkat kode TANPA LLM: ... ok
+test_llm_indirect_prompt_injection_safety (test_prompt_injection.TestPromptInjectionSecurity.test_llm_indirect_prompt_injection_safety)
+Uji ujung ke ujung: LLM membaca file berisi instruksi injection. ... ok
+test_shell_allowlist_blocks_injected_destructive_commands (test_prompt_injection.TestPromptInjectionSecurity.test_shell_allowlist_blocks_injected_destructive_commands)
+Memastikan tool bebas dan aksi git destruktif yang disuntikkan ditolak keras sebagai penolakan kebijakan. ... ok
+test_shell_requires_manual_confirmation_and_aborts_on_no (test_prompt_injection.TestPromptInjectionSecurity.test_shell_requires_manual_confirmation_and_aborts_on_no)
+Uji perintah yang masuk allowlist tetap memerlukan konfirmasi dan batal jika 'n'. ... ok
+test_untrusted_tag_sanitization_in_file (test_prompt_injection.TestPromptInjectionSecurity.test_untrusted_tag_sanitization_in_file)
+Uji file yang mencoba break out dari sandbox dengan closing tag buatan. ... ok
+test_run_3_iterations_benchmark (test_react_benchmark_set2.TestReActBenchmarkSet2.test_run_3_iterations_benchmark)
+Menjalankan 20 prompt multi-turn DEV SET sebanyak 3 iterasi dan menyimpan raw JSONL. ... skipped 'Benchmark suite - run explicitly via python tests/test_react_benchmark_set2.py'
+test_run_3_iterations_benchmark_set3 (test_react_benchmark_set3.TestReActBenchmarkSet3.test_run_3_iterations_benchmark_set3)
+Menjalankan 24 prompt multi-turn UJIAN (Set 3) sebanyak 3 iterasi. ... skipped 'Benchmark suite - run explicitly via python tests/test_react_benchmark_set3.py'
+test_run_set4_benchmark (test_react_benchmark_set4.TestReActBenchmarkSet4.test_run_set4_benchmark)
+Metode dummy agar terdaftar di discovery tetapi dilewati saat test suite otomatis berjalan. ... skipped 'Benchmark suite - run explicitly via python tests/test_react_benchmark_set4.py'
+test_set2_text_response (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set2_text_response) ... ok
+test_set2_timeout_callback_fails (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set2_timeout_callback_fails) ... ok
+test_set2_timeout_exception_fails (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set2_timeout_exception_fails) ... ok
+test_set2_tool_call_response (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set2_tool_call_response) ... ok
+test_set3_text_response (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set3_text_response) ... ok
+test_set3_timeout_callback_fails (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set3_timeout_callback_fails) ... ok
+test_set3_timeout_exception_fails (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set3_timeout_exception_fails) ... ok
+test_set3_tool_call_response (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set3_tool_call_response) ... ok
+test_set4_text_response (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set4_text_response) ... ok
+test_set4_timeout_callback_fails (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set4_timeout_callback_fails) ... ok
+test_set4_timeout_exception_fails (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set4_timeout_exception_fails) ... ok
+test_set4_tool_call_response (test_react_mock_runners_unit.TestReactMockRunnersUnit.test_set4_tool_call_response) ... ok
+test_preserves_legitimate_content (test_sanitizer.TestSanitizer.test_preserves_legitimate_content)
+Memastikan konten legal non-untrusted tidak rusak. ... ok
+test_sanitize_various_untrusted_tags (test_sanitizer.TestSanitizer.test_sanitize_various_untrusted_tags)
+Memastikan semua varian tag untrusted_* dibersihkan sempurna (case-insensitive, spasi, atribut). ... ok
+test_wrap_untrusted_content_strips_nested_before_wrapping (test_sanitizer.TestSanitizer.test_wrap_untrusted_content_strips_nested_before_wrapping)
+Memastikan fungsi pembungkus membuang tag untrusted internal sebelum membungkus. ... ok
+test_git_confirmation_rejection (test_shell_tools.TestFixedArgumentTools.test_git_confirmation_rejection)
+Memastikan konfirmasi pengguna [y/N] yang menolak akan membatalkan git command. ... ok
+test_git_valid_actions_enum (test_shell_tools.TestFixedArgumentTools.test_git_valid_actions_enum)
+Memastikan hanya action di dalam enum ['status', 'log', 'diff'] yang diizinkan. ... ok
+test_list_dir_safe_listing_and_traversal_blocking (test_shell_tools.TestFixedArgumentTools.test_list_dir_safe_listing_and_traversal_blocking)
+Memastikan list_dir membaca folder workspace dan memblokir path traversal. ... ok
+test_no_arbitrary_string_command_execution_pathway (test_shell_tools.TestFixedArgumentTools.test_no_arbitrary_string_command_execution_pathway)
+Memastikan tidak ada API atau parameter yang menerima string perintah bebas untuk dieksekusi. ... ok
+test_python_version_execution_and_confirmation (test_shell_tools.TestFixedArgumentTools.test_python_version_execution_and_confirmation)
+Memastikan python_version mengeksekusi dengan aman dan meminta konfirmasi. ... ok
+test_run_unittests_execution_and_confirmation (test_shell_tools.TestFixedArgumentTools.test_run_unittests_execution_and_confirmation)
+Memastikan run_unittests mengeksekusi python -m unittest. ... ok
+
+----------------------------------------------------------------------
+Ran 78 tests in 6.104s
+
+OK (skipped=3)
+
+[BENCHMARK LOCK] Mengambil alih lock basi (stale lock) dari PID=99999999 (proses sudah mati, dimulai pada 2026-10-10T10:00:00Z).
+
+=== RAW OUTPUT UJI (a) PASSIVE RECALL ===
+<untrusted_memory_content source="sqlite_fts5_passive_recall">
+[Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
+- User: apa database utama proyek kita ya?
+- Assistant: Database utama proyek kita adalah SQLite dengan mode WAL dan indeks FTS5.
+</untrusted_memory_content>
+==================================================
+
+=== RAW OUTPUT UJI (b) PASSIVE RECALL (HARUS NONE) ===
+Prompt: 'siapa pencipta bahasa pemrograman python dan kapan pertama kali dirilis?' -> Result: None
+Prompt: 'buatkan resep singkat cara bikin nasi goreng kampung yang enak dan gurih' -> Result: None
+Prompt: 'halo selamat pagi enki, gimana kabarmu hari ini?' -> Result: None
+Prompt: 'apa beda framework dan library dalam pemrograman web?' -> Result: None
+==================================================
+
+=== RAW OUTPUT UJI (a) PASSIVE RECALL ===
+<untrusted_memory_content source="sqlite_fts5_passive_recall">
+[Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
+- User: apa database utama proyek kita ya?
+- Assistant: Database utama proyek kita adalah SQLite dengan mode WAL dan indeks FTS5.
+</untrusted_memory_content>
+==================================================
+
+=== RAW OUTPUT UJI (b) PASSIVE RECALL (HARUS NONE) ===
+Prompt: 'siapa pencipta bahasa pemrograman python dan kapan pertama kali dirilis?' -> Result: None
+Prompt: 'buatkan resep singkat cara bikin nasi goreng kampung yang enak dan gurih' -> Result: None
+Prompt: 'halo selamat pagi enki, gimana kabarmu hari ini?' -> Result: None
+Prompt: 'apa beda framework dan library dalam pemrograman web?' -> Result: None
+==================================================

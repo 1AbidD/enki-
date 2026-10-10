@@ -57,18 +57,17 @@ $$\text{Sisa Token} = \text{num\_ctx} - (\text{System Base} + \text{Profile} + \
   [Instruksi Wajib]: Jawab berdasarkan hasil pencarian di atas. Jika hasil memuat jawabannya, sampaikan isinya. Jangan menambah saran umum.
   ```
 
-### B. Recall Pasif Deterministik (Aturan Resmi R3_strict & Evaluasi R4)
-Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?"*), FTS5 dijalankan secara pasif dengan **aturan resmi R3_strict**:
-> **Aturan Resmi R3_strict:**
-> 1. Wajib memiliki penanda konteks berbagi / kepemilikan (`kita`, `kami`, `tim kita`, `proyek kita`, `proyekku`, `task-ku`, `repo-ku`, `dulu`, `waktu itu`, `kemarin`, `pernah`).
-> 2. R1: Kandidat turn wajib mencocokkan minimal 2 token substantif berbeda dalam turn yang sama.
-> 3. Low-DF: Minimal 1 token yang cocok wajib memiliki Document Frequency rendah ($\text{DF} \le 5.0\%$).
+### B. Recall Pasif Deterministik (EKSPERIMENTAL, GAGAL GATE, DEFAULT OFF)
+Mekanisme heuristik recall pasif berbasis aturan R3_strict (penanda konteks + Document Frequency $\text{DF} \le 5.0\%$) telah dievaluasi pada Corpus B realistis (294 turns):
+* **Hasil Evaluasi Frozen Suite:** Menghasilkan False Positive Rate sebesar 61.90% (13/21 false proposals pada pertanyaan developer yang memuat kata 'kita'/'proyekku'), melampaui batas toleransi 10%.
+* **Keputusan Desain:** **GAGAL GATE & NONAKTIF SECARA DEFAULT** (`"passive_recall": false` di `config.json`).
+* **Strategi Memori Produksi:** Mengingat fakta sesi lampau mengandalkan profil permanen (`profile.json` via `ProfileManager`) serta pencarian aktif (Active Recall via pemicu leksikal kata waktu atau perintah pencarian eksplisit). Batasan ini dicantumkan secara transparan di `/help`.
 
 #### Hasil Evaluasi Frozen Suite (21 Negatif Berpenanda & 13 Positif Tanpa Penanda):
 * **Kelompok Negatif Berpenanda (Berbagi Topik Developer dengan Korpus):**
   * Korpus A (60 turns): False Proposals = 13/21 (61.90%), Wilson 95% CI = [40.88%, 79.25%].
-  * Korpus B (270 turns): False Proposals = 13/21 (61.90%), Wilson 95% CI = [40.88%, 79.25%].
-  * *Temuan Empiris & Gate:* False Proposal rate pada kelompok negatif berpenanda melebihi ambang batas 10% (karena pertanyaan teknis umum yang memakai kata ganti "kita" mencocokkan turn historis di mana topik teknis tersebut hanya muncul 1–2 kali sehingga DF-nya $\le 5\%$). Sesuai protokol, proses **BERHENTI DAN DILAPORKAN**.
+  * Korpus B (294 turns): False Proposals = 13/21 (61.90%), Wilson 95% CI = [40.88%, 79.25%].
+  * *Temuan Empiris & Gate:* False Proposal rate pada kelompok negatif berpenanda melebihi ambang batas 10% (karena pertanyaan teknis umum yang memakai kata ganti "kita" mencocokkan turn historis di mana topik teknis tersebut hanya muncul 1–2 kali sehingga DF-nya $\le 5\%$). Sesuai protokol, proses **GAGAL GATE DAN DIMATIKAN DEFAULT**.
 * **Kelompok Positif Tanpa Penanda (Keterbatasan Model):**
   * Korpus A & B: Recall = 0/13 (0.00%), Wilson 95% CI = [0.00%, 22.81%].
   * *Keterbatasan Terdokumentasi:* Aturan berbasis penanda leksikal tidak dapat memicu recall pasif pada pertanyaan memori yang tidak menyertakan penanda konteks berbagi.
@@ -186,10 +185,12 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 3. **Fidelity Jawaban:** $\ge 85.0\%$ dari run yang memanggil tool yang benar
 4. **Total Timeout:** $= 0$
 5. **Argumen Invalid:** $= 0$
-6. **Injeksi Recall Pasif ke Prompt Negatif:** $\le 10.0\%$
+6. **0 Recall Block pada Negatif Tanpa Pemicu:** $0$ kasus injeksi recall tidak sah pada prompt negatif murni tanpa pemicu.
+7. **Kriteria Sukses MEM:** Nilai kunci wajib muncul di jawaban akhir DAN tidak memanggil tool lain.
+8. **Validasi Komposisi MEM:** Dari 12 prompt MEM Set 4A (6 built-in mode profile + 6 user), wajib minimal 4 prompt berstatus Mode Recall. Runner melakukan hard fail jika mode recall $< 4$.
 
 ### Komposisi 30 Prompt Set 4A:
-* **12 Positif Memori (Recall Pasif):** 6 dari user, 6 buatan asisten (3 berpenanda konteks, 3 tanpa penanda, tanpa overlap topik dengan korpus historis, max Jaccard < 0.15).
+* **12 Memori (MEM):** 6 buatan asisten (Mode Profile via `profile.json`), 6 dari user (diharapkan 4 Mode Recall + 2 Mode Profile).
 * **6 Positif Workspace / Git / Test:** 4 dari user, 2 buatan asisten.
 * **12 Negatif Murni (No Tool):** 5 dari user, 7 buatan asisten.
 
