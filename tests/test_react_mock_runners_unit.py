@@ -283,8 +283,8 @@ class TestReactMockRunnersUnit(unittest.TestCase):
             tool_call_data={
                 "name": "git",
                 "args": {"action": "status"},
-                "output": "terdapat perubahan berkas",
-                "final_ans": "Status git: terdapat perubahan berkas"
+                "output": "On branch feat/telemetry-monitor-v2\nmodified: app/main.py",
+                "final_ans": "Status git: berada di branch feat/telemetry-monitor-v2 dan ada modifikasi di app/main.py"
             }
         )
         prompt_item = {
@@ -292,7 +292,7 @@ class TestReactMockRunnersUnit(unittest.TestCase):
             "prompt": "cek status git",
             "expected_tool": "git",
             "expected_arg": "status",
-            "expected_key": "perubahan",
+            "expected_key": "feat/telemetry-monitor-v2|app/main.py",
             "category": "DEV"
         }
         confirmed_log = []

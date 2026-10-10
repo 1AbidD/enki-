@@ -9,14 +9,14 @@ import tempfile
 import unittest
 import subprocess
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 from enki.core.ollama_client import OllamaClient
 from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT
-from enki.core.react_loop import ReActCoordinator
+from enki.core.react_loop import ReActCoordinator, get_active_tools_for_turn
 from enki.memory.database import MemoryDatabase
 from enki.memory.profile_manager import ProfileManager
 from enki.memory.recall import (
@@ -27,7 +27,6 @@ from enki.memory.recall import (
 from tests.benchmark_common import (
     evaluate_benchmark_turn,
     BenchmarkLock,
-    classify_mem_prompt,
     create_benchmark_jsonl_header,
 )
 
@@ -273,7 +272,7 @@ REGRESSION_PROMPTS_4R = [
         "prompt": "bisa tolong liat branch git kita yg aktif dan status commit terakhir?",
         "expected_tool": "git",
         "expected_arg": "status",
-        "expected_key": "perubahan"
+        "expected_key": "feat/telemetry-monitor-v2|app/main.py"
     },
     {
         "id": "S4R_P09_REG",
@@ -282,7 +281,7 @@ REGRESSION_PROMPTS_4R = [
         "expected_tool": "run_unittests",
         "expected_arg": None,
         "fixture_variant": "passing",
-        "expected_key": "lulus"
+        "expected_key": "lulus|berhasil|sukses"
     },
     {
         "id": "S4R_P10_REG",
@@ -294,16 +293,16 @@ REGRESSION_PROMPTS_4R = [
     {
         "id": "S4R_P11_REG",
         "origin_id": "BUILTIN_TEST_FAIL",
-        "prompt": "coba eksekusi seluruh rangkaian pengujian di proyek dan laporkan status akhirnya",
+        "prompt": "coba jalankan seluruh tes proyek ini dan laporkan hasilnya",
         "expected_tool": "run_unittests",
         "expected_arg": None,
         "fixture_variant": "failing",
-        "expected_key": "kegagalan"
+        "expected_key": "gagal|kegagalan|fail|failed|error|test_deliberate_telemetry_fault"
     }
 ]
 
 # Manifest Fixture Workspace untuk Validasi Preflight & Kunci Fidelity
-# Menggunakan satu kunci wajib per fixture dengan nilai unik (panjang > 3 huruf, tidak ada di system prompt base)
+# Tanpa kata generik: menggunakan nama branch/file, revisi build unik, dan himpunan polaritas hasil tes
 FIXTURE_MANIFEST: Dict[str, Any] = {
     "files": {
         "README.md": {
@@ -334,8 +333,8 @@ FIXTURE_MANIFEST: Dict[str, Any] = {
     "git": {
         "status": {
             "action": "status",
-            "key": "perubahan",
-            "description": "Status adanya perubahan uncommitted (sadar polaritas)"
+            "key": "feat/telemetry-monitor-v2|app/main.py",
+            "description": "Nama branch feat/telemetry-monitor-v2 atau berkas termodifikasi app/main.py (any-of)"
         },
         "diff": {
             "action": "diff",
@@ -351,13 +350,17 @@ FIXTURE_MANIFEST: Dict[str, Any] = {
     "tests": {
         "passing": {
             "variant": "passing",
-            "key": "lulus",
-            "description": "Hasil tes passing lulus (sadar polaritas)"
+            "key": "lulus|berhasil|sukses",
+            "pos_keys": ["lulus", "berhasil", "sukses"],
+            "neg_keys": ["gagal", "kegagalan", "error"],
+            "description": "Hasil tes passing: lulus|berhasil|sukses (tanpa negasi) atau gagal|kegagalan|error (dinegasi)"
         },
         "failing": {
             "variant": "failing",
-            "key": "kegagalan",
-            "description": "Hasil tes failing terdapat kegagalan (sadar polaritas)"
+            "key": "gagal|kegagalan|fail|failed|error|test_deliberate_telemetry_fault",
+            "pos_keys": ["gagal", "kegagalan", "fail", "failed", "error", "test_deliberate_telemetry_fault"],
+            "neg_keys": [],
+            "description": "Hasil tes failing: gagal|kegagalan|fail|failed|error|test_deliberate_telemetry_fault (tanpa negasi)"
         }
     }
 }
@@ -498,6 +501,14 @@ def load_user_prompts(
                 exp_arg = matched_file_info["path"]
                 exp_key = matched_file_info["key"]
 
+                # Kunci manifest dilarang muncul di teks pertanyaan pengguna
+                if re.search(r'\b' + re.escape(exp_key) + r'\b', prompt_text, re.IGNORECASE):
+                    sys.stderr.write(
+                        f"\n[PREFLIGHT VIOLATION]: Baris pengguna FILE '{prompt_text}' memuat kunci fixture '{exp_key}'! "
+                        f"Dilarang membocorkan kunci jawaban di pertanyaan.\n"
+                    )
+                    sys.exit(1)
+
             elif p_type == "GIT":
                 exp_tool = "git"
                 if "diff" in prompt_text.lower():
@@ -510,10 +521,34 @@ def load_user_prompts(
                     exp_arg = "status"
                     exp_key = FIXTURE_MANIFEST["git"]["status"]["key"]
 
+                # Seluruh kunci aksi git di manifest dilarang muncul di teks pertanyaan pengguna
+                git_check_keys = [k.strip() for k in exp_key.split("|")]
+                for gk in git_check_keys:
+                    if re.search(r'\b' + re.escape(gk) + r'\b', prompt_text, re.IGNORECASE):
+                        sys.stderr.write(
+                            f"\n[PREFLIGHT VIOLATION]: Baris pengguna GIT '{prompt_text}' memuat kunci fixture GIT '{gk}'! "
+                            f"Dilarang membocorkan kunci jawaban di pertanyaan.\n"
+                        )
+                        sys.exit(1)
+
             elif p_type == "TEST":
                 exp_tool = "run_unittests"
                 exp_arg = None
                 exp_key = FIXTURE_MANIFEST["tests"]["passing"]["key"]
+
+                # Seluruh kunci hasil test di manifest dilarang muncul di teks pertanyaan pengguna
+                all_test_keys = [
+                    "lulus", "berhasil", "sukses",
+                    "gagal", "kegagalan", "fail", "failed", "error",
+                    "test_deliberate_telemetry_fault"
+                ]
+                for tk in all_test_keys:
+                    if re.search(r'\b' + re.escape(tk) + r'\b', prompt_text, re.IGNORECASE):
+                        sys.stderr.write(
+                            f"\n[PREFLIGHT VIOLATION]: Baris pengguna TEST '{prompt_text}' memuat kunci fixture TEST '{tk}'! "
+                            f"Dilarang membocorkan kunci jawaban di pertanyaan.\n"
+                        )
+                        sys.exit(1)
 
             p_entry = {
                 "id": f"S4A_U{user_idx:02d}_{p_type}",
@@ -820,6 +855,12 @@ def run_single_benchmark_turn(
             first_tool_call = raw_call[:paren_idx].strip()
             first_tool_arg = raw_call[paren_idx + 1 : -1].strip()
 
+    active_tools = get_active_tools_for_turn(user_prompt)
+    active_tool_names = [t["function"]["name"] for t in (active_tools or [])]
+    gating_closed = False
+    if expected_tool is not None and expected_tool not in active_tool_names:
+        gating_closed = True
+
     eval_res = evaluate_benchmark_turn(
         expected_tool=expected_tool,
         expected_arg=expected_arg,
@@ -829,7 +870,9 @@ def run_single_benchmark_turn(
         final_text=final_text,
         is_timeout=is_timeout,
         timeout_reason=timeout_reason,
-        fixture_manifest=FIXTURE_MANIFEST
+        fixture_manifest=FIXTURE_MANIFEST,
+        fixture_variant=variant,
+        gating_closed=gating_closed
     )
 
     return {
@@ -841,6 +884,7 @@ def run_single_benchmark_turn(
         "expected_key": expected_key,
         "called_tool": first_tool_call,
         "called_arg": first_tool_arg,
+        "gating_closed": gating_closed,
         "active_recall_injected": active_recall_injected,
         "passive_recall_injected": passive_recall_injected,
         "recall_source": recall_source,
@@ -1002,7 +1046,7 @@ def run_benchmark_suite(
                         key_leaks_in_neg += 1
                         break
 
-            print(f"\nKRITERIA 6: Negatif Murni & Berpemicu Aktif:")
+            print("\nKRITERIA 6: Negatif Murni & Berpemicu Aktif:")
             print(f"  Recall Block Terinjeksi di NEG       : {neg_leaks}/{len(neg_records)} (Status: {'LULUS' if neg_leaks == 0 else 'GAGAL'})")
             print(f"  False Tool Call di NEG               : {neg_false_calls}/{len(neg_records)} (Status: {'LULUS' if neg_false_calls == 0 else 'GAGAL'})")
             print(f"  Kebocoran Nilai Kunci Memori di NEG  : {key_leaks_in_neg}/{len(neg_records)} (Status: {'LULUS' if key_leaks_in_neg == 0 else 'GAGAL'})")
@@ -1022,19 +1066,31 @@ class TestReActBenchmarkSet4(unittest.TestCase):
         pass
 
 if __name__ == "__main__":
-    from tests.benchmark_common import check_working_tree_clean_for_benchmark, check_gating_freeze_diff_clean
+    from tests.benchmark_common import check_working_tree_clean_for_benchmark, check_gating_freeze_clean
     check_working_tree_clean_for_benchmark()
 
-    if not check_gating_freeze_diff_clean():
+    if not check_gating_freeze_clean():
         sys.stderr.write(
-            "\n[FATAL GATING FREEZE VIOLATION]: 'git diff gating-freeze -- enki/core/react_loop.py' TIDAK KOSONG!\n"
-            "Pola gating telah dibekukan. Perubahan pada react_loop.py setelah tag gating-freeze dilarang keras.\n"
+            "\n[FATAL GATING FREEZE VIOLATION]: Verifikasi freeze gagal!\n"
+            "Hash tag 'gating-freeze' tidak cocok dengan FREEZE_COMMIT di docs/set4_lock.txt "
+            "atau terdapat perbedaan git diff pada lingkup [enki, tests/benchmark_common.py, tests/test_react_benchmark_set4.py]!\n"
             "Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN.\n"
         )
         sys.exit(1)
 
     for p in BUILTIN_PROMPTS_4A + REGRESSION_PROMPTS_4R:
         validate_prompt_fidelity_keys(p)
+        exp_tool = p.get("expected_tool")
+        if exp_tool is not None:
+            active_tools = get_active_tools_for_turn(p["prompt"])
+            active_names = [t["function"]["name"] for t in (active_tools or [])]
+            if exp_tool not in active_names:
+                sys.stderr.write(
+                    f"\n[FATAL BUILTIN GATING VIOLATION]: Prompt positif built-in '{p['id']}' "
+                    f"mengharapkan tool '{exp_tool}', namun gating hanya membuka: {active_names}!\n"
+                    f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN.\n"
+                )
+                sys.exit(1)
 
     client = OllamaClient()
     check_ollama_idle(client)

@@ -123,7 +123,7 @@ Mekanisme heuristik recall pasif berbasis aturan R3_strict (penanda konteks + Do
 String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Seluruh interaksi menggunakan alat berargumen tetap tanpa celah parameter injection:
 
 1. `search_memory(query: str)`:
-   * *Gating Deterministik:* Hanya dimuat dalam schema tools jika pesan mengandung pemicu recall leksikal atau kata kunci pencarian eksplisit (*catatan, riwayat, log obrolan, sesi lampau, memori*).
+   * *Gating Deterministik:* Hanya dimuat dalam schema tools jika pesan mengandung pemicu recall aktif leksikal (`kemarin|pernah|ingat|sebelumnya|tadi|waktu itu|remember|earlier`), atau pemicu percakapan: kata `riwayat` HANYA bersama `percakapan|obrolan|chat|diskusi` (`\briwayat\b.*\b(percakapan|obrolan|chat|diskusi)\b|\b(percakapan|obrolan|chat|diskusi)\b.*\briwayat\b`), kata `catatan` HANYA bersama `obrolan|percakapan|chat` atau `catatan lama` (`\bcatatan\s+lama\b|\bcatatan\b.*\b(obrolan|percakapan|chat)\b|\b(obrolan|percakapan|chat)\b.*\bcatatan\b`), atau frasa eksplisit memori lain (`log obrolan`, `sesi lampau`, `sesi sebelumnya`, `percakapan lama`, `memori`). Kata `riwayat` atau `catatan` yang berdiri sendiri tanpa konteks percakapan secara deterministik **TIDAK membuka** `search_memory`.
 2. `read_file(file_path: str)`:
    * Membaca isi file teks di dalam workspace. Path diisolasi via `Path.resolve()`, direktori sensitif (`.git`, `data/`, `logs/`, credentials) diblokir keras.
 3. `git(action: enum["status", "log", "diff"])`:
@@ -206,9 +206,10 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
      - `git` (4 kalimat x 3 seed = 12 run): **0 false call (0.0%)**
      - `search_memory` (2 kalimat x 3 seed = 6 run): **0 false call (0.0%)**
      - **Total Keseluruhan:** **0/39 (0.0%) false tool call**.
-     Meskipun skema tool terbuka akibat kecocokan leksikal kata kunci ('file', 'folder', 'commit', 'branch', 'dir', 'tadi'), model 3B memilih menjawab langsung dalam teks percakapan biasa tanpa halusinasi pemanggilan alat (0/39 call). Angka empiris ini membuktikan bahwa false-open leksikal tidak serta-merta memicu false tool call pada kalimat pertanyaan konseptual umum.
+     Meskipun skema tool terbuka akibat kecocokan leksikal kata kunci ('file', 'folder', 'commit', 'branch', 'dir', 'tadi'), pemanggilan alat palsu (false tool call) **tidak ditemukan dalam 13 kalimat yang diuji (batas atas Wilson 95% ≈ 23%)**.
+     *Catatan Statistik Wilson:* Pada 0/13 prompt unik, batas atas Wilson 95% adalah 22.81% (≈ 23%). Pada 0/39 runs, batas atas Wilson 95% adalah 8.97% (≈ 9.0%), dengan catatan penting bahwa 39 run tersebut BUKAN 39 sampel independen melainkan replikasi seed dari 13 kalimat.
      *Catatan Validitas Pengujian:* Seluruh prompt built-in dibuat setelah regex dirancang sehingga berisiko overfitting struktural terhadap aturan leksikal. Oleh karena itu, hanya prompt independen pengguna yang benar-benar menguji cakupan dan generalisasi gating secara objektif ($n$ kecil).
-     *Pembekuan Pola Gating:* Pola gating deterministik dibekukan secara resmi per commit `tahap 3 pre-set4 fix7c` pada git tag `gating-freeze` (tidak boleh diubah lagi sampai seluruh rangkaian dan laporan Set 4 selesai). Runner menolak berjalan jika `git diff gating-freeze -- enki/core/react_loop.py` tidak kosong.
+     *Pembekuan Pola Gating:* Pola gating deterministik leksikal terakhir diubah pada commit `36ede30` dan dibekukan secara resmi pada commit freeze (`tahap 3 gating freeze`) dengan tag git beranotasi `gating-freeze` (lingkup freeze: seluruh `enki/`, `tests/benchmark_common.py`, dan `tests/test_react_benchmark_set4.py`). Runner menolak berjalan jika `git rev-parse gating-freeze` != `FREEZE_COMMIT` di `docs/set4_lock.txt` atau jika `git diff FREEZE_COMMIT -- enki/ tests/benchmark_common.py tests/test_react_benchmark_set4.py` menghasilkan output apa pun.
      *Tabel Frasa Sah yang Tidak Lolos Gating (Limitasi Terdokumentasi dari Uji 30 Frasa):*
      - `read_file`: *"bisa bantu baca skrip implementasi utama kita?"* (intensi sah membaca skrip, namun tidak memuat ekstensi file, path, atau kata 'file'/'berkas').
      - `git`: *"bagaimana riwayat perubahan terakhir di repo kita?"* (intensi sah cek riwayat repo, namun kata 'repo' saja tanpa kata 'git' tidak membuka alat).
@@ -231,29 +232,34 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 9. **Kebijakan Kegagalan Gate Set 4A (Tanpa Tuning Tambahan):**
    Jika Set 4A gagal melewati gate kriteria kelulusan, **TIDAK BOLEH dilakukan tuning prompt atau penyesuaian ad-hoc tambahan terhadap model**. Keputusan kelanjutan arah proyek / jalur penyederhanaan (misalnya beralih ke moda chat-only tanpa ReAct, atau simplifikasi lainnya) sepenuhnya berada di tangan pengguna.
 
-### Standar Fixture Mandatori & Evaluasi Fidelity (fix7c):
-1. **Satu Kunci Unik per Fixture (Tanpa Kata Generik):**
-   Setiap fixture workspace memiliki tepat satu nilai target unik yang tidak terdapat pada system prompt base:
-   - `README.md`: `zephyrsentinel`
-   - `requirements.txt`: `structlog`
-   - `app/main.py`: `zephyr-9082-alpha`
-   - `tests/test_app.py`: `lulus` (varian passing) / `kegagalan` (varian failing)
-   - `git status`: `perubahan`
-   - `git diff`: `telemetry patch`
-   - `git log`: `telemetry ingest`
+### Standar Fixture Mandatori & Evaluasi Fidelity (fix7d):
+1. **Satu Kunci Unik per Fixture & Manifest Persis Kode:**
+   Setiap fixture workspace memiliki tepat satu nilai target unik (atau himpunan sinonim polaritas) yang tidak terdapat pada system prompt base:
+   - `README.md`: path `README.md`, key `zephyrsentinel`
+   - `requirements.txt`: path `requirements.txt`, key `structlog`
+   - `app/main.py`: path `app/main.py`, key `zephyr-9082-alpha`
+   - `tests` (varian passing): key unnegated `lulus|berhasil|sukses` ATAU negated `gagal|kegagalan|error`
+   - `tests` (varian failing): key unnegated `gagal|kegagalan|fail|failed|error` ATAU unnegated `test_deliberate_telemetry_fault`
+   - `git status`: action `status`, key `feat/telemetry-monitor-v2|app/main.py`
+   - `git diff`: action `diff`, key `telemetry patch`
+   - `git log`: action `log`, key `telemetry ingest`
 2. **Aturan Evaluasi Fidelity Ketat:**
    - Pencocokan wajib word-boundary (`\b`) dan case-insensitive.
    - Panjang kunci wajib > 3 karakter (kata <= 3 huruf seperti "ok", "pass" dilarang keras).
-   - Kunci dilarang keras muncul di: (a) system prompt base ENKI, (b) teks pertanyaan pengguna (preflight menolak S4R_P11 lama yang memuat kata 'lulus'/'kegagalan'), dan (c) nama tool. Preflight melakukan hard-fail jika aturan ini dilanggar.
+   - Kunci dilarang keras muncul di: (a) system prompt base ENKI, (b) teks pertanyaan pengguna (preflight menolak S4R_P11 lama yang memuat kata 'lulus'/'kegagalan', serta memeriksa baris pertanyaan pengguna terhadap manifest fixture), dan (c) nama tool. Preflight melakukan hard-fail jika aturan ini dilanggar.
 3. **Pencocokan Sadar Polaritas (TEST dan GIT):**
-   - Kata negasi (`tidak|tak|tanpa|bukan|belum|0`) dalam rentang 3 token sebelum kata kunci membatalkan kecocokan fidelity (misal: "tidak ada tes yang lulus" membatalkan kunci "lulus", "tidak ada kegagalan" membatalkan kunci "kegagalan", "tidak ada perubahan" membatalkan kunci "perubahan").
+   - Jendela negasi sebenarnya adalah 4 token mendahului kata kunci (diakui bahwa spesifikasi awal 3 token tidak mencukupi untuk konstruksi bahasa Indonesia nyata seperti "tidak ada tes yang lulus" di mana kata negasi "tidak" berjarak 4 token sebelum "lulus").
+   - Tokenisasi menyimpan tanda baca (`,`, `;`, `.`, `:`).
+   - Pemindaian mundur negasi dihentikan oleh tanda baca pembatas klausa (`,`, `;`, `.`, `:`) atau kata hubung perlawanan (`namun`, `tetapi`, `tapi`).
+   - Contoh: "tidak ada kegagalan" lolos varian passing dan gagal di varian failing; "tidak masalah, semua tes lulus" lolos varian passing karena tanda koma membatasi cakupan negasi.
 4. **Perlakuan Khusus Baris GIT (Aksi Dinamis):**
    - Routing GIT dinilai terhadap tool `git` secara umum (aksi valid enum `status`, `diff`, `log`).
-   - Fidelity dinilai terhadap aksi yang BENAR-BENAR dipanggil model menggunakan kunci dari manifest fixture aksi tersebut.
+   - Fidelity dinilai terhadap aksi yang BENAR-BENAR dipanggil model menggunakan kunci dari manifest fixture aksi tersebut (`feat/telemetry-monitor-v2|app/main.py` untuk status, `telemetry patch` untuk diff, `telemetry ingest` untuk log).
    - Ketidakcocokan aksi antara prompt dan pemanggilan dilaporkan secara terpisah sebagai `action_mismatch`, bukan kegagalan routing.
-5. **Pembekuan Gating (gating-freeze):**
-   - Kode gating dibekukan pada git tag `gating-freeze`.
-   - Header benchmark mencatat tag `git describe --tags` dan flag `gating_diff_clean`. Runner Set 4 menolak berjalan jika terdapat perbedaan antara HEAD dan `gating-freeze` pada `enki/core/react_loop.py`.
+5. **Pembekuan Gating & Runner (gating-freeze):**
+   - Kode gating dibekukan bersama harness dan runner (lingkup freeze: seluruh `enki/`, `tests/benchmark_common.py`, dan `tests/test_react_benchmark_set4.py`) pada git tag `gating-freeze`.
+   - Berkas `docs/set4_lock.txt` memuat dua baris: `SHA256 = [kunci SHA256 file prompt pengguna]` dan `FREEZE_COMMIT = [hash commit gating-freeze]`.
+   - Header benchmark mencatat tag `git describe --tags` dan flag `gating_diff_clean`. Runner Set 4 menolak berjalan jika `git rev-parse gating-freeze` != `FREEZE_COMMIT` atau jika `git diff FREEZE_COMMIT -- enki/ tests/benchmark_common.py tests/test_react_benchmark_set4.py` menghasilkan output apa pun (working tree kotor atau ada modifikasi setelah freeze).
 
 ### Kunci Integritas Ujian, Spesifikasi Profil, & Catatan Smoke:
 * **Kunci Integritas Set 4:** File prompt pengguna diverifikasi secara kriptografis menggunakan kunci SHA256 pengguna yang didaftarkan di `docs/set4_lock.txt` (tracked). Hash template kosong `4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55` telah **dihapus permanen dan ditolak keras**. Runner Set 4 menolak berjalan jika berkas lock tidak ada, berupa placeholder template kosong, atau hash-nya tidak cocok dengan file prompt riil.

@@ -158,7 +158,7 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         }), encoding="utf-8")
 
         # Mencoba acquire lock: harus berhasil mengambil alih tanpa raise error
-        with BenchmarkLock(lock_file=lock_file) as lock:
+        with BenchmarkLock(lock_file=lock_file):
             self.assertTrue(lock_file.exists())
             curr_data = json.loads(lock_file.read_text(encoding="utf-8"))
             self.assertEqual(curr_data["pid"], os.getpid())
@@ -342,37 +342,82 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         self.assertEqual(p_test["expected_key"], FIXTURE_MANIFEST["tests"]["passing"]["key"])
 
     def test_polarity_aware_fidelity_matching(self):
-        """Uji tanpa LLM untuk pencocokan fidelity sadar polaritas dan word-boundary (A4):
-        - 'tidak ada kegagalan' TIDAK lolos varian gagal;
-        - 'semua tes lulus' lolos varian lulus;
-        - 'tidak ada tes yang lulus' TIDAK lolos varian lulus;
-        - 'lokal' tidak cocok 'ok';
-        - 'password' tidak cocok 'pass';
-        - 'tidak ada perubahan' TIDAK lolos git status saat ada perubahan.
+        """Uji tanpa LLM untuk pencocokan fidelity sadar polaritas dan batas klausa (A4):
+        1. 'tidak ada kegagalan' -> lolos varian lulus, TIDAK lolos varian gagal
+        2. 'tes berhasil tanpa error' -> lolos varian lulus
+        3. 'tidak berhasil' -> TIDAK lolos varian lulus
+        4. 'kegagalan tidak terhindarkan' -> lolos varian gagal (karena kegagalan mendahului negasi)
+        5. 'gagal di test_deliberate_telemetry_fault' -> lolos varian gagal
+        6. 'tidak masalah, semua tes lulus' -> lolos varian lulus (tanda koma menghentikan negasi)
+        Serta verifikasi word-boundary dan panjang kunci (> 3 huruf).
         """
-        from tests.benchmark_common import check_fidelity_match
+        from tests.benchmark_common import check_test_fidelity, check_fidelity_match
 
-        # 1. 'tidak ada kegagalan' TIDAK lolos varian gagal (key: kegagalan)
-        self.assertFalse(check_fidelity_match("kegagalan", "tidak ada kegagalan"))
+        # 1. 'tidak ada kegagalan' -> lolos varian lulus, TIDAK lolos varian gagal
+        self.assertTrue(check_test_fidelity("tidak ada kegagalan", variant="passing"))
+        self.assertFalse(check_test_fidelity("tidak ada kegagalan", variant="failing"))
 
-        # 2. 'semua tes lulus' lolos varian lulus (key: lulus)
-        self.assertTrue(check_fidelity_match("lulus", "semua tes lulus"))
+        # 2. 'tes berhasil tanpa error' -> lolos varian lulus
+        self.assertTrue(check_test_fidelity("tes berhasil tanpa error", variant="passing"))
 
-        # 3. 'tidak ada tes yang lulus' TIDAK lolos varian lulus (key: lulus)
-        self.assertFalse(check_fidelity_match("lulus", "tidak ada tes yang lulus"))
+        # 3. 'tidak berhasil' -> TIDAK lolos varian lulus
+        self.assertFalse(check_test_fidelity("tidak berhasil", variant="passing"))
 
-        # 4. 'lokal' tidak cocok 'ok' (word-boundary & key <= 3 huruf)
+        # 4. 'kegagalan tidak terhindarkan' -> lolos varian gagal (kegagalan mendahului negasi)
+        self.assertTrue(check_test_fidelity("kegagalan tidak terhindarkan", variant="failing"))
+
+        # 5. 'gagal di test_deliberate_telemetry_fault' -> lolos varian gagal
+        self.assertTrue(check_test_fidelity("gagal di test_deliberate_telemetry_fault", variant="failing"))
+
+        # 6. 'tidak masalah, semua tes lulus' -> lolos varian lulus (koma membatasi negasi)
+        self.assertTrue(check_test_fidelity("tidak masalah, semua tes lulus", variant="passing"))
+
+        # Verifikasi word-boundary & kunci <= 3 huruf
         self.assertFalse(check_fidelity_match("ok", "lokal"))
-
-        # 5. 'password' tidak cocok 'pass' (word-boundary)
         self.assertFalse(check_fidelity_match("pass", "password"))
 
-        # 6. 'tidak ada perubahan' TIDAK lolos git status (key: perubahan)
-        self.assertFalse(check_fidelity_match("perubahan", "tidak ada perubahan"))
+    def test_all_builtin_positive_prompts_open_expected_tool(self):
+        """Memverifikasi SEMUA prompt positif built-in (4A dan 4R) membuka tool yang diharapkan (A5)."""
+        from tests.test_react_benchmark_set4 import BUILTIN_PROMPTS_4A, REGRESSION_PROMPTS_4R
+        from enki.core.react_loop import get_active_tools_for_turn
 
-        # Tambahan: respon positif tanpa negasi lolos
-        self.assertTrue(check_fidelity_match("kegagalan", "terjadi 1 kegagalan assertion"))
-        self.assertTrue(check_fidelity_match("perubahan", "terdapat perubahan uncommitted pada berkas"))
+        all_builtin_positive = [
+            p for p in BUILTIN_PROMPTS_4A + REGRESSION_PROMPTS_4R
+            if p.get("expected_tool") is not None
+        ]
+        self.assertGreater(len(all_builtin_positive), 0, "Harus ada prompt positif built-in!")
+
+        for p in all_builtin_positive:
+            active_tools = get_active_tools_for_turn(p["prompt"])
+            self.assertIsNotNone(
+                active_tools,
+                f"Prompt positif {p['id']} gagal membuka tool (mendapat None): '{p['prompt']}'"
+            )
+            tool_names = [t["function"]["name"] for t in active_tools]
+            self.assertIn(
+                p["expected_tool"],
+                tool_names,
+                f"Prompt {p['id']} tidak membuka expected_tool '{p['expected_tool']}', yang terbuka: {tool_names}"
+            )
+
+    def test_gating_closed_handling_in_evaluator(self):
+        """Memverifikasi perlakuan gating_closed=True pada evaluator (A5):
+        - routing_ok WAJIB False
+        - is_success WAJIB False
+        - gating_closed tercatat True
+        """
+        res = evaluate_benchmark_turn(
+            expected_tool="read_file",
+            expected_arg="README.md",
+            expected_key="zephyrsentinel",
+            tool_calls_recorded=[],
+            tool_observations_recorded=[],
+            final_text="Saya tidak dapat membaca file karena gating tertutup.",
+            gating_closed=True
+        )
+        self.assertFalse(res["routing_ok"], "gating_closed harus membuat routing_ok False")
+        self.assertFalse(res["is_success"], "gating_closed harus membuat is_success False")
+        self.assertTrue(res["gating_closed"], "gating_closed harus tercatat True")
 
     def test_preflight_fidelity_key_rules(self):
         """Memverifikasi aturan ketat kunci fidelity (A2):
@@ -438,7 +483,7 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         res2 = evaluate_benchmark_turn(
             expected_tool="git",
             expected_arg="status",
-            expected_key="perubahan",
+            expected_key="feat/telemetry-monitor-v2|app/main.py",
             tool_calls_recorded=['git({"action": "diff"})'],
             tool_observations_recorded=["# uncommitted telemetry patch"],
             final_text="Hasil diff menunjukkan telemetry patch",
@@ -453,7 +498,7 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         res3 = evaluate_benchmark_turn(
             expected_tool="git",
             expected_arg="status",
-            expected_key="perubahan",
+            expected_key="feat/telemetry-monitor-v2|app/main.py",
             tool_calls_recorded=['read_file({"file_path": "README.md"})'],
             tool_observations_recorded=["# README"],
             final_text="README ada perubahan",
@@ -462,28 +507,53 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         self.assertFalse(res3["routing_ok"])
         self.assertFalse(res3["is_success"])
 
-    def test_gating_freeze_diff_clean_check(self):
-        """Memverifikasi fungsi check_gating_freeze_diff_clean."""
-        from tests.benchmark_common import check_gating_freeze_diff_clean
-        from unittest.mock import patch
+    def test_gating_freeze_clean_check(self):
+        """Memverifikasi fungsi check_gating_freeze_clean (C3 & C4):
+        - Lock tanpa FREEZE_COMMIT -> return False
+        - Commit hash di tag gating-freeze tidak cocok dengan FREEZE_COMMIT -> return False
+        - git diff menghasilkan perubahan non-kosong -> return False
+        - Commit cocok dan git diff kosong -> return True
+        """
+        from tests.benchmark_common import check_gating_freeze_clean
+        from unittest.mock import patch, MagicMock
 
-        # Kasus 1: Subprocess mengembalikan diff kosong -> return True
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            mock_run.return_value.stdout = ""
-            self.assertTrue(check_gating_freeze_diff_clean())
+        # Kasus 1: Tanpa FREEZE_COMMIT di lock
+        with patch("tests.benchmark_common.get_freeze_commit_from_lock", return_value=None):
+            self.assertFalse(check_gating_freeze_clean())
 
-        # Kasus 2: Subprocess mengembalikan diff tidak kosong -> return False
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            mock_run.return_value.stdout = "diff --git a/enki/core/react_loop.py ..."
-            self.assertFalse(check_gating_freeze_diff_clean())
+        # Kasus 2: Commit hash tag tidak cocok dengan lock
+        with patch("tests.benchmark_common.get_freeze_commit_from_lock", return_value="commit_abc123"):
+            mock_rev = MagicMock(returncode=0, stdout="commit_different789\n")
+            with patch("subprocess.run", return_value=mock_rev):
+                self.assertFalse(check_gating_freeze_clean())
 
-        # Kasus 3: Subprocess returncode non-zero (misal tag belum ada) -> return False
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 128
-            mock_run.return_value.stdout = ""
-            self.assertFalse(check_gating_freeze_diff_clean())
+        # Kasus 3: Subprocess tag rev-parse error (tag belum ada)
+        with patch("tests.benchmark_common.get_freeze_commit_from_lock", return_value="commit_abc123"):
+            mock_rev_err = MagicMock(returncode=128, stdout="")
+            with patch("subprocess.run", return_value=mock_rev_err):
+                self.assertFalse(check_gating_freeze_clean())
+
+        # Kasus 4: Commit cocok tapi ada diff kotor
+        with patch("tests.benchmark_common.get_freeze_commit_from_lock", return_value="commit_abc123"):
+            def fake_run(cmd, **kwargs):
+                if "rev-parse" in cmd:
+                    return MagicMock(returncode=0, stdout="commit_abc123\n")
+                if "diff" in cmd:
+                    return MagicMock(returncode=0, stdout="diff --git a/enki/core/react_loop.py ...\n")
+                return MagicMock(returncode=0, stdout="")
+            with patch("subprocess.run", side_effect=fake_run):
+                self.assertFalse(check_gating_freeze_clean())
+
+        # Kasus 5: Commit cocok dan diff bersih (kosong) -> return True
+        with patch("tests.benchmark_common.get_freeze_commit_from_lock", return_value="commit_abc123"):
+            def fake_run_clean(cmd, **kwargs):
+                if "rev-parse" in cmd:
+                    return MagicMock(returncode=0, stdout="commit_abc123\n")
+                if "diff" in cmd:
+                    return MagicMock(returncode=0, stdout="")
+                return MagicMock(returncode=0, stdout="")
+            with patch("subprocess.run", side_effect=fake_run_clean):
+                self.assertTrue(check_gating_freeze_clean())
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,23 +14,89 @@ import subprocess
 import hashlib
 import winreg
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 import psutil
 
+BOUNDARY_TOKENS = {",", ";", ".", ":", "namun", "tetapi", "tapi"}
 NEGATION_WORDS = {"tidak", "tak", "tanpa", "bukan", "belum", "0"}
 
-def check_fidelity_match(expected_key: Any, final_text: str, check_polarity: bool = True) -> bool:
+def find_key_occurrences(key: str, text: str) -> List[Tuple[str, bool]]:
+    r"""Mencari kemunculan kata kunci dengan batas kata (\b) dan menentukan apakah kemunculan tersebut dinegasi.
+    Aturan Polaritas:
+    - Jendela pencarian sebenarnya: 4 token mendahului kata kunci (spesifikasi awal 3 token tidak cocok
+      dengan contoh bahasa Indonesia nyata seperti "tidak ada tes yang lulus" di mana kata negasi "tidak"
+      berada 4 token sebelum "lulus").
+    - Tokenisasi menyimpan tanda baca (, ; . :).
+    - Negasi dibatasi klausa: pemindaian mundur terhenti jika menemukan tanda baca pembatas (, ; . :)
+      atau kata hubung perlawanan (namun|tetapi|tapi).
+    """
+    if not key or not text:
+        return []
+    pattern = r'\b' + re.escape(key.lower()) + r'\b'
+    res = []
+    text_lower = text.lower()
+    for m in re.finditer(pattern, text_lower):
+        prefix = text_lower[:m.start()]
+        tokens = [tm.group(0) for tm in re.finditer(r'\b[\w\./\-]+\b|[,\.;:]', prefix)]
+        window = tokens[-4:] if len(tokens) >= 4 else tokens
+        is_negated = False
+        for tok in reversed(window):
+            if tok in BOUNDARY_TOKENS:
+                break
+            if tok in NEGATION_WORDS:
+                is_negated = True
+                break
+        res.append((m.group(0), is_negated))
+    return res
+
+def check_test_fidelity(final_text: str, variant: str = "passing") -> bool:
+    """Mengevaluasi fidelity khusus untuk hasil uji unit (TEST) sadar polaritas:
+    - Varian lulus:
+      Any of 'lulus|berhasil|sukses' yang TIDAK dinegasi, ATAU
+      Any of 'gagal|kegagalan|error' yang DINEGASI (misal: 'tidak ada kegagalan', '0 error').
+    - Varian gagal:
+      Any of 'gagal|kegagalan|fail|failed|error' yang TIDAK dinegasi, ATAU
+      nama tes gagal unik 'test_deliberate_telemetry_fault' (tidak dinegasi).
+    """
+    if not final_text:
+        return False
+    if variant == "passing":
+        pos_keys = ["lulus", "berhasil", "sukses"]
+        neg_keys = ["gagal", "kegagalan", "error"]
+        for k in pos_keys:
+            if any(not is_neg for _, is_neg in find_key_occurrences(k, final_text)):
+                return True
+        for k in neg_keys:
+            if any(is_neg for _, is_neg in find_key_occurrences(k, final_text)):
+                return True
+        return False
+    elif variant == "failing":
+        pos_keys = ["gagal", "kegagalan", "fail", "failed", "error", "test_deliberate_telemetry_fault"]
+        for k in pos_keys:
+            if any(not is_neg for _, is_neg in find_key_occurrences(k, final_text)):
+                return True
+        return False
+    return False
+
+def check_fidelity_match(
+    expected_key: Any,
+    final_text: str,
+    check_polarity: bool = True,
+    test_variant: Optional[str] = None
+) -> bool:
     """Memeriksa apakah nilai kunci jawaban yang diharapkan muncul di balasan akhir.
     Aturan Ketat:
-    1. Word-boundary (\\b) dan case-insensitive.
+    1. Word-boundary (\b) dan case-insensitive.
     2. Panjang kunci wajib > 3 karakter (kunci <= 3 huruf seperti 'ok', 'pass' ditolak).
-    3. Sadar polaritas: Jika kata negasi (tidak|tak|tanpa|bukan|belum|0) muncul
-       dalam rentang 3 token sebelum kemunculan kunci, kecocokan tersebut dibatalkan.
+    3. Sadar polaritas: Jendela 4 token mendahului dengan penghenti klausa (, ; . : namun|tetapi|tapi).
     """
-    if not expected_key:
+    if not expected_key and not test_variant:
         return True
     if not final_text:
         return False
+
+    if test_variant in ("passing", "failing"):
+        return check_test_fidelity(final_text, variant=test_variant)
 
     keys = []
     if isinstance(expected_key, (list, tuple, set)):
@@ -40,8 +106,11 @@ def check_fidelity_match(expected_key: Any, final_text: str, check_polarity: boo
     else:
         keys = [str(expected_key).strip()]
 
-    token_matches = list(re.finditer(r'\b\w+\b', final_text))
-    tokens = [m.group(0).lower() for m in token_matches]
+    # Deteksi jika expected_key merupakan set sinonim test passing/failing
+    if set(keys) == {"lulus", "berhasil", "sukses"}:
+        return check_test_fidelity(final_text, variant="passing")
+    if "test_deliberate_telemetry_fault" in keys:
+        return check_test_fidelity(final_text, variant="failing")
 
     for key_str in keys:
         key_clean = key_str.lower()
@@ -49,18 +118,12 @@ def check_fidelity_match(expected_key: Any, final_text: str, check_polarity: boo
             # Ditolak sesuai aturan: tidak ada kunci <= 3 huruf
             continue
 
-        key_tokens = [m.lower() for m in re.findall(r'\b\w+\b', key_clean)]
-        if not key_tokens:
-            continue
-        k_len = len(key_tokens)
-
-        for i in range(len(tokens) - k_len + 1):
-            if tokens[i : i + k_len] == key_tokens:
-                if check_polarity:
-                    start_lookback = max(0, i - 4)
-                    preceding = tokens[start_lookback:i]
-                    if any(neg in NEGATION_WORDS for neg in preceding):
-                        continue
+        occs = find_key_occurrences(key_clean, final_text)
+        if occs:
+            if check_polarity:
+                if any(not is_neg for _, is_neg in occs):
+                    return True
+            else:
                 return True
 
     return False
@@ -74,11 +137,14 @@ def evaluate_benchmark_turn(
     final_text: str,
     is_timeout: bool = False,
     timeout_reason: Optional[str] = None,
-    fixture_manifest: Optional[Dict[str, Any]] = None
+    fixture_manifest: Optional[Dict[str, Any]] = None,
+    fixture_variant: Optional[str] = None,
+    gating_closed: bool = False
 ) -> Dict[str, Any]:
     """Mengevaluasi hasil 1 turn benchmark ReAct.
     ATURAN MUTLAK:
     Jika is_timeout == True, maka is_success, routing_ok, dan fidelity_ok WAJIB False.
+    Jika gating_closed == True, routing_ok WAJIB False dan dicatat sebagai gating_closed.
     """
     first_tool_call = None
     first_tool_arg = None
@@ -100,6 +166,9 @@ def evaluate_benchmark_turn(
     obs_all = " ".join(tool_observations_recorded)
     if "[Kebijakan Ditolak]" in obs_all or "[Akses Ditolak]" in obs_all:
         sandbox_status = "BLOCKED"
+
+    if gating_closed:
+        is_wrong_tool = True
 
     if expected_tool is None:
         # Prompt Negatif atau MEM (tanpa tool eksternal)
@@ -149,8 +218,17 @@ def evaluate_benchmark_turn(
                     actual_key = fixture_manifest["git"][called_action].get("key", expected_key)
 
                 is_fidelity_ok = check_fidelity_match(actual_key, final_text, check_polarity=True)
+    elif expected_tool == "run_unittests":
+        # Prompt run_unittests (sadar polaritas passing vs failing)
+        if first_tool_call is None:
+            is_wrong_tool = True
+        elif first_tool_call != "run_unittests":
+            is_wrong_tool = True
+        else:
+            variant = fixture_variant or ("failing" if (expected_key and ("failing" in str(expected_key).lower() or "gagal" in str(expected_key).lower())) else "passing")
+            is_fidelity_ok = check_test_fidelity(final_text, variant=variant)
     else:
-        # Prompt Positif lain (read_file, run_unittests, python_version, list_dir)
+        # Prompt Positif lain (read_file, python_version, list_dir)
         if first_tool_call is None:
             is_wrong_tool = True
         elif first_tool_call != expected_tool:
@@ -164,7 +242,7 @@ def evaluate_benchmark_turn(
             else:
                 is_fidelity_ok = check_fidelity_match(expected_key, final_text, check_polarity=True)
 
-    routing_ok = (not is_false_call) and (not is_wrong_tool)
+    routing_ok = (not is_false_call) and (not is_wrong_tool) and (not gating_closed)
     valid_args = not is_invalid_arg
     is_success = bool(routing_ok and valid_args and is_fidelity_ok and not is_timeout)
 
@@ -179,6 +257,7 @@ def evaluate_benchmark_turn(
         "valid_args": valid_args,
         "fidelity_ok": is_fidelity_ok,
         "action_mismatch": action_mismatch,
+        "gating_closed": gating_closed,
         "sandbox_status": sandbox_status,
         "is_false_call": is_false_call,
         "is_wrong_tool": is_wrong_tool,
@@ -290,22 +369,59 @@ def get_git_describe_tags() -> str:
         pass
     return "unknown"
 
-def check_gating_freeze_diff_clean() -> bool:
-    """Memeriksa apakah `git diff gating-freeze -- enki/core/react_loop.py` kosong.
-    True jika diff bersih (kosong), False jika ada diff atau tag belum ada / error.
+FREEZE_PATHS = ["enki", "tests/benchmark_common.py", "tests/test_react_benchmark_set4.py"]
+
+def get_freeze_commit_from_lock() -> Optional[str]:
+    """Membaca FREEZE_COMMIT dari docs/set4_lock.txt."""
+    lock_file = Path(__file__).resolve().parent.parent / "docs" / "set4_lock.txt"
+    if not lock_file.exists():
+        return None
+    for line in lock_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("FREEZE_COMMIT"):
+            parts = line.split("=", 1)
+            if len(parts) == 2:
+                val = parts[1].strip()
+                if val and not val.startswith("["):
+                    return val
+    return None
+
+def check_gating_freeze_clean() -> bool:
+    """Memeriksa apakah git rev-parse gating-freeze == FREEZE_COMMIT
+    dan git diff FREEZE_COMMIT -- enki tests/benchmark_common.py tests/test_react_benchmark_set4.py kosong.
+    True jika bersih dan hash cocok, False jika ada diff atau tag/lock tidak cocok.
     """
+    freeze_commit = get_freeze_commit_from_lock()
+    if not freeze_commit:
+        return False
     try:
-        proc = subprocess.run(
-            ["git", "diff", "gating-freeze", "--", "enki/core/react_loop.py"],
+        tag_proc = subprocess.run(
+            ["git", "rev-parse", "gating-freeze^{commit}"],
             capture_output=True,
             text=True,
             timeout=5
         )
-        if proc.returncode == 0:
-            return len(proc.stdout.strip()) == 0
+        if tag_proc.returncode != 0:
+            return False
+        tag_commit = tag_proc.stdout.strip()
+        if tag_commit.lower() != freeze_commit.lower():
+            return False
+
+        diff_cmd = ["git", "diff", freeze_commit, "--"] + FREEZE_PATHS
+        diff_proc = subprocess.run(
+            diff_cmd,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if diff_proc.returncode == 0:
+            return len(diff_proc.stdout.strip()) == 0
         return False
     except Exception:
         return False
+
+# Alias untuk kompatibilitas
+check_gating_freeze_diff_clean = check_gating_freeze_clean
 
 def create_benchmark_jsonl_header(
     runner_num_ctx: int = 8192,
