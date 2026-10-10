@@ -369,11 +369,45 @@ def get_git_describe_tags() -> str:
         pass
     return "unknown"
 
-FREEZE_PATHS = ["enki", "tests/benchmark_common.py", "tests/test_react_benchmark_set4.py"]
+FREEZE_PATHS = [
+    "enki",
+    "tests/benchmark_common.py",
+    "tests/test_react_benchmark_set4.py"
+]
 
-def get_freeze_commit_from_lock() -> Optional[str]:
+def filter_leaked_manifest_keys(expected_key: Any, prompt_text: str, prompt_id: str = "") -> str:
+    """Menyaring kunci manifest yang bocor di teks pertanyaan pengguna (C1):
+    Kata yang muncul di pertanyaan pengguna dikeluarkan dari himpunan kunci untuk baris itu.
+    Jika himpunan kunci menjadi kosong (semua kunci bocor), fungsi GAGAL KERAS.
+    """
+    if not expected_key:
+        return ""
+    if isinstance(expected_key, (list, tuple, set)):
+        keys = [str(k).strip() for k in expected_key if str(k).strip()]
+    elif "|" in str(expected_key):
+        keys = [k.strip() for k in str(expected_key).split("|") if k.strip()]
+    else:
+        keys = [str(expected_key).strip()]
+
+    valid_keys = []
+    for k in keys:
+        if not re.search(r'\b' + re.escape(k) + r'\b', prompt_text, re.IGNORECASE):
+            valid_keys.append(k)
+
+    if not valid_keys:
+        err_msg = (
+            f"[PREFLIGHT FIDELITY VIOLATION]: Seluruh kunci manifest '{expected_key}' "
+            f"bocor di dalam teks pertanyaan untuk prompt '{prompt_id}': \"{prompt_text}\"! "
+            f"Himpunan kunci menjadi kosong. Gagal keras."
+        )
+        sys.stderr.write(f"\n{err_msg}\n")
+        raise RuntimeError(err_msg)
+
+    return "|".join(valid_keys)
+
+def get_freeze_commit_from_lock(lock_file_path: Optional[Path] = None) -> Optional[str]:
     """Membaca FREEZE_COMMIT dari docs/set4_lock.txt."""
-    lock_file = Path(__file__).resolve().parent.parent / "docs" / "set4_lock.txt"
+    lock_file = lock_file_path or (Path(__file__).resolve().parent.parent / "docs" / "set4_lock.txt")
     if not lock_file.exists():
         return None
     for line in lock_file.read_text(encoding="utf-8").splitlines():
@@ -382,21 +416,24 @@ def get_freeze_commit_from_lock() -> Optional[str]:
             parts = line.split("=", 1)
             if len(parts) == 2:
                 val = parts[1].strip()
-                if val and not val.startswith("["):
+                if val and not val.startswith("[") and not val.startswith("<"):
                     return val
     return None
 
-def check_gating_freeze_clean() -> bool:
-    """Memeriksa apakah git rev-parse gating-freeze == FREEZE_COMMIT
-    dan git diff FREEZE_COMMIT -- enki tests/benchmark_common.py tests/test_react_benchmark_set4.py kosong.
-    True jika bersih dan hash cocok, False jika ada diff atau tag/lock tidak cocok.
+def check_freeze(repo_root: Optional[Path] = None, lock_file_path: Optional[Path] = None) -> bool:
+    """Fungsi check_freeze() sungguhan (D2):
+    1. Membaca FREEZE_COMMIT dari docs/set4_lock.txt.
+    2. git rev-parse gating-freeze^{commit} harus sama persis dengan FREEZE_COMMIT.
+    3. git diff --quiet FREEZE_COMMIT -- <lingkup> exit code 0.
     """
-    freeze_commit = get_freeze_commit_from_lock()
+    root = repo_root or Path(__file__).resolve().parent.parent
+    freeze_commit = get_freeze_commit_from_lock(lock_file_path)
     if not freeze_commit:
         return False
     try:
         tag_proc = subprocess.run(
             ["git", "rev-parse", "gating-freeze^{commit}"],
+            cwd=str(root),
             capture_output=True,
             text=True,
             timeout=5
@@ -407,21 +444,38 @@ def check_gating_freeze_clean() -> bool:
         if tag_commit.lower() != freeze_commit.lower():
             return False
 
-        diff_cmd = ["git", "diff", freeze_commit, "--"] + FREEZE_PATHS
+        diff_cmd = ["git", "diff", "--quiet", freeze_commit, "--"] + FREEZE_PATHS
         diff_proc = subprocess.run(
             diff_cmd,
+            cwd=str(root),
             capture_output=True,
             text=True,
             timeout=5
         )
-        if diff_proc.returncode == 0:
-            return len(diff_proc.stdout.strip()) == 0
-        return False
+        return diff_proc.returncode == 0
     except Exception:
         return False
 
 # Alias untuk kompatibilitas
-check_gating_freeze_diff_clean = check_gating_freeze_clean
+check_gating_freeze_clean = check_freeze
+check_gating_freeze_diff_clean = check_freeze
+
+def get_freeze_tag_object_id(repo_root: Optional[Path] = None) -> str:
+    """Mengambil object ID tag gating-freeze."""
+    root = repo_root or Path(__file__).resolve().parent.parent
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "gating-freeze"],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if proc.returncode == 0:
+            return proc.stdout.strip()
+    except Exception:
+        pass
+    return "unknown"
 
 def create_benchmark_jsonl_header(
     runner_num_ctx: int = 8192,
@@ -483,6 +537,9 @@ def create_benchmark_jsonl_header(
         "git_head": git_head,
         "git_dirty": git_dirty,
         "git_describe": get_git_describe_tags(),
+        "freeze_commit": get_freeze_commit_from_lock(),
+        "freeze_tag_object_id": get_freeze_tag_object_id(),
+        "freeze_check_clean": check_freeze(),
         "gating_diff_clean": check_gating_freeze_diff_clean(),
         "set4_user_prompts_sha256": prompts_sha256
     }

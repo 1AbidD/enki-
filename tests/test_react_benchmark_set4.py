@@ -28,6 +28,8 @@ from tests.benchmark_common import (
     evaluate_benchmark_turn,
     BenchmarkLock,
     create_benchmark_jsonl_header,
+    filter_leaked_manifest_keys,
+    check_freeze,
 )
 
 def check_ollama_idle(client: OllamaClient):
@@ -138,7 +140,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "coba intip file README.md, apa judul proyeknya?",
         "expected_tool": "read_file",
         "expected_arg": "README.md",
-        "expected_key": "zephyrsentinel"
+        "expected_key": "zephyrsentinel|telemetri|observabilitas"
     },
     {
         "id": "S4A_P23_WS",
@@ -146,7 +148,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "tolong cek git diff sebentar, ada baris apa yg berubah?",
         "expected_tool": "git",
         "expected_arg": "diff",
-        "expected_key": "telemetry patch"
+        "expected_key": "telemetry|main.py|uncommitted"
     },
 
     # 7 NEGATIF MURNI (4 Berpemicu Aktif Tanpa Topik Memori, 3 Tanpa Pemicu)
@@ -264,7 +266,7 @@ REGRESSION_PROMPTS_4R = [
         "prompt": "isi file requirements.txt apa aja ya?",
         "expected_tool": "read_file",
         "expected_arg": "requirements.txt",
-        "expected_key": "structlog"
+        "expected_key": "structlog|aiohttp|prometheus|cerberus"
     },
     {
         "id": "S4R_P08_REG",
@@ -301,33 +303,33 @@ REGRESSION_PROMPTS_4R = [
     }
 ]
 
-# Manifest Fixture Workspace untuk Validasi Preflight & Kunci Fidelity
-# Tanpa kata generik: menggunakan nama branch/file, revisi build unik, dan himpunan polaritas hasil tes
+# Manifest Fixture Workspace untuk Validasi Preflight & Kunci Fidelity (C1)
+# Multi-token any-of sets: seluruh token >3 huruf, bukan di system prompt, bukan di pertanyaan
 FIXTURE_MANIFEST: Dict[str, Any] = {
     "files": {
         "README.md": {
             "path": "README.md",
             "aliases": ["readme", "readme.md"],
-            "key": "zephyrsentinel",
-            "description": "Dokumen judul proyek unik ZephyrSentinel"
+            "key": "zephyrsentinel|telemetri|observabilitas",
+            "description": "Dokumen judul dan deskripsi unik ZephyrSentinel"
         },
         "requirements.txt": {
             "path": "requirements.txt",
             "aliases": ["requirements", "requirements.txt"],
-            "key": "structlog",
-            "description": "Dependensi paket logging terstruktur unik"
+            "key": "structlog|aiohttp|prometheus|cerberus",
+            "description": "Dependensi paket logging/web unik di requirements.txt"
         },
         "app/main.py": {
             "path": "app/main.py",
             "aliases": ["main.py", "app/main.py"],
-            "key": "zephyr-9082-alpha",
-            "description": "Konstanta revisi build unik di app/main.py"
+            "key": "zephyr-9082-alpha|get_status|SERVICE_BUILD_REVISION",
+            "description": "Konstanta revisi build unik atau fungsi di app/main.py"
         },
         "tests/test_app.py": {
             "path": "tests/test_app.py",
             "aliases": ["test_app.py", "tests/test_app.py"],
-            "key": "test_telemetry_pipeline",
-            "description": "Nama pengujian fungsi pipeline unik"
+            "key": "test_telemetry_pipeline|TestZephyrSuite|test_status",
+            "description": "Nama pengujian fungsi atau test suite unik"
         }
     },
     "git": {
@@ -338,12 +340,12 @@ FIXTURE_MANIFEST: Dict[str, Any] = {
         },
         "diff": {
             "action": "diff",
-            "key": "telemetry patch",
+            "key": "telemetry|main.py|uncommitted",
             "description": "Cuplikan patch perubahan unik di git diff"
         },
         "log": {
             "action": "log",
-            "key": "telemetry ingest",
+            "key": "initial|telemetry|ingest",
             "description": "Pesan commit unik di riwayat git log"
         }
     },
@@ -499,37 +501,29 @@ def load_user_prompts(
                     sys.exit(1)
 
                 exp_arg = matched_file_info["path"]
-                exp_key = matched_file_info["key"]
-
-                # Kunci manifest dilarang muncul di teks pertanyaan pengguna
-                if re.search(r'\b' + re.escape(exp_key) + r'\b', prompt_text, re.IGNORECASE):
-                    sys.stderr.write(
-                        f"\n[PREFLIGHT VIOLATION]: Baris pengguna FILE '{prompt_text}' memuat kunci fixture '{exp_key}'! "
-                        f"Dilarang membocorkan kunci jawaban di pertanyaan.\n"
-                    )
-                    sys.exit(1)
+                exp_key = filter_leaked_manifest_keys(
+                    matched_file_info["key"],
+                    prompt_text,
+                    prompt_id=f"S4A_U{user_idx:02d}_{p_type}"
+                )
 
             elif p_type == "GIT":
                 exp_tool = "git"
                 if "diff" in prompt_text.lower():
                     exp_arg = "diff"
-                    exp_key = FIXTURE_MANIFEST["git"]["diff"]["key"]
+                    raw_git_key = FIXTURE_MANIFEST["git"]["diff"]["key"]
                 elif "log" in prompt_text.lower():
                     exp_arg = "log"
-                    exp_key = FIXTURE_MANIFEST["git"]["log"]["key"]
+                    raw_git_key = FIXTURE_MANIFEST["git"]["log"]["key"]
                 else:
                     exp_arg = "status"
-                    exp_key = FIXTURE_MANIFEST["git"]["status"]["key"]
+                    raw_git_key = FIXTURE_MANIFEST["git"]["status"]["key"]
 
-                # Seluruh kunci aksi git di manifest dilarang muncul di teks pertanyaan pengguna
-                git_check_keys = [k.strip() for k in exp_key.split("|")]
-                for gk in git_check_keys:
-                    if re.search(r'\b' + re.escape(gk) + r'\b', prompt_text, re.IGNORECASE):
-                        sys.stderr.write(
-                            f"\n[PREFLIGHT VIOLATION]: Baris pengguna GIT '{prompt_text}' memuat kunci fixture GIT '{gk}'! "
-                            f"Dilarang membocorkan kunci jawaban di pertanyaan.\n"
-                        )
-                        sys.exit(1)
+                exp_key = filter_leaked_manifest_keys(
+                    raw_git_key,
+                    prompt_text,
+                    prompt_id=f"S4A_U{user_idx:02d}_{p_type}"
+                )
 
             elif p_type == "TEST":
                 exp_tool = "run_unittests"

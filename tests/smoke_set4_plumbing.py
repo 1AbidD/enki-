@@ -28,6 +28,11 @@ from tests.benchmark_common import (
     check_ollama_idle,
     create_benchmark_jsonl_header
 )
+from tests.test_react_benchmark_set4 import (
+    setup_real_temporary_workspace,
+    configure_workspace_test_suite,
+    FIXTURE_MANIFEST
+)
 
 SMOKE_PROMPTS = [
     # 1. read_file
@@ -37,7 +42,7 @@ SMOKE_PROMPTS = [
         "prompt": "bisa tolong bacakan isi file requirements.txt di workspace kita?",
         "expected_tool": "read_file",
         "expected_arg": "requirements.txt",
-        "expected_key": "fastapi"
+        "expected_key": FIXTURE_MANIFEST["files"]["requirements.txt"]["key"]
     },
     # 2. git diff
     {
@@ -46,16 +51,17 @@ SMOKE_PROMPTS = [
         "prompt": "tolong cek git diff sebentar ada perubahan kode apa di workspace?",
         "expected_tool": "git",
         "expected_arg": "diff",
-        "expected_key": "uncommitted"
+        "expected_key": FIXTURE_MANIFEST["git"]["diff"]["key"]
     },
-    # 3. run_unittests
+    # 3. run_unittests (passing)
     {
         "id": "SMOKE_P03_TEST",
         "category": "TEST",
         "prompt": "coba jalankan seluruh unit test proyek kita sekarang",
         "expected_tool": "run_unittests",
         "expected_arg": None,
-        "expected_key": ("7", "tujuh")
+        "fixture_variant": "passing",
+        "expected_key": FIXTURE_MANIFEST["tests"]["passing"]["key"]
     },
     # 4. MEM Profile
     {
@@ -90,39 +96,27 @@ SMOKE_PROMPTS = [
         "prompt": "kemarin siapa penemu mikroskop elektron pertama di dunia?",
         "expected_tool": None,
         "expected_key": None
+    },
+    # 7. run_unittests (failing)
+    {
+        "id": "SMOKE_P07_TEST_FAIL",
+        "category": "TEST",
+        "prompt": "coba jalankan seluruh unit test proyek kita sekarang dan laporkan statusnya",
+        "expected_tool": "run_unittests",
+        "expected_arg": None,
+        "fixture_variant": "failing",
+        "expected_key": FIXTURE_MANIFEST["tests"]["failing"]["key"]
+    },
+    # 8. git status
+    {
+        "id": "SMOKE_P08_GIT_STATUS",
+        "category": "GIT",
+        "prompt": "bisa tolong periksa git status untuk melihat kondisi branch saat ini?",
+        "expected_tool": "git",
+        "expected_arg": "status",
+        "expected_key": FIXTURE_MANIFEST["git"]["status"]["key"]
     }
 ]
-
-def setup_smoke_workspace(root_dir: Path):
-    root_dir.mkdir(parents=True, exist_ok=True)
-    (root_dir / "README.md").write_text("# Smoke Test Project\nWorkspace untuk verifikasi pipa ReAct.\n", encoding="utf-8")
-    (root_dir / "requirements.txt").write_text("fastapi==0.110.0\nuvicorn==0.28.0\npydantic==2.6.4\npytest==8.1.1\n", encoding="utf-8")
-    app_dir = root_dir / "app"
-    app_dir.mkdir(parents=True, exist_ok=True)
-    (app_dir / "main.py").write_text("def get_status():\n    return 'OK'\n", encoding="utf-8")
-    test_dir = root_dir / "tests"
-    test_dir.mkdir(parents=True, exist_ok=True)
-    (test_dir / "test_app.py").write_text(
-        "import unittest\nfrom app.main import get_status\n\n"
-        "class TestApp(unittest.TestCase):\n"
-        "    def test_status_ok(self):\n        self.assertEqual(get_status(), 'OK')\n"
-        "    def test_true(self):\n        self.assertTrue(True)\n"
-        "    def test_false(self):\n        self.assertFalse(False)\n"
-        "    def test_math(self):\n        self.assertEqual(1 + 1, 2)\n"
-        "    def test_char(self):\n        self.assertIn('O', get_status())\n"
-        "    def test_not_none(self):\n        self.assertIsNotNone(get_status())\n"
-        "    def test_len(self):\n        self.assertEqual(len(get_status()), 2)\n"
-        "if __name__ == '__main__':\n    unittest.main()\n",
-        encoding="utf-8"
-    )
-    subprocess.run(["git", "init"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "config", "user.name", "Smoke Tester"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "config", "user.email", "smoke@enki.internal"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "checkout", "-b", "feat/smoke-test"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "add", "."], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: initial commit"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    # Buat uncommitted change
-    (app_dir / "main.py").write_text("def get_status():\n    return 'OK'\n\n# uncommitted change\n", encoding="utf-8")
 
 def run_smoke():
     client = OllamaClient()
@@ -139,7 +133,8 @@ def run_smoke():
     os.environ["ENKI_DATA_DIR"] = str(data_path)
     os.environ["ENKI_LOG_DIR"] = str(log_path)
 
-    setup_smoke_workspace(ws_path)
+    # Menggunakan setup workspace nyata Set 4
+    setup_real_temporary_workspace(ws_path)
 
     db_path = log_path / "sessions.db"
     db = MemoryDatabase(db_path=db_path)
@@ -209,10 +204,14 @@ def run_smoke():
     session_id = db.create_session()
 
     print("=" * 70)
-    print("MEMULAI SMOKE TEST PLUMBING (6 PROMPT - REAL REACT & OLLAMA)")
+    print("MEMULAI SMOKE TEST PLUMBING (8 PROMPT - REAL REACT & OLLAMA)")
     print("=" * 70)
 
     for p in SMOKE_PROMPTS:
+        # Konfigurasi suite test sesuai kebutuhan varian turn
+        variant = p.get("fixture_variant", "passing")
+        configure_workspace_test_suite(ws_path, variant=variant)
+
         confirmed_log.clear()  # Reset konfirmasi perintah per turn
         t_start = time.time()
         tool_calls_rec = []
@@ -295,7 +294,9 @@ def run_smoke():
             tool_observations_recorded=tool_obs_rec,
             final_text=final_text,
             is_timeout=is_timeout,
-            timeout_reason=timeout_reason
+            timeout_reason=timeout_reason,
+            fixture_manifest=FIXTURE_MANIFEST,
+            fixture_variant=p.get("fixture_variant")
         )
 
         record = {

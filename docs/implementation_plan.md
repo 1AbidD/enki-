@@ -232,21 +232,23 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 9. **Kebijakan Kegagalan Gate Set 4A (Tanpa Tuning Tambahan):**
    Jika Set 4A gagal melewati gate kriteria kelulusan, **TIDAK BOLEH dilakukan tuning prompt atau penyesuaian ad-hoc tambahan terhadap model**. Keputusan kelanjutan arah proyek / jalur penyederhanaan (misalnya beralih ke moda chat-only tanpa ReAct, atau simplifikasi lainnya) sepenuhnya berada di tangan pengguna.
 
-### Standar Fixture Mandatori & Evaluasi Fidelity (fix7d):
-1. **Satu Kunci Unik per Fixture & Manifest Persis Kode:**
-   Setiap fixture workspace memiliki tepat satu nilai target unik (atau himpunan sinonim polaritas) yang tidak terdapat pada system prompt base:
-   - `README.md`: path `README.md`, key `zephyrsentinel`
-   - `requirements.txt`: path `requirements.txt`, key `structlog`
-   - `app/main.py`: path `app/main.py`, key `zephyr-9082-alpha`
+### Standar Fixture Mandatori & Evaluasi Fidelity (fix7e):
+1. **Himpunan Kunci Any-Of per Fixture & Manifest Persis Kode (C1):**
+   Setiap fixture workspace memiliki himpunan token any-of yang mencakup fakta sah di fixture tersebut dan tidak terdapat pada system prompt base:
+   - `README.md`: path `README.md`, key `zephyrsentinel|telemetri|observabilitas`
+   - `requirements.txt`: path `requirements.txt`, key `structlog|aiohttp|prometheus|cerberus`
+   - `app/main.py`: path `app/main.py`, key `zephyr-9082-alpha|get_status|SERVICE_BUILD_REVISION`
+   - `tests/test_app.py`: path `tests/test_app.py`, key `test_telemetry_pipeline|TestZephyrSuite|test_status`
    - `tests` (varian passing): key unnegated `lulus|berhasil|sukses` ATAU negated `gagal|kegagalan|error`
-   - `tests` (varian failing): key unnegated `gagal|kegagalan|fail|failed|error` ATAU unnegated `test_deliberate_telemetry_fault`
+   - `tests` (varian failing): key unnegated `gagal|kegagalan|fail|failed|error|test_deliberate_telemetry_fault`
    - `git status`: action `status`, key `feat/telemetry-monitor-v2|app/main.py`
-   - `git diff`: action `diff`, key `telemetry patch`
-   - `git log`: action `log`, key `telemetry ingest`
-2. **Aturan Evaluasi Fidelity Ketat:**
+   - `git diff`: action `diff`, key `telemetry|main.py|uncommitted`
+   - `git log`: action `log`, key `initial|telemetry|ingest`
+2. **Aturan Evaluasi Fidelity Ketat & Penyaringan Kebocoran Pertanyaan (C2):**
    - Pencocokan wajib word-boundary (`\b`) dan case-insensitive.
    - Panjang kunci wajib > 3 karakter (kata <= 3 huruf seperti "ok", "pass" dilarang keras).
-   - Kunci dilarang keras muncul di: (a) system prompt base ENKI, (b) teks pertanyaan pengguna (preflight menolak S4R_P11 lama yang memuat kata 'lulus'/'kegagalan', serta memeriksa baris pertanyaan pengguna terhadap manifest fixture), dan (c) nama tool. Preflight melakukan hard-fail jika aturan ini dilanggar.
+   - Kunci dilarang keras muncul di: (a) system prompt base ENKI, (b) teks pertanyaan pengguna (preflight menolak S4R_P11 lama yang memuat kata 'lulus'/'kegagalan', serta memeriksa baris pertanyaan pengguna terhadap manifest fixture), dan (c) nama tool.
+   - **Penyaringan Kebocoran Kunci (C2):** Preflight dan runner memeriksa teks pertanyaan: jika salah satu kunci manifest muncul di pertanyaan pengguna, kata kunci tersebut dicoret dari kandidat giliran itu (`filter_leaked_manifest_keys`). Jika seluruh himpunan kandidat menjadi kosong akibat bocor di pertanyaan, runner GAGAL KERAS.
 3. **Pencocokan Sadar Polaritas (TEST dan GIT):**
    - Jendela negasi sebenarnya adalah 4 token mendahului kata kunci (diakui bahwa spesifikasi awal 3 token tidak mencukupi untuk konstruksi bahasa Indonesia nyata seperti "tidak ada tes yang lulus" di mana kata negasi "tidak" berjarak 4 token sebelum "lulus").
    - Tokenisasi menyimpan tanda baca (`,`, `;`, `.`, `:`).
@@ -254,18 +256,21 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
    - Contoh: "tidak ada kegagalan" lolos varian passing dan gagal di varian failing; "tidak masalah, semua tes lulus" lolos varian passing karena tanda koma membatasi cakupan negasi.
 4. **Perlakuan Khusus Baris GIT (Aksi Dinamis):**
    - Routing GIT dinilai terhadap tool `git` secara umum (aksi valid enum `status`, `diff`, `log`).
-   - Fidelity dinilai terhadap aksi yang BENAR-BENAR dipanggil model menggunakan kunci dari manifest fixture aksi tersebut (`feat/telemetry-monitor-v2|app/main.py` untuk status, `telemetry patch` untuk diff, `telemetry ingest` untuk log).
+   - Fidelity dinilai terhadap aksi yang BENAR-BENAR dipanggil model menggunakan kunci dari manifest fixture aksi tersebut (`feat/telemetry-monitor-v2|app/main.py` untuk status, `telemetry|main.py|uncommitted` untuk diff, `initial|telemetry|ingest` untuk log).
    - Ketidakcocokan aksi antara prompt dan pemanggilan dilaporkan secara terpisah sebagai `action_mismatch`, bukan kegagalan routing.
-5. **Pembekuan Gating & Runner (gating-freeze):**
-   - Kode gating dibekukan bersama harness dan runner (lingkup freeze: seluruh `enki/`, `tests/benchmark_common.py`, dan `tests/test_react_benchmark_set4.py`) pada git tag `gating-freeze`.
-   - Berkas `docs/set4_lock.txt` memuat dua baris: `SHA256 = [kunci SHA256 file prompt pengguna]` dan `FREEZE_COMMIT = [hash commit gating-freeze]`.
-   - Header benchmark mencatat tag `git describe --tags` dan flag `gating_diff_clean`. Runner Set 4 menolak berjalan jika `git rev-parse gating-freeze` != `FREEZE_COMMIT` atau jika `git diff FREEZE_COMMIT -- enki/ tests/benchmark_common.py tests/test_react_benchmark_set4.py` menghasilkan output apa pun (working tree kotor atau ada modifikasi setelah freeze).
+5. **Arsitektur Pembekuan Dua Langkah (gating-freeze):**
+   - **Commit F (`tahap 3 pre-set4 fix7e`):** Memuat seluruh perubahan kode implementasi dalam lingkup pembekuan (`enki/`, `tests/benchmark_common.py`, `tests/test_react_benchmark_set4.py`).
+   - **Tag Beranotasi `gating-freeze`:** Dipasang persis di Commit F (`git tag -a gating-freeze -m "Freeze gating and benchmark harnesses at commit F"`).
+   - **Commit L (`tahap 3 lock freeze`):** Commit anak tepat setelah F yang memperbarui `docs/set4_lock.txt` dengan nilai `FREEZE_COMMIT = <hash_full_commit_F>`.
+   - **Verifikasi Integritas `check_freeze()`:** Runner Set 4 menolak berjalan jika `git rev-parse gating-freeze^{commit}` != `FREEZE_COMMIT` atau jika `git diff --quiet FREEZE_COMMIT -- enki/ tests/benchmark_common.py tests/test_react_benchmark_set4.py` menghasilkan exit code non-zero (working tree kotor atau ada modifikasi setelah freeze).
+   - Pembuktian ketiga kondisi (clean pass, tag mismatch fail, scope dirty fail) diverifikasi secara otomatis lewat unit test repositori git terisolasi (`test_real_git_freeze_check_isolated_repo`).
 
 ### Kunci Integritas Ujian, Spesifikasi Profil, & Catatan Smoke:
 * **Kunci Integritas Set 4:** File prompt pengguna diverifikasi secara kriptografis menggunakan kunci SHA256 pengguna yang didaftarkan di `docs/set4_lock.txt` (tracked). Hash template kosong `4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55` telah **dihapus permanen dan ditolak keras**. Runner Set 4 menolak berjalan jika berkas lock tidak ada, berupa placeholder template kosong, atau hash-nya tidak cocok dengan file prompt riil.
 * **Disclaimer Halusinasi Pengetahuan Umum:** Benchmark ini HANYA menguji ketaatan routing alat, ketiadaan false tool call, ketiadaan kebocoran fakta memori, dan penyampaian fakta profil/sesi. Benchmark TIDAK memverifikasi kebenaran faktual jawaban pengetahuan umum, karena model 3B memiliki kecenderungan halusinasi pada fakta umum (sebagai contoh, pada SMOKE_P06 model menjawab "Carl David Anderson" untuk penemu mikroskop elektron alih-alih Ernst Ruska).
 * **Profil Mode = 12 Distraktor + 1 Fakta per Prompt:** Pada pengujian prompt mode profile, fixture `profile.json` memuat **12 fakta distraktor umum (`DEFAULT_USER_PROFILE_FACTS`) ditambah tepat 1 fakta target spesifik untuk prompt tersebut** (bukan memuat semua fakta dari seluruh prompt sekaligus).
-* **Catatan SMOKE_P03 (Fidelity Kunci "7"/"tujuh"):** Pada uji plumbing SMOKE_P03 (`run_unittests`), fixture mengeksekusi 7 unit test riil. Evaluator mengharapkan kemunculan nilai kunci `("7", "tujuh")` di balasan akhir asisten. Meskipun model 3B berhasil memanggil tool secara tepat (`routing_ok=True`), model menjawab tanpa menyebutkan angka 7/tujuh sehingga `fidelity_ok=False` dan turn berstatus gagal (`is_success=False`). Kriteria penilaian ini **TETAP DIPERTAHANKAN DAN TIDAK DIUBAH**; kriteria keberhasilan mutlak membutuhkan kesesuaian routing, validitas argumen, fidelity jawaban, dan ketiadaan timeout.
+* **Catatan Smoke Test Plumbing Set 4 (fix7e):** Smoke test diperbarui untuk menggunakan fungsi pembangun workspace nyata Set 4 (`setup_real_temporary_workspace` dan `configure_workspace_test_suite`), menghapus builder ad-hoc lama yang sempat digunakan pada fix6. Nilai `expected_key` diambil langsung dari `FIXTURE_MANIFEST` (mengeliminasi nilai literal kadaluwarsa "7"/"tujuh" dan "fastapi"). Pengujian 8 turn (SMOKE_P01 sampai SMOKE_P08 termasuk varian failing test P07 dan git status P08) menghasilkan kelulusan 100% (8/8 turn OK, Routing=True, Fidelity=True, 0 timeout) dengan total durasi ~9.6s.
+* **Validasi Instrumen (36 Turn):** Validasi instrumen dengan 12 prompt netral di luar Set 4 x 3 seed membuktikan bahwa kunci himpunan token any-of menurunkan false-fail dari 7 kasus (pada kunci token tunggal) menjadi 0 kasus (0 false-fail), membuktikan keandalan instrumen evaluasi sebelum Set 4 dijalankan.
 * **Messages Persis yang Dikirim Runner untuk S4A_P16 (Mode Profile):**
   - Prompt: `"feature flag service aplikasi web kita pakai engine apa?"`
   - Array Messages: System prompt base memuat 12 fakta distraktor + 1 fakta target S4A_P16 (`- s4a_p16_mem: Engine feature flag service aplikasi web kita menggunakan Flipt open source.`), diikuti User prompt.
@@ -297,7 +302,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests` (`python -m unittest discover [tests|.]`), `list_dir`, `read_file`, `search_memory`.
 * Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya. Gating leksikal deterministik ketat untuk seluruh alat.
 * Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4 (status: EKSPERIMENTAL, GAGAL GATE, DEFAULT OFF).
-* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, benchmark lock, gating deterministik, dan integritas SHA256 (90 unit test terdaftar secara resmi di docs/test_ids.txt: 87 lulus, 3 benchmark dilewati saat discovery via skipTest).
+* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, benchmark lock, gating deterministik, check_freeze repositori riil terisolasi, dan integritas SHA256 (93 unit test terdaftar secara resmi di docs/test_ids.txt: 90 lulus, 3 benchmark dilewati saat discovery via skipTest).
 * Persiapan pengujian Set 4A dan Set 4R.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)

@@ -533,13 +533,13 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
             with patch("subprocess.run", return_value=mock_rev_err):
                 self.assertFalse(check_gating_freeze_clean())
 
-        # Kasus 4: Commit cocok tapi ada diff kotor
+        # Kasus 4: Commit cocok tapi ada diff kotor (git diff --quiet returncode=1)
         with patch("tests.benchmark_common.get_freeze_commit_from_lock", return_value="commit_abc123"):
             def fake_run(cmd, **kwargs):
                 if "rev-parse" in cmd:
                     return MagicMock(returncode=0, stdout="commit_abc123\n")
                 if "diff" in cmd:
-                    return MagicMock(returncode=0, stdout="diff --git a/enki/core/react_loop.py ...\n")
+                    return MagicMock(returncode=1, stdout="")
                 return MagicMock(returncode=0, stdout="")
             with patch("subprocess.run", side_effect=fake_run):
                 self.assertFalse(check_gating_freeze_clean())
@@ -554,6 +554,86 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
                 return MagicMock(returncode=0, stdout="")
             with patch("subprocess.run", side_effect=fake_run_clean):
                 self.assertTrue(check_gating_freeze_clean())
+
+    def test_real_git_freeze_check_isolated_repo(self):
+        """Memverifikasi check_freeze menggunakan repositori git sementara nyata (D2):
+        1. Clean pass: tag gating-freeze menunjuk ke commit F, lock mencatat hash F, lingkup bersih.
+        2. Tag mismatch fail: tag gating-freeze menunjuk ke commit yang berbeda.
+        3. Scope dirty fail: salah satu file dalam FREEZE_PATHS mengalami modifikasi lokal.
+        """
+        import subprocess
+        from tests.benchmark_common import check_freeze
+
+        with tempfile.TemporaryDirectory(prefix="git_freeze_test_") as tmp_repo:
+            repo_path = Path(tmp_repo)
+            
+            # 1. Inisialisasi repo git nyata
+            subprocess.run(["git", "init"], cwd=str(repo_path), check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.name", "Freeze Tester"], cwd=str(repo_path), check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "freeze@test.internal"], cwd=str(repo_path), check=True, capture_output=True)
+
+            # Buat struktur berkas yang sesuai dengan FREEZE_PATHS
+            (repo_path / "enki").mkdir(parents=True, exist_ok=True)
+            (repo_path / "enki" / "core.py").write_text("# enki code\n", encoding="utf-8")
+            (repo_path / "tests").mkdir(parents=True, exist_ok=True)
+            (repo_path / "tests" / "benchmark_common.py").write_text("# benchmark common\n", encoding="utf-8")
+            (repo_path / "tests" / "test_react_benchmark_set4.py").write_text("# set 4 harness\n", encoding="utf-8")
+            (repo_path / "docs").mkdir(parents=True, exist_ok=True)
+            lock_file = repo_path / "docs" / "set4_lock.txt"
+            lock_file.write_text("FREEZE_COMMIT = pending\n", encoding="utf-8")
+
+            # Commit F: semua kode lingkup
+            subprocess.run(["git", "add", "."], cwd=str(repo_path), check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", "commit F"], cwd=str(repo_path), check=True, capture_output=True)
+            
+            f_commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=str(repo_path), check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+            # Buat tag beranotasi gating-freeze di Commit F
+            subprocess.run(
+                ["git", "tag", "-a", "gating-freeze", "-m", "Annotated freeze tag at Commit F"],
+                cwd=str(repo_path), check=True, capture_output=True
+            )
+
+            # Commit L: update lock file dengan hash Commit F
+            lock_file.write_text(f"FREEZE_COMMIT = {f_commit}\n", encoding="utf-8")
+            subprocess.run(["git", "add", "docs/set4_lock.txt"], cwd=str(repo_path), check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", "commit L (lock)"], cwd=str(repo_path), check=True, capture_output=True)
+
+            # KONDISI 1: Clean pass
+            self.assertTrue(
+                check_freeze(repo_root=repo_path, lock_file_path=lock_file),
+                "check_freeze harus True ketika tag gating-freeze == FREEZE_COMMIT dan lingkup bersih!"
+            )
+
+            # KONDISI 2: Tag mismatch fail
+            # Ubah tag agar menunjuk ke commit L alih-alih commit F
+            subprocess.run(["git", "tag", "-d", "gating-freeze"], cwd=str(repo_path), check=True, capture_output=True)
+            subprocess.run(
+                ["git", "tag", "-a", "gating-freeze", "-m", "Mismatched tag pointing to L"],
+                cwd=str(repo_path), check=True, capture_output=True
+            )
+            self.assertFalse(
+                check_freeze(repo_root=repo_path, lock_file_path=lock_file),
+                "check_freeze harus False ketika tag gating-freeze tidak cocok dengan FREEZE_COMMIT!"
+            )
+
+            # Kembalikan tag ke Commit F
+            subprocess.run(["git", "tag", "-d", "gating-freeze"], cwd=str(repo_path), check=True, capture_output=True)
+            subprocess.run(
+                ["git", "tag", "-a", "gating-freeze", f_commit, "-m", "Restored tag at Commit F"],
+                cwd=str(repo_path), check=True, capture_output=True
+            )
+            self.assertTrue(check_freeze(repo_root=repo_path, lock_file_path=lock_file))
+
+            # KONDISI 3: Scope dirty fail
+            # Modifikasi salah satu berkas dalam lingkup FREEZE_PATHS
+            (repo_path / "tests" / "benchmark_common.py").write_text("# modified dirty\n", encoding="utf-8")
+            self.assertFalse(
+                check_freeze(repo_root=repo_path, lock_file_path=lock_file),
+                "check_freeze harus False ketika file dalam FREEZE_PATHS kotor / berubah!"
+            )
 
 if __name__ == "__main__":
     unittest.main()
