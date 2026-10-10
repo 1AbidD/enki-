@@ -129,17 +129,100 @@ def should_enable_memory_tool(user_input: str) -> bool:
         return False
     return is_recall_triggered(user_input) or bool(EXPLICIT_MEMORY_SEARCH_REGEX.search(user_input))
 
-def get_active_tools_for_turn(user_input: str) -> List[Dict[str, Any]]:
-    """Mengembalikan daftar schema tools tetap yang relevan untuk turn ini."""
+# -------------------------------------------------------------
+# Pola Gating Deterministik Ketat (Word-Boundary, Case-Insensitive)
+# -------------------------------------------------------------
+FILE_EXTENSION_REGEX = re.compile(
+    r'\b[\w\.\-/]+\.(?:py|md|txt|json|ya?ml|toml|cfg|ini|sh|csv|log)\b',
+    re.IGNORECASE
+)
+FILE_KEYWORD_REGEX = re.compile(
+    r'\b(file|berkas)\b',
+    re.IGNORECASE
+)
+FILE_PATH_REGEX = re.compile(
+    r'[a-zA-Z0-9_\-\.]+[/\\][a-zA-Z0-9_\-\.]+',
+    re.IGNORECASE
+)
+
+def should_enable_read_file(user_input: str) -> bool:
+    if not user_input:
+        return False
+    return bool(
+        FILE_EXTENSION_REGEX.search(user_input)
+        or FILE_KEYWORD_REGEX.search(user_input)
+        or FILE_PATH_REGEX.search(user_input)
+    )
+
+GIT_PRIMARY_REGEX = re.compile(
+    r'\b(git|commit|branch|diff)\b',
+    re.IGNORECASE
+)
+
+def should_enable_git(user_input: str) -> bool:
+    if not user_input:
+        return False
+    # git|commit|branch|diff selalu memicu; status/log/repo hanya bila bersama "git"
+    return bool(GIT_PRIMARY_REGEX.search(user_input))
+
+UNITTESTS_EXPLICIT_REGEX = re.compile(
+    r'\b(unittest|unit\s+test|pytest)\b',
+    re.IGNORECASE
+)
+TEST_NOUN_REGEX = re.compile(
+    r'\b(test|tes)\b',
+    re.IGNORECASE
+)
+TEST_ACTION_REGEX = re.compile(
+    r'\b(jalan|jalanin|run|coba|cek)\b',
+    re.IGNORECASE
+)
+
+def should_enable_run_unittests(user_input: str) -> bool:
+    if not user_input:
+        return False
+    if UNITTESTS_EXPLICIT_REGEX.search(user_input):
+        return True
+    return bool(TEST_NOUN_REGEX.search(user_input) and TEST_ACTION_REGEX.search(user_input))
+
+PYTHON_WORD_REGEX = re.compile(r'\bpython\b', re.IGNORECASE)
+VERSION_WORD_REGEX = re.compile(r'\b(versi|version)\b', re.IGNORECASE)
+
+def should_enable_python_version(user_input: str) -> bool:
+    if not user_input:
+        return False
+    return bool(PYTHON_WORD_REGEX.search(user_input) and VERSION_WORD_REGEX.search(user_input))
+
+LIST_DIR_REGEX = re.compile(
+    r'\b(folder|direktori|ls|dir)\b',
+    re.IGNORECASE
+)
+
+def should_enable_list_dir(user_input: str) -> bool:
+    if not user_input:
+        return False
+    return bool(LIST_DIR_REGEX.search(user_input))
+
+def get_active_tools_for_turn(user_input: str) -> Optional[List[Dict[str, Any]]]:
+    """Mengembalikan daftar schema tools tetap yang relevan untuk turn ini.
+    Menerapkan gating leksikal deterministik ketat:
+    - Tidak ada yang cocok -> None (tidak ada tools yang dikirim ke model).
+    """
     tools = []
     if should_enable_memory_tool(user_input):
         tools.append(SEARCH_MEMORY_TOOL_SCHEMA)
-    tools.append(READ_FILE_TOOL_SCHEMA)
-    tools.append(GIT_TOOL_SCHEMA)
-    tools.append(PYTHON_VERSION_TOOL_SCHEMA)
-    tools.append(RUN_UNITTESTS_TOOL_SCHEMA)
-    tools.append(LIST_DIR_TOOL_SCHEMA)
-    return tools
+    if should_enable_read_file(user_input):
+        tools.append(READ_FILE_TOOL_SCHEMA)
+    if should_enable_git(user_input):
+        tools.append(GIT_TOOL_SCHEMA)
+    if should_enable_python_version(user_input):
+        tools.append(PYTHON_VERSION_TOOL_SCHEMA)
+    if should_enable_run_unittests(user_input):
+        tools.append(RUN_UNITTESTS_TOOL_SCHEMA)
+    if should_enable_list_dir(user_input):
+        tools.append(LIST_DIR_TOOL_SCHEMA)
+
+    return tools if tools else None
 
 class ReActCoordinator:
     def __init__(

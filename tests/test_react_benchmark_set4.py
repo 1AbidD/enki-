@@ -51,7 +51,7 @@ def check_ollama_idle(client: OllamaClient):
         print(f"[PREFLIGHT CHECK] Tidak dapat menjalankan 'ollama ps': {e}")
 
 USER_PROMPTS_FILE = ROOT_DIR / "tests" / "set4_user_prompts.txt"
-EXPECTED_SET4_PROMPTS_SHA256 = "4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55"
+TEMPLATE_EMPTY_SHA256 = "4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55"
 
 DEFAULT_USER_PROFILE_FACTS = {
     "user_role": "Software engineer yang fokus pada backend services dan cloud infrastructure.",
@@ -291,21 +291,50 @@ REGRESSION_PROMPTS_4R = [
     }
 ]
 
-def load_user_prompts(prompts_path: Path) -> List[Dict[str, Any]]:
-    """Membaca dan memvalidasi file prompt dari pengguna.
-    Wajib minimal 15 baris valid, atau melempar RuntimeError.
+def validate_user_prompts_file_integrity(prompts_path: Path, expected_sha256: Optional[str] = None) -> None:
+    """Memvalidasi integritas file prompt user terhadap kunci SHA256.
+    Runner gagal keras jika:
+    1. Kunci konfigurasi kosong, placeholder, atau sama dengan hash template kosong.
+    2. Hash riil file tidak cocok dengan kunci konfigurasi yang sah.
     """
     if not prompts_path.exists():
         raise RuntimeError(f"File prompt user tidak ditemukan: {prompts_path}")
 
+    if not expected_sha256:
+        config_file = ROOT_DIR / "config.json"
+        if config_file.exists():
+            try:
+                cfg = json.loads(config_file.read_text(encoding="utf-8"))
+                expected_sha256 = cfg.get("set4_prompts_sha256", "").strip()
+            except Exception:
+                expected_sha256 = ""
+
+    if not expected_sha256 or expected_sha256.startswith("PENDING") or expected_sha256 == "<ISI_SHA256_FILE_PROMPT_USER>":
+        raise RuntimeError(
+            "[FATAL CONFIG]: Kunci SHA256 prompt ujian belum diisi oleh pengguna di config.json! "
+            "Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
+        )
+
+    if expected_sha256 == TEMPLATE_EMPTY_SHA256:
+        raise RuntimeError(
+            f"[FATAL CONFIG]: Kunci konfigurasi '{expected_sha256}' adalah hash template kosong! "
+            "Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
+        )
+
     import hashlib
     raw_bytes = prompts_path.read_bytes()
     actual_hash = hashlib.sha256(raw_bytes).hexdigest()
-    if actual_hash != EXPECTED_SET4_PROMPTS_SHA256:
+    if actual_hash != expected_sha256:
         raise RuntimeError(
-            f"[FATAL SHA256 MISMATCH]: Hash file prompt ({actual_hash}) tidak cocok dengan kunci ujian ({EXPECTED_SET4_PROMPTS_SHA256})! "
+            f"[FATAL SHA256 MISMATCH]: Hash file prompt ({actual_hash}) tidak cocok dengan kunci ujian ({expected_sha256})! "
             f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
         )
+
+def load_user_prompts(prompts_path: Path, expected_sha256: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Membaca dan memvalidasi file prompt dari pengguna.
+    Wajib minimal 15 baris valid, atau melempar RuntimeError.
+    """
+    validate_user_prompts_file_integrity(prompts_path, expected_sha256)
 
     valid_prompts = []
     lines = prompts_path.read_text(encoding="utf-8").splitlines()

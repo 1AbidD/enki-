@@ -17,6 +17,11 @@ from tests.benchmark_common import (
     BenchmarkLock,
     classify_mem_prompt
 )
+from enki.core.react_loop import get_active_tools_for_turn
+from tests.test_react_benchmark_set4 import (
+    validate_user_prompts_file_integrity,
+    TEMPLATE_EMPTY_SHA256
+)
 
 class TestBenchmarkHarnessUnit(unittest.TestCase):
     def setUp(self):
@@ -207,6 +212,66 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         self.assertEqual(records[0]["confirmed_commands"], ["python -m unittest discover tests"])
         self.assertEqual(records[1]["confirmed_commands"], [], "Turn 2 harus kosong, tidak boleh bocor dari Turn 1!")
         self.assertEqual(records[2]["confirmed_commands"], ["git status"], "Turn 3 hanya berisi perintah miliknya!")
+
+    def test_strict_deterministic_tool_gating(self):
+        """Memverifikasi gating leksikal deterministik ketat untuk skema alat."""
+        # 1. P04: pertanyaan fakta OS server staging -> TANPA tools (None)
+        p04 = "apa sistem operasi yang kita pakai di server staging kita?"
+        self.assertIsNone(get_active_tools_for_turn(p04), "P04 harus menghasilkan tools=None!")
+
+        # 2. Status proyek tanpa kata 'git' -> TANPA git tool
+        p_status = "apa status proyek kita?"
+        tools_status = get_active_tools_for_turn(p_status)
+        names_status = [t["function"]["name"] for t in (tools_status or [])]
+        self.assertNotIn("git", names_status, "'status' tanpa 'git' tidak boleh memicu tool git!")
+
+        # 3. 'isi dompetku berapa' (kata 'isi' tanpa file/ekstensi) -> TANPA read_file
+        p_isi = "isi dompetku berapa"
+        tools_isi = get_active_tools_for_turn(p_isi)
+        names_isi = [t["function"]["name"] for t in (tools_isi or [])]
+        self.assertNotIn("read_file", names_isi, "Kata 'isi' saja tidak boleh memicu read_file!")
+
+        # 4. 'test drive mobil' (kata 'test' tanpa aksi run/jalan/coba/cek) -> TANPA unittests
+        p_drive = "test drive mobil"
+        tools_drive = get_active_tools_for_turn(p_drive)
+        names_drive = [t["function"]["name"] for t in (tools_drive or [])]
+        self.assertNotIn("run_unittests", names_drive, "'test drive' tidak boleh memicu run_unittests!")
+
+        # 5. 'cek git status' -> memicu git
+        p_git = "cek git status"
+        tools_git = get_active_tools_for_turn(p_git)
+        self.assertIsNotNone(tools_git)
+        names_git = [t["function"]["name"] for t in tools_git]
+        self.assertIn("git", names_git, "'cek git status' wajib memicu tool git!")
+
+        # 6. 'baca README.md' -> memicu read_file
+        p_read = "baca README.md"
+        tools_read = get_active_tools_for_turn(p_read)
+        self.assertIsNotNone(tools_read)
+        names_read = [t["function"]["name"] for t in tools_read]
+        self.assertIn("read_file", names_read, "'baca README.md' wajib memicu tool read_file!")
+
+    def test_set4_integrity_validation_failures(self):
+        """Memverifikasi runner Set 4 gagal keras pada hash template kosong dan hash tidak cocok."""
+        dummy_prompt_file = self.temp_path / "dummy_prompts.txt"
+        dummy_prompt_file.write_text("MEM|prompt|fakta|kunci|recall\n", encoding="utf-8")
+
+        # Kasus 1: Kunci konfigurasi adalah template kosong -> GAGAL KERAS
+        with self.assertRaises(RuntimeError) as ctx_empty:
+            validate_user_prompts_file_integrity(
+                dummy_prompt_file,
+                expected_sha256=TEMPLATE_EMPTY_SHA256
+            )
+        self.assertIn("hash template kosong", str(ctx_empty.exception))
+
+        # Kasus 2: Kunci konfigurasi tidak cocok dengan hash file riil -> GAGAL KERAS
+        fake_expected_hash = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+        with self.assertRaises(RuntimeError) as ctx_mismatch:
+            validate_user_prompts_file_integrity(
+                dummy_prompt_file,
+                expected_sha256=fake_expected_hash
+            )
+        self.assertIn("tidak cocok dengan kunci ujian", str(ctx_mismatch.exception))
 
 if __name__ == "__main__":
     unittest.main()

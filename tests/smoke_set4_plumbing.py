@@ -55,7 +55,7 @@ SMOKE_PROMPTS = [
         "prompt": "coba jalankan seluruh unit test proyek kita sekarang",
         "expected_tool": "run_unittests",
         "expected_arg": None,
-        "expected_key": "Ran"
+        "expected_key": ("7", "tujuh")
     },
     # 4. MEM Profile
     {
@@ -105,7 +105,13 @@ def setup_smoke_workspace(root_dir: Path):
     (test_dir / "test_app.py").write_text(
         "import unittest\nfrom app.main import get_status\n\n"
         "class TestApp(unittest.TestCase):\n"
-        "    def test_status(self):\n        self.assertEqual(get_status(), 'OK')\n"
+        "    def test_status_ok(self):\n        self.assertEqual(get_status(), 'OK')\n"
+        "    def test_true(self):\n        self.assertTrue(True)\n"
+        "    def test_false(self):\n        self.assertFalse(False)\n"
+        "    def test_math(self):\n        self.assertEqual(1 + 1, 2)\n"
+        "    def test_char(self):\n        self.assertIn('O', get_status())\n"
+        "    def test_not_none(self):\n        self.assertIsNotNone(get_status())\n"
+        "    def test_len(self):\n        self.assertEqual(len(get_status()), 2)\n"
         "if __name__ == '__main__':\n    unittest.main()\n",
         encoding="utf-8"
     )

@@ -1,0 +1,38 @@
+=== 1. OLLAMA LIST ===
+NAME                       ID              SIZE      MODIFIED     
+qwen2.5:3b                 357c53fb659c    1.9 GB    5 weeks ago     
+nomic-embed-text:latest    0a109f422b47    274 MB    7 weeks ago     
+qwen3.5:0.8b               f3817196d142    1.0 GB    7 weeks ago     
+qwen3.5:9b                 6488c96fa5fa    6.6 GB    4 months ago    
+qwen2.5-coder:3b           f72c60cabf62    1.9 GB    4 months ago
+
+=== 2. LANGKAH 1: CHAT (qwen2.5:3b) ===
+[OLLAMA PS]
+NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+qwen2.5:3b    357c53fb659c    2.2 GB    100% GPU     4096       4 minutes from now
+
+[NVIDIA-SMI]
+NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 2732 MiB, 1231 MiB
+
+=== 3. LANGKAH 2: CODER (qwen2.5-coder:3b) ===
+[OLLAMA PS]
+NAME                ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+qwen2.5-coder:3b    f72c60cabf62    2.2 GB    100% GPU     4096       4 minutes from now
+
+[NVIDIA-SMI]
+NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 2482 MiB, 1481 MiB
+
+=== 4. LANGKAH 3: NOMIC EMBEDDING (nomic-embed-text:latest) ===
+[OLLAMA PS]
+NAME                       ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+nomic-embed-text:latest    0a109f422b47    323 MB    100% GPU     2048       4 minutes from now
+
+[NVIDIA-SMI]
+NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 732 MiB, 3231 MiB
+
+=== 5. BARIS 'SERVER CONFIG' TERAKHIR ===
+File: C:\Users\aabid\.gemini\antigravity\brain\a3643989-15e5-4938-925d-0e812833c0cc\.system_generated\tasks\task-2598.log
+Line Number: 1
+
+Content:
+time=2026-10-10T16:53:58.928+07:00 level=INFO source=routes.go:1951 msg="server config" env="map[CUDA_VISIBLE_DEVICES: GGML_VK_VISIBLE_DEVICES: GPU_DEVICE_ORDINAL: HIP_VISIBLE_DEVICES: HSA_OVERRIDE_GFX_VERSION: HTTPS_PROXY: HTTP_PROXY: LLAMA_ARG_FIT: LLAMA_ARG_FIT_TARGET: NO_PROXY: OLLAMA_CONTEXT_LENGTH:0 OLLAMA_DEBUG:INFO OLLAMA_DEBUG_LOG_REQUESTS:false OLLAMA_EDITOR: OLLAMA_FLASH_ATTENTION:true OLLAMA_GO_TEMPLATE:true OLLAMA_GPU_OVERHEAD:0 OLLAMA_HOST:http://127.0.0.1:11434 OLLAMA_IGPU_ENABLE: OLLAMA_KEEP_ALIVE:5m0s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5m0s OLLAMA_MAX_LOADED_MODELS:1 OLLAMA_MAX_QUEUE:512 OLLAMA_MAX_TRANSFER_STREAMS:4 OLLAMA_MODELS:C:\\Users\\aabid\\.ollama\\models OLLAMA_NOHISTORY:false OLLAMA_NOPRUNE:false OLLAMA_NO_CLOUD:false OLLAMA_NUM_PARALLEL:1 OLLAMA_ORIGINS:[http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://* vscode-file://*] OLLAMA_REMOTES:[ollama.com] OLLAMA_SCHED_SPREAD:false OLLAMA_VULKAN:true ROCR_VISIBLE_DEVICES:]"

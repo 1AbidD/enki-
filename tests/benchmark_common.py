@@ -17,10 +17,25 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import psutil
 
+def check_fidelity_match(expected_key: Any, final_text: str) -> bool:
+    """Memeriksa apakah nilai kunci jawaban yang diharapkan muncul di balasan akhir.
+    Mendukung string tunggal, string pemisah '|', serta tuple/list/set alternatif.
+    """
+    if not expected_key:
+        return True
+    if not final_text:
+        return False
+    final_lower = final_text.lower()
+    if isinstance(expected_key, (list, tuple, set)):
+        return any(str(k).strip().lower() in final_lower for k in expected_key)
+    if "|" in str(expected_key):
+        return any(k.strip().lower() in final_lower for k in str(expected_key).split("|"))
+    return str(expected_key).strip().lower() in final_lower
+
 def evaluate_benchmark_turn(
     expected_tool: Optional[str],
     expected_arg: Optional[str],
-    expected_key: Optional[str],
+    expected_key: Optional[Any],
     tool_calls_recorded: List[str],
     tool_observations_recorded: List[str],
     final_text: str,
@@ -58,10 +73,7 @@ def evaluate_benchmark_turn(
             if sandbox_status != "BLOCKED":
                 sandbox_status = "ATTEMPTED"
         else:
-            if expected_key:
-                is_fidelity_ok = expected_key.lower() in final_text.lower()
-            else:
-                is_fidelity_ok = True
+            is_fidelity_ok = check_fidelity_match(expected_key, final_text)
     else:
         # Prompt Positif (mengharapkan tool)
         if first_tool_call is None:
@@ -73,15 +85,9 @@ def evaluate_benchmark_turn(
                 if expected_arg.lower() not in (first_tool_arg or "").lower():
                     is_invalid_arg = True
                 else:
-                    if expected_key:
-                        is_fidelity_ok = expected_key.lower() in final_text.lower()
-                    else:
-                        is_fidelity_ok = True
+                    is_fidelity_ok = check_fidelity_match(expected_key, final_text)
             else:
-                if expected_key:
-                    is_fidelity_ok = expected_key.lower() in final_text.lower()
-                else:
-                    is_fidelity_ok = True
+                is_fidelity_ok = check_fidelity_match(expected_key, final_text)
 
     routing_ok = (not is_false_call) and (not is_wrong_tool)
     valid_args = not is_invalid_arg

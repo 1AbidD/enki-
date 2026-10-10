@@ -16,6 +16,10 @@ test_confirmed_commands_isolation_per_turn (test_benchmark_harness_unit.TestBenc
 Memastikan confirmed_log direset per turn dan tidak menumpuk ke record turn berikutnya. ... ok
 test_fidelity_failure_forces_is_success_false (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_fidelity_failure_forces_is_success_false)
 Memastikan jika fidelity_ok=False, maka is_success WAJIB False, ... ok
+test_set4_integrity_validation_failures (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_set4_integrity_validation_failures)
+Memverifikasi runner Set 4 gagal keras pada hash template kosong dan hash tidak cocok. ... ok
+test_strict_deterministic_tool_gating (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_strict_deterministic_tool_gating)
+Memverifikasi gating leksikal deterministik ketat untuk skema alat. ... ok
 test_synthetic_record_normal_success_when_no_timeout (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_synthetic_record_normal_success_when_no_timeout)
 Memastikan evaluasi normal menghasilkan True jika is_timeout=False. ... ok
 test_synthetic_record_timeout_forces_failure (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_synthetic_record_timeout_forces_failure)
@@ -47,7 +51,7 @@ Menjalankan seluruh 7 suite unit test dan memverifikasi data/ dan logs/ asli 100
 test_explicit_memory_keywords (test_memory_gating.TestMemoryGating.test_explicit_memory_keywords)
 Memastikan kata kunci eksplisit memori mengaktifkan tool search_memory. ... ok
 test_get_active_tools_for_turn_schemas (test_memory_gating.TestMemoryGating.test_get_active_tools_for_turn_schemas)
-Memastikan tool search_memory benar-benar hilang dari daftar schema saat gating bernilai False. ... ok
+Memastikan tool search_memory dan tools lainnya dikendalikan gating deterministik ketat. ... ok
 test_negative_prompts_do_not_enable_memory_tool (test_memory_gating.TestMemoryGating.test_negative_prompts_do_not_enable_memory_tool)
 Memastikan prompt umum/coding/resep/sapaan TIDAK mengaktifkan memory tool. ... ok
 test_recall_trigger_words (test_memory_gating.TestMemoryGating.test_recall_trigger_words)
@@ -148,7 +152,7 @@ test_run_unittests_execution_and_confirmation (test_shell_tools.TestFixedArgumen
 Memastikan run_unittests mengeksekusi python -m unittest discover dengan start dir yang tepat. ... ok
 
 ----------------------------------------------------------------------
-Ran 80 tests in 9.737s
+Ran 82 tests in 6.639s
 
 OK (skipped=3)
 

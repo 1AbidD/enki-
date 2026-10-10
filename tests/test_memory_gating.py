@@ -61,26 +61,26 @@ class TestMemoryGating(unittest.TestCase):
                 )
 
     def test_get_active_tools_for_turn_schemas(self):
-        """Memastikan tool search_memory benar-benar hilang dari daftar schema saat gating bernilai False."""
+        """Memastikan tool search_memory dan tools lainnya dikendalikan gating deterministik ketat."""
+        # 1. Prompt tanpa kata kunci alat apa pun -> None (tanpa tools sama sekali)
         neg_tools = get_active_tools_for_turn("buatkan resep nasi goreng enak")
-        neg_tool_names = [t["function"]["name"] for t in neg_tools]
-        self.assertNotIn("search_memory", neg_tool_names)
-        self.assertIn("read_file", neg_tool_names)
-        self.assertIn("git", neg_tool_names)
-        self.assertIn("python_version", neg_tool_names)
-        self.assertIn("run_unittests", neg_tool_names)
-        self.assertIn("list_dir", neg_tool_names)
-        self.assertEqual(len(neg_tools), 5)
+        self.assertIsNone(neg_tools)
 
+        # 2. Prompt memori murni tanpa kata kunci workspace -> hanya search_memory
         pos_tools = get_active_tools_for_turn("kemarin kita bahas apa ya?")
+        self.assertIsNotNone(pos_tools)
         pos_tool_names = [t["function"]["name"] for t in pos_tools]
         self.assertIn("search_memory", pos_tool_names)
-        self.assertIn("read_file", pos_tool_names)
-        self.assertIn("git", pos_tool_names)
-        self.assertIn("python_version", pos_tool_names)
-        self.assertIn("run_unittests", pos_tool_names)
-        self.assertIn("list_dir", pos_tool_names)
-        self.assertEqual(len(pos_tools), 6)
+        self.assertNotIn("read_file", pos_tool_names)
+        self.assertNotIn("git", pos_tool_names)
+        self.assertEqual(len(pos_tools), 1)
+
+        # 3. Prompt gabungan memori + file -> search_memory dan read_file
+        combo_tools = get_active_tools_for_turn("kemarin file README.md diubah apa ya?")
+        self.assertIsNotNone(combo_tools)
+        combo_names = [t["function"]["name"] for t in combo_tools]
+        self.assertIn("search_memory", combo_names)
+        self.assertIn("read_file", combo_names)
 
 if __name__ == "__main__":
     unittest.main()

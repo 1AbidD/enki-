@@ -14,9 +14,8 @@ Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbat
     * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2534 MiB**).
     * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.2 GB, Context: 4096, VRAM Used: **2386 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
     * `nomic-embed-text:latest` : **100% GPU** (Ukuran: 323 MB, VRAM Used: **636 MiB**).
-  * Saat beralih model via `/coder` atau saat embedding dimuat di bawah kebijakan `=1`, model sebelumnya langsung dieviktasi otomatis dari VRAM.
   * *Catatan Pengukuran `=3`:* Eksperimen `=3` membuktikan koeksistensi model coder (2.2 GB) + nomic-embed-text (323 MB) pada 2779 MiB VRAM. Model chat (`qwen2.5:3b`) dan coder (`qwen2.5-coder:3b`) tidak pernah berdampingan bersamaan di VRAM. Status pengukuran ini adalah **terukur, tidak dipakai; embedding butuh >=2**. Kebijakan resmi produksi dan benchmark mengunci strictly `=1`.
-  * *Kondisi Eksekusi Set 2 & Set 3:* Set 2 dan Set 3 (dijalankan 12:43–12:52 WIB) dijalankan di bawah environment bawaan Ollama (`OLLAMA_MAX_LOADED_MODELS: 0`) dan tanpa pencatatan header environment di berkas JSONL.
+  * *Kondisi Eksekusi Set 2 & Set 3:* Klaim bahwa Set 2 dan Set 3 dijalankan di bawah environment default berstatus **kemungkinan, belum terbukti** (log tugas 11:17 dan 15:03 mencatat env default, namun tidak ada log server config di rentang 12:43–12:52 WIB saat benchmark berjalan, dan berkas JSONL lama tidak mencatat header environment).
 * **Reflector Model Safety:** `reflect_session` dan perintah `/reflect` mengunci pemanggilan model ke `qwen2.5:3b`, menjamin refleksi memori tidak pernah berjalan pada model coder.
 * **Pengakuan Batas Model 3B:** Model 3B tidak dapat diandalkan untuk menyaring serangan jailbreak atau memvalidasi string shell bebas secara otonom. Oleh karena itu, string perintah bebas dihapus total, dan seluruh aksi sistem wajib dikonfirmasi manusia `[y/N]`.
 
@@ -171,7 +170,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 ## 7. Status Rangkaian Benchmark & Pengujian
 
 * **Set 1 (Tahap 0 Spike, 30 Prompt):** Status **DEV SET 1**. Akurasi tool-calling 91.11%.
-* **Set 2 (Tahap 3 Dev Set, 20 Prompt x 3 Runs):** Status **DEV SET 2**. Akurasi 81.7%. Menunjukkan keandalan grounding WAL (3/3 pass) dan eliminasi false call `search_memory` via deterministic gating.
+* **Set 2 (Tahap 3 Dev Set, 20 Prompt x 3 Runs):** Status **DEV SET 2 (tanpa raw 60 run, tidak dipakai)**. Berkas JSONL `benchmark_set2_raw.jsonl` di git (commit `17cdf1a`) hanya memuat 18 record; klaim 60 run (81.7%) tidak memiliki log raw di git sehingga tidak dipakai sebagai acuan gate.
 * **Set 3 (Tahap 3 Eks-Ujian, 24 Prompt x 3 Runs):** Status **DEV SET 3 (Eks-Ujian)**. Gagal gate.
   * *Hasil Hitung Ulang dengan Aturan Timeout = Gagal:* S3_P24_NEG run 3 (timeout) dikoreksi menjadi FAIL.
     - Success Rate: **47/72 (65.3%)** (angka lama: 48/72, 66.7%)
@@ -189,11 +188,20 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
    - **Mode Profile:** Fakta tentang pengguna diinjeksi ke dalam berkas `profile.json` melalui `ProfileManager` dan dimuat dalam system prompt base.
    - **Mode Recall:** Fakta sesi masa lampau diinjeksi sebagai riwayat percakapan terdahulu di `sessions.db` (pernyataan natural pengguna dan balasan konfirmasi asisten) dan dicari menggunakan SQLite FTS5 Active Recall saat terdapat pemicu leksikal.
    - *Komposisi Wajib:* 12 MEM (terdiri dari mode profil dan mode recall, dengan syarat mutlak minimal 4 prompt Mode Recall), 6 workspace / git / test, dan 12 Negatif (minimal 4 berpemicu aktif).
+5. **Gating Tool Deterministik Ketat & Trade-Off (Tercatat di Plan dan /help):**
+   - Skema alat hanya diserahkan ke model jika pesan pengguna cocok dengan kata kunci:
+     - `read_file`: ekstensi file (`.py`, `.md`, `.txt`, `.json`, `.yaml`, dll), path, atau kata `file`/`berkas`. (Kata "isi" saja TIDAK cukup).
+     - `git`: `git`, `commit`, `branch`, `diff`. Kata `status`, `log`, `repo` HANYA bersama kata `git`.
+     - `run_unittests`: `unittest`, `unit test`, `pytest`, atau kata `test`/`tes` bersama kata aksi (`jalan`/`jalanin`/`run`/`coba`/`cek`). Perintah dieksekusi via `python -m unittest discover [tests|.]`.
+     - `python_version`: `python` DAN (`versi` ATAU `version`).
+     - `list_dir`: `folder`, `direktori`, `ls`, `dir`.
+     - Jika tidak ada yang cocok: `tools=None` (mode chat murni tanpa alat).
+   - *Trade-Off:* Pertanyaan implisit (misal: *"apa dependensi kita?"*) tidak membuka tool karena tidak memuat kata kunci file atau ekstensi, sehingga dijawab dari konteks obrolan.
 
 ### Kriteria Kelulusan Set 4A (Ditulis Di Muka Sebelum Run):
 1. **Routing Positif:** $\ge 90.0\%$ (dihitung per prompt unik $n$ dan per run)
 2. **False Call Negatif:** $\le 10.0\%$ (termasuk yang diblokir sandbox, prompt konfirmasi dilaporkan terpisah)
-3. **Fidelity Jawaban:** $\ge 85.0\%$ dari run yang memanggil tool yang benar
+3. **Fidelity Jawaban:** $\ge 85.0\%$ dari run yang memanggil tool yang benar (menguji nilai jawaban benar, bukan kata output tool)
 4. **Total Timeout:** $= 0$
 5. **Argumen Invalid:** $= 0$
 6. **Kriteria Negatif Murni & Berpemicu Aktif:**
@@ -203,8 +211,13 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 8. **Validasi Komposisi MEM:** Dari 12 prompt MEM Set 4A (6 built-in mode profile + 6 user), wajib minimal 4 prompt berstatus Mode Recall. Runner melakukan hard fail jika mode recall $< 4$.
 
 ### Kunci Integritas Ujian & Disclaimer Evaluasi Pengetahuan Umum:
-* **Kunci Integritas Set 4:** File prompt pengguna diverifikasi secara kriptografis menggunakan SHA256 digest `4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55`. Runner Set 4 menolak keras untuk berjalan jika hash tidak cocok dengan kunci ini.
-* **Disclaimer Halusinasi Pengetahuan Umum:** Benchmark ini HANYA menguji ketaatan routing alat, tidak adanya tool call palsu, ketiadaan kebocoran fakta memori, dan penyampaian fakta profil/sesi. Benchmark TIDAK memverifikasi kebenaran faktual jawaban pengetahuan umum, karena model 3B memiliki kecenderungan halusinasi pada fakta umum (sebagai contoh, pada SMOKE_P06 model menjawab "Carl David Anderson" untuk penemu mikroskop elektron alih-alih Ernst Ruska).
+* **Kunci Integritas Set 4:** File prompt pengguna diverifikasi secara kriptografis menggunakan kunci SHA256 pengguna yang didaftarkan di `config.json`. Hash template kosong `4ccb29b53ca6d1b3ecd5a99d786d690ba1f75e951f6ad3c27c2bdc5d28b20d55` telah **dihapus permanen dan ditolak keras**. Runner Set 4 menolak berjalan jika hash konfigurasi kosong, berupa placeholder, sama dengan template kosong, atau tidak cocok dengan file prompt riil.
+* **Disclaimer Halusinasi Pengetahuan Umum:** Benchmark ini HANYA menguji ketaatan routing alat, ketiadaan false tool call, ketiadaan kebocoran fakta memori, dan penyampaian fakta profil/sesi. Benchmark TIDAK memverifikasi kebenaran faktual jawaban pengetahuan umum, karena model 3B memiliki kecenderungan halusinasi pada fakta umum (sebagai contoh, pada SMOKE_P06 model menjawab "Carl David Anderson" untuk penemu mikroskop elektron alih-alih Ernst Ruska).
+* **Profil Distraktor 411 Token:** 12 fakta pengguna umum (`DEFAULT_USER_PROFILE_FACTS`) dimuat ke dalam `profile.json` dan dipakai secara konsisten pada **seluruh prompt MEM dan NEG** untuk menguji ketahanan model terhadap distraktor profil.
+* **Messages Persis yang Dikirim Runner untuk S4A_P16 (Mode Profile):**
+  - Prompt: `"feature flag service aplikasi web kita pakai engine apa?"`
+  - Array Messages: System prompt base memuat 12 fakta distraktor + fakta S4A_P16 (`- s4a_p16_mem: Engine feature flag service aplikasi web kita menggunakan Flipt open source.`), diikuti User prompt.
+  - Skema alat: `tools=None` (karena tidak ada pemicu leksikal alat).
 
 ### Komposisi 30 Prompt Set 4A:
 * **12 Memori (MEM):** 6 buatan asisten (Mode Profile via `profile.json`), 6 dari user (diharapkan minimal 4 Mode Recall).
@@ -229,10 +242,10 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Suite unit test memori terisolasi (14 unit test lulus).
 
 ### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (BELUM LULUS GATE - Set 3 gagal gate 2026-10-10, redesign harness & isolasi, menunggu Set 4)
-* Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests`, `list_dir`, `read_file`, `search_memory`.
-* Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya.
+* Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests` (`python -m unittest discover [tests|.]`), `list_dir`, `read_file`, `search_memory`.
+* Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya. Gating leksikal deterministik ketat untuk seluruh alat.
 * Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4 (status: EKSPERIMENTAL, GAGAL GATE, DEFAULT OFF).
-* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, dan benchmark lock (80 unit test terdaftar secara resmi di docs/test_ids.txt: 77 lulus, 3 benchmark dilewati saat discovery via skipTest).
+* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, benchmark lock, gating deterministik, dan integritas SHA256 (82 unit test terdaftar secara resmi di docs/test_ids.txt: 79 lulus, 3 benchmark dilewati saat discovery via skipTest).
 * Persiapan pengujian Set 4A dan Set 4R.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
