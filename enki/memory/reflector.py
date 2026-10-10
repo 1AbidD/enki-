@@ -34,16 +34,48 @@ class FactProposal(BaseModel):
 class ReflectionOutput(BaseModel):
     proposals: List[FactProposal] = Field(default_factory=list)
 
-REFLECTION_SYSTEM_PROMPT = """Tugas Anda adalah mengekstrak fakta atau preferensi permanen mengenai PENGGUNA yang dinyatakan secara nyata dalam percakapan.
+REFLECTION_SYSTEM_PROMPT = """Tugas Anda adalah mengekstrak fakta, preferensi, atau proyek pribadi mengenai PENGGUNA yang dinyatakan dalam percakapan.
 
-ATURAN KETAT EKSTRAKSI:
-1. HANYA ekstrak fakta atau preferensi pribadi tentang DIRI PENGGUNA SENDIRI (misal: nama, pekerjaan/profesi, tech stack favorit, kebiasaan kerja).
-2. JANGAN ekstrak kalimat hipotetis / pengandaian ("kalau aku jadi...", "seandainya...").
-3. JANGAN ekstrak fakta tentang orang lain ("temanku suka...", "rekan kerjaku...").
-4. JANGAN ekstrak candaan, sarkasme, atau obrolan situasional ("aku alien", "lagi laper nih", "hari ini hujan").
-5. JANGAN ekstrak data rahasia (password, API key, token).
-6. 'source_quote' WAJIB merupakan kutipan teks VERBATIM (persis sama karakter demi karakter) dari pesan pengguna.
-7. Jika TIDAK ADA fakta pengguna yang valid atau Anda ragu-ragu, kembalikan daftar kosong: {"proposals": []}."""
+PANDUAN KATEGORI YANG WAJIB DIEKSTRAK:
+1. Preferensi Pengguna: Permintaan gaya jawaban, format kode, preferensi bahasa, atau nada bicara (misal: "sertakan type hint", "jangan kaku/santai aja", "prioritaskan hemat RAM", "jawab bahasa Indonesia").
+2. Fakta Diri & Latar Belakang: Nama, domisili, profesi, umur, latar belakang pendidikan, spesifikasi laptop/hardware, dan kebiasaan kerja.
+3. Proyek Aktif: Aplikasi atau tugas yang sedang dikerjakan pengguna (misal: microservice Go, skripsi citra medis, sistem kasir toko, aplikasi Flutter).
+
+ATURAN KETAT:
+1. Periksa SELURUH pesan pengguna dari awal sampai akhir sesi secara teliti, karena fakta atau preferensi pengguna bisa terselip di pesan mana saja.
+2. HANYA ekstrak tentang DIRI PENGGUNA. JANGAN ekstrak tentang orang lain ("temanku...", "bosku...").
+3. JANGAN ekstrak kalimat pengandaian/hipotetis ("kalau aku jadi...", "seandainya...").
+4. JANGAN ekstrak keluhan situasional sementara ("hari ini panas", "wifi lemot", "tugas numpuk").
+5. JANGAN ekstrak candaan/sarkasme atau data rahasia (password, token, API key).
+6. 'source_quote' WAJIB disalin dari kalimat pengguna yang menjadi dasar fakta tersebut.
+7. Jika transkrip HANYA berisi obrolan biasa, pertanyaan teknis umum, atau tidak ada fakta/preferensi pengguna, kembalikan daftar kosong: {"proposals": []}.
+
+CONTOH POSITIF:
+- User: "Tolong tiap kali kasih kode, selalu sertakan type hint ya."
+  Proposal: {"key": "preferensi_kode", "value": "Selalu menyertakan type hint dalam kode", "source_quote": "Tolong tiap kali kasih kode, selalu sertakan type hint ya."}
+- User: "jgn pake bhs kaku bgt ya, santai aja."
+  Proposal: {"key": "preferensi_gaya_bahasa", "value": "Gaya bahasa santai, tidak kaku", "source_quote": "jgn pake bhs kaku bgt ya, santai aja."}
+- User: "Aku berdomisili di Surabaya dan kerja sebagai data analyst."
+  Proposal: {"key": "domisili_dan_profesi", "value": "Domisili: Surabaya, Profesi: data analyst", "source_quote": "Aku berdomisili di Surabaya dan kerja sebagai data analyst."}
+- User: "lg ngerjain skripsi ttg klasifikasi citra medis nih."
+  Proposal: {"key": "proyek_skripsi", "value": "Sedang mengerjakan skripsi klasifikasi citra medis", "source_quote": "lg ngerjain skripsi ttg klasifikasi citra medis nih."}
+- User: "Spesifikasi laptopku RAM 16GB dengan GPU RTX 3050."
+  Proposal: {"key": "spesifikasi_laptop", "value": "Laptop dengan RAM 16GB dan GPU RTX 3050", "source_quote": "Spesifikasi laptopku RAM 16GB dengan GPU RTX 3050."}
+- User: "Aku punya kebiasaan kerja di malam hari."
+  Proposal: {"key": "kebiasaan_kerja", "value": "Terbiasa bekerja di malam hari", "source_quote": "Aku punya kebiasaan kerja di malam hari."}
+- Transkrip Multi-Pesan:
+  - User: "Mau tanya dong."
+  - User: "Oiya kalau jawab teknis prioritaskan yang hemat RAM ya."
+  - User: "Bagaimana cara optimasi SQL?"
+  Proposal: {"key": "preferensi_solusi", "value": "Prioritaskan solusi yang hemat RAM", "source_quote": "Oiya kalau jawab teknis prioritaskan yang hemat RAM ya."}
+
+CONTOH NEGATIF (Kembalikan {"proposals": []}):
+- User: "Halo, menurutmu AI bakal gantiin programmer gak?" -> {"proposals": []}
+- User: "Bagaimana cara kerja shallow copy di JS?" -> {"proposals": []}
+- User: "Temanku si Budi baru beli iPhone." -> {"proposals": []}
+- User: "Kalau aku jadi presiden bakal gratisin internet." -> {"proposals": []}
+- User: "Wifi kosan lemot banget sore ini." -> {"proposals": []}
+- User: "Password databaseku admin123!" -> {"proposals": []}"""
 
 class ReflectorDaemon:
     def __init__(self, proposals_file: Path = DEFAULT_PROPOSALS_FILE):
@@ -96,14 +128,25 @@ class ReflectorDaemon:
         if contains_secret(proposal.key) or contains_secret(proposal.value) or contains_secret(proposal.source_quote):
             return False, "Ditolak otomatis: Terdeteksi pola data rahasia (API key / password)."
 
-        # 2. Verifikasi quote verbatim di pesan user
+        # 2. Verifikasi quote verbatim di pesan user (case-insensitive substring check & quote recovery)
         quote = proposal.source_quote.strip()
         if not quote:
             return False, "Ditolak: source_quote kosong."
 
-        verbatim_found = any(quote in turn for turn in user_turns)
+        verbatim_found = False
+        exact_quote = quote
+        quote_lower = quote.lower()
+        for turn in user_turns:
+            idx = turn.lower().find(quote_lower)
+            if idx != -1:
+                exact_quote = turn[idx : idx + len(quote)]
+                verbatim_found = True
+                break
+
         if not verbatim_found:
             return False, f"Ditolak: source_quote '{quote[:40]}...' tidak ditemukan secara verbatim di pesan user."
+
+        quote = exact_quote
 
         # Simpan ke pending_proposals.json
         proposals = self.load_proposals()

@@ -20,7 +20,7 @@ class TestMemoryUnit(unittest.TestCase):
         self.mem_dir = Path(self.temp_dir) / "memory"
         self.db = MemoryDatabase(db_path=self.db_path)
         self.profile_mgr = ProfileManager(memory_dir=self.mem_dir)
-        self.reflector = ReflectorDaemon(proposals_file=self.mem_dir / "pending_proposals.json")
+        self.reflector = ReflectorDaemon(proposals_file=self.mem_dir / "pending_facts.json")
 
     def tearDown(self):
         self.db.close()
@@ -157,6 +157,97 @@ class TestMemoryUnit(unittest.TestCase):
         # Valid non-secret
         self.assertFalse(contains_secret("nama saya Aabid"))
         self.assertFalse(contains_secret("saya suka ngoding pakai python"))
+
+    def test_force_secret_proposals_rejected_by_queue_code(self):
+        """Memaksa usulan berisi rahasia lewat submit ke proposal queue dan assert ditolak oleh KODE."""
+        secret_cases = [
+            FactProposal(key="api_key", value="sk-1234567890abcdef1234567890abcdef", source_quote="ini key sk-1234567890abcdef1234567890abcdef"),
+            FactProposal(key="db_password", value="admin12345!", source_quote="password: mysecretpassword123"),
+            FactProposal(key="github_token", value="ghp_1234567890abcdef1234567890abcdef", source_quote="token ghp_1234567890abcdef1234567890abcdef"),
+            FactProposal(key="ssh_key", value="-----BEGIN RSA PRIVATE KEY-----", source_quote="-----BEGIN RSA PRIVATE KEY-----"),
+        ]
+
+        for prop in secret_cases:
+            user_turns = [prop.source_quote]
+            ok, msg = self.reflector.validate_and_record_proposal(prop, user_turns, "test_session_secret")
+            self.assertFalse(ok, f"Proposal dengan rahasia harus ditolak kode: {prop}")
+            self.assertIn("data rahasia", msg)
+
+        # Assert bahwa TIDAK ADA usulan yang masuk ke antrean pending
+        pending = self.reflector.get_pending_proposals()
+        self.assertEqual(len(pending), 0, "Antrean pending harus tetap 0, rahasia tidak boleh lolos ke queue")
+
+    # 6. Test End-to-End Recall Deterministik Tanpa LLM
+    def test_end_to_end_deterministic_recall_without_llm(self):
+        """Menguji aliran recall ujung-ke-ujung: Sesi 1 topik unik -> Sesi 2 pemicu recall -> assembler."""
+        # Sesi 1 berisi topik unik
+        s1 = self.db.create_session("session_topik_1")
+        self.db.add_turn(s1, "user", "Kemarin kita riset arsitektur mikroservis dengan database Cassandra dan Kafka.")
+        self.db.add_turn(s1, "assistant", "Dicatat, kita menggunakan Cassandra dan Kafka.")
+
+        # Sesi 2 (sesi berjalan)
+        s2 = self.db.create_session("session_topik_2")
+        self.db.add_turn(s2, "user", "Halo selamat pagi.")
+        self.db.add_turn(s2, "assistant", "Pagi! Ada yang bisa dibantu?")
+
+        # User menanyakan topik dari sesi 1 dengan pemicu
+        user_query = "kemarin kita pernah bahas apa soal Cassandra?"
+        self.assertTrue(is_recall_triggered(user_query), "Pemicu recall harus terdeteksi")
+
+        fts_query = build_fts_query(user_query)
+        self.assertIsNotNone(fts_query)
+
+        # Cari dengan mengecualikan sesi berjalan (s2)
+        snippets = self.db.search_fts(fts_query, exclude_session_id=s2, limit=3)
+        self.assertGreater(len(snippets), 0, "Harus menemukan cuplikan dari sesi 1")
+        for snip in snippets:
+            self.assertEqual(snip["session_id"], s1, "Hasil recall HANYA boleh berasal dari sesi 1, bukan sesi 2")
+
+        # Format recall block
+        recall_block = format_recall_block(snippets, max_tokens=300)
+        self.assertIn("Cassandra", recall_block)
+        self.assertIn('<untrusted_memory_content source="sqlite_fts5_recall">', recall_block)
+
+        # Rakit pesan dengan prompt assembler
+        assembler = PromptAssembler()
+        messages, meta = assembler.assemble_messages(
+            user_input=user_query,
+            history=[
+                {"role": "user", "content": "Halo selamat pagi."},
+                {"role": "assistant", "content": "Pagi! Ada yang bisa dibantu?"}
+            ],
+            recall_content=recall_block,
+            num_ctx=4096
+        )
+
+        # Assert blok recall ada di hasil rakitan
+        has_recall = any("<untrusted_memory_content" in m["content"] for m in messages)
+        self.assertTrue(has_recall, "Blok recall harus ada di pesan rakitan")
+        # Pastikan sesi berjalan (Halo selamat pagi) tidak muncul di dalam tag untrusted recall
+        recall_msg = next(m["content"] for m in messages if "<untrusted_memory_content" in m["content"])
+        self.assertNotIn("Halo selamat pagi", recall_msg, "Sesi berjalan tidak boleh ikut ke blok recall")
+
+        # KASUS NEGATIF 1: Topik tidak pernah dibahas
+        neg_query = "kemarin kita pernah bahas apa soal QuantumComputingX?"
+        self.assertTrue(is_recall_triggered(neg_query))
+        fts_neg = build_fts_query(neg_query)
+        snip_neg = self.db.search_fts(fts_neg, exclude_session_id=s2, limit=3)
+        self.assertEqual(len(snip_neg), 0, "Topik yang tidak ada harus menghasilkan 0 snippet")
+        recall_neg = format_recall_block(snip_neg) if snip_neg else None
+        self.assertIsNone(recall_neg, "Blok recall harus None jika snippet kosong")
+
+        messages_neg, _ = assembler.assemble_messages(
+            user_input=neg_query,
+            history=[],
+            recall_content=recall_neg,
+            num_ctx=4096
+        )
+        has_recall_neg = any("<untrusted_memory_content" in m["content"] for m in messages_neg)
+        self.assertFalse(has_recall_neg, "Prompt rakitan tidak boleh ada blok recall jika topik tidak ada")
+
+        # KASUS NEGATIF 2: Tanpa kata pemicu
+        no_trigger = "Bagaimana cara deploy Cassandra?"
+        self.assertFalse(is_recall_triggered(no_trigger), "Kalimat tanpa pemicu tidak boleh memicu recall")
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,10 +35,27 @@ class EnkiConsole:
         self.history: List[Dict[str, str]] = []
 
     def check_startup_reflection(self):
-        """Memeriksa apakah ada sesi lampau yang belum direfleksi."""
+        """Memeriksa apakah ada sesi lampau yang belum direfleksi dan menampilkan status usulan pending."""
+        pending_list = self.reflector.get_pending_proposals()
+        print(f"[Status Memori] Antrean usulan pending saat ini: {len(pending_list)} usulan.")
+
         unreflected = [s for s in self.db.get_unreflected_sessions() if s != self.session_id]
         if unreflected:
-            print(f"\n[Pemberitahuan] Ada {len(unreflected)} sesi sebelumnya yang belum di-reflect. Jalankan /reflect untuk memproses, atau abaikan.\n")
+            try:
+                ans = input(f"[Startup] Ada {len(unreflected)} sesi lampau belum direfleksi. Reflect {len(unreflected)} sesi sekarang? [Y/n]: ").strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                return
+            if ans in ["y", "yes", ""]:
+                print(f"[Startup] Menjalankan refleksi untuk {len(unreflected)} sesi...")
+                total_new = 0
+                for sid in unreflected:
+                    props = self.reflector.reflect_session(sid, self.db, self.client, model=self.config.model)
+                    total_new += len(props)
+                print(f"[Startup] Refleksi selesai. Total {total_new} usulan baru masuk antrean (/memory pending).\n")
+            else:
+                print("[Startup] Refleksi dilewati. Anda dapat menjalankan /reflect kapan saja.\n")
+        else:
+            print()
 
     def print_banner(self):
         print("=" * 60)

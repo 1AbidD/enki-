@@ -24,9 +24,18 @@ def run_cross_session_test():
         print(f"[ERROR] Ollama tidak siap di {config.ollama_url}")
         sys.exit(1)
 
-    db = MemoryDatabase()
-    profile_mgr = ProfileManager()
-    reflector = ReflectorDaemon()
+    import tempfile
+    import shutil
+
+    temp_dir = tempfile.mkdtemp()
+    temp_db_path = Path(temp_dir) / "test_sessions.db"
+    temp_mem_dir = Path(temp_dir) / "memory"
+    temp_mem_dir.mkdir(parents=True, exist_ok=True)
+    temp_proposals_file = temp_mem_dir / "pending_facts.json"
+
+    db = MemoryDatabase(db_path=temp_db_path)
+    profile_mgr = ProfileManager(memory_dir=temp_mem_dir)
+    reflector = ReflectorDaemon(proposals_file=temp_proposals_file)
 
     # 1. Buat token acak unik yang mustahil ada di pretraining LLM
     random_suffix = uuid.uuid4().hex[:8].upper()
@@ -116,8 +125,9 @@ def run_cross_session_test():
     del_ok, del_msg = profile_mgr.delete_fact(fact_key)
     print(f"  -> {del_msg}")
 
-    # Bersihkan turn sesi uji dari database
+    # Bersihkan turn sesi uji dari database dan temp dir
     db.close()
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
     print("\n" + "=" * 60)
     print("HASIL INTEGRATION TEST CROSS-SESSION")
