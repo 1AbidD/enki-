@@ -119,15 +119,36 @@ LIST_DIR_TOOL_SCHEMA: Dict[str, Any] = {
 }
 
 EXPLICIT_MEMORY_SEARCH_REGEX = re.compile(
-    r'\b(catatan|riwayat|log\s+obrolan|sesi\s+lampau|sesi\s+sebelumnya|percakapan\s+lama|memori)\b',
+    r'\b(log\s+obrolan|sesi\s+lampau|sesi\s+sebelumnya|percakapan\s+lama|memori)\b',
     re.IGNORECASE
+)
+RIWAYAT_CONVO_REGEX = re.compile(
+    r'\briwayat\b.*\b(percakapan|obrolan|chat|diskusi)\b|\b(percakapan|obrolan|chat|diskusi)\b.*\briwayat\b',
+    re.IGNORECASE | re.DOTALL
+)
+CATATAN_CONVO_REGEX = re.compile(
+    r'\bcatatan\s+lama\b|\bcatatan\b.*\b(obrolan|percakapan|chat)\b|\b(obrolan|percakapan|chat)\b.*\bcatatan\b',
+    re.IGNORECASE | re.DOTALL
 )
 
 def should_enable_memory_tool(user_input: str) -> bool:
-    """Menentukan secara deterministik apakah search_memory harus diaktifkan dalam daftar tools."""
+    """Menentukan secara deterministik apakah search_memory harus diaktifkan dalam daftar tools.
+    - Pemicu recall aktif tetap (kemarin, pernah, ingat, sebelumnya, tadi, waktu itu, remember, earlier).
+    - 'riwayat' hanya membuka bersama percakapan|obrolan|chat|diskusi.
+    - 'catatan' hanya membuka bersama obrolan|percakapan|chat atau 'catatan lama'.
+    - Frasa eksplisit memori lain: log obrolan, sesi lampau, sesi sebelumnya, percakapan lama, memori.
+    """
     if not user_input:
         return False
-    return is_recall_triggered(user_input) or bool(EXPLICIT_MEMORY_SEARCH_REGEX.search(user_input))
+    if is_recall_triggered(user_input):
+        return True
+    if bool(EXPLICIT_MEMORY_SEARCH_REGEX.search(user_input)):
+        return True
+    if bool(RIWAYAT_CONVO_REGEX.search(user_input)):
+        return True
+    if bool(CATATAN_CONVO_REGEX.search(user_input)):
+        return True
+    return False
 
 # -------------------------------------------------------------
 # Pola Gating Deterministik Ketat (Word-Boundary, Case-Insensitive)

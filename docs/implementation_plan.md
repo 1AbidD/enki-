@@ -10,10 +10,10 @@ Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbat
 ### Hasil Pengukuran Riil & Status GPU
 * **Versi Ollama:** `v0.33.0`
 * **Kebijakan Runtime:** `OLLAMA_MAX_LOADED_MODELS=1` (kebijakan resmi produksi & benchmark).
-  * Terbukti hanya **1 model tunggal** yang dimuat di VRAM pada satu waktu:
-    * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2534 MiB**).
-    * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.2 GB, Context: 4096, VRAM Used: **2386 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
-    * `nomic-embed-text:latest` : **100% GPU** (Ukuran: 323 MB, VRAM Used: **636 MiB**).
+  * Terbukti hanya **1 model tunggal** yang dimuat di VRAM pada satu waktu (diukur di `docs/evidence/ollama_measure.txt`):
+    * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.2 GB, Context: 4096, VRAM Used: **2732 MiB**; pada Context: 8192 ukuran di VRAM tercatat 2.3 GB).
+    * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.2 GB, Context: 4096, VRAM Used: **2482 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
+    * `nomic-embed-text:latest` : **100% GPU** (Ukuran: 323 MB, Context: 2048, VRAM Used: **732 MiB**).
   * *Catatan Pengukuran `=3`:* Eksperimen `=3` membuktikan koeksistensi model coder (2.2 GB) + nomic-embed-text (323 MB) pada 2779 MiB VRAM. Model chat (`qwen2.5:3b`) dan coder (`qwen2.5-coder:3b`) tidak pernah berdampingan bersamaan di VRAM. Status pengukuran ini adalah **terukur, tidak dipakai; embedding butuh >=2**. Kebijakan resmi produksi dan benchmark mengunci strictly `=1`.
   * *Kondisi Eksekusi Set 2 & Set 3:* Klaim bahwa Set 2 dan Set 3 dijalankan di bawah environment default berstatus **kemungkinan, belum terbukti** (log tugas 11:17 dan 15:03 mencatat env default, namun tidak ada log server config di rentang 12:43–12:52 WIB saat benchmark berjalan, dan berkas JSONL lama tidak mencatat header environment).
 * **Reflector Model Safety:** `reflect_session` dan perintah `/reflect` mengunci pemanggilan model ke `qwen2.5:3b`, menjamin refleksi memori tidak pernah berjalan pada model coder.
@@ -131,7 +131,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 4. `python_version()`:
    * Menjalankan `python --version`. Memerlukan konfirmasi pengguna `[y/N]`.
 5. `run_unittests()`:
-   * Menjalankan `python -m unittest`. Memerlukan konfirmasi pengguna `[y/N]`.
+   * Menjalankan `python -m unittest discover [tests|.]`. Memerlukan konfirmasi pengguna `[y/N]`.
 6. `list_dir(path: Optional[str])`:
    * Membaca daftar file dan folder di dalam workspace secara aman via Python `Path.iterdir()` (tanpa subprocess shell). Path traversal di luar workspace diblokir keras.
 7. **Audit Log:** Seluruh eksekusi tool dicatat ke `tool_audit.log` (mendukung path injection untuk pengujian).
@@ -198,7 +198,9 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
      - `search_memory`: Pemicu recall aktif ATAU kata kunci pencarian memori eksplisit.
      - Jika tidak ada yang cocok: `tools=None` (mode obrolan teks murni tanpa alat).
    - *Trade-Off & Limitasi Gating Deterministik:*
-     Gating deterministik leksikal menjamin 100% ketiadaan false tool call pada prompt non-alat dan mencegah prompt injection memanggil alat sembarangan. Namun trade-off-nya adalah beberapa frasa sah pengguna yang tidak memuat kosakata spesifik tidak akan memicu alat (dijawab dari konteks teks).
+     Pengukuran empiris false-open rate pada 20 kalimat obrolan/pengetahuan umum biasa yang kebetulan memuat kata kunci (diukur di `docs/evidence/false_open_rate_report.txt`) menunjukkan **false-open rate sebesar 65.0% (13/20 kalimat membuka tool)**: `list_dir` terbuka 4 kali, `git` 4 kali, `read_file` 3 kali, dan `search_memory` 2 kali; sedangkan 7/20 kalimat (35.0%) tertutup sempurna tanpa tool (`test` 3/3, `riwayat` 2/2, dan `catatan` 2/2 berhasil tertahan). Gating deterministik leksikal ini memperkecil permukaan serangan dan membatasi halusinasi liar, namun **tidak menjamin 100% ketiadaan false tool call** jika kalimat umum memuat kata kunci leksikal, serta **tidak sepenuhnya mencegah prompt injection** jika payload memuat kata kunci pemicu alat. Selain itu, trade-off tambahannya adalah frasa sah pengguna yang tidak memuat kosakata spesifik tidak akan memicu alat (dijawab dari konteks teks).
+     *Catatan Validitas Pengujian:* Seluruh prompt built-in dibuat setelah regex dirancang sehingga berisiko overfitting struktural terhadap aturan leksikal. Oleh karena itu, hanya prompt independen pengguna yang benar-benar menguji cakupan dan generalisasi gating secara objektif ($n$ kecil).
+     *Pembekuan Pola Gating:* Pola gating deterministik dibekukan secara resmi per commit `tahap 3 pre-set4 fix7b` (tidak boleh diubah lagi sampai seluruh rangkaian dan laporan Set 4 selesai).
      *Tabel Frasa Sah yang Tidak Lolos Gating (Limitasi Terdokumentasi dari Uji 30 Frasa):*
      - `read_file`: *"bisa bantu baca skrip implementasi utama kita?"* (intensi sah membaca skrip, namun tidak memuat ekstensi file, path, atau kata 'file'/'berkas').
      - `git`: *"bagaimana riwayat perubahan terakhir di repo kita?"* (intensi sah cek riwayat repo, namun kata 'repo' saja tanpa kata 'git' tidak membuka alat).
@@ -257,7 +259,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests` (`python -m unittest discover [tests|.]`), `list_dir`, `read_file`, `search_memory`.
 * Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya. Gating leksikal deterministik ketat untuk seluruh alat.
 * Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4 (status: EKSPERIMENTAL, GAGAL GATE, DEFAULT OFF).
-* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, benchmark lock, gating deterministik, dan integritas SHA256 (82 unit test terdaftar secara resmi di docs/test_ids.txt: 79 lulus, 3 benchmark dilewati saat discovery via skipTest).
+* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, benchmark lock, gating deterministik, dan integritas SHA256 (86 unit test terdaftar secara resmi di docs/test_ids.txt: 83 lulus, 3 benchmark dilewati saat discovery via skipTest).
 * Persiapan pengujian Set 4A dan Set 4R.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)

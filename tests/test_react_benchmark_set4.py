@@ -280,7 +280,8 @@ REGRESSION_PROMPTS_4R = [
         "prompt": "tolong jalanin unit test proyek kita dong",
         "expected_tool": "run_unittests",
         "expected_arg": None,
-        "expected_key": "ok"
+        "fixture_variant": "passing",
+        "expected_key": ("lulus", "berhasil", "ok", "pass")
     },
     {
         "id": "S4R_P10_REG",
@@ -288,37 +289,123 @@ REGRESSION_PROMPTS_4R = [
         "prompt": "tolong jelaskan arsitektur Transformer dan mekanisme self-attention",
         "expected_tool": None,
         "notes": "Uji no-tool untuk topik ML teoritis"
+    },
+    {
+        "id": "S4R_P11_REG",
+        "origin_id": "BUILTIN_TEST_FAIL",
+        "prompt": "coba jalankan tes unit proyek, apakah hasilnya lulus atau ada kegagalan?",
+        "expected_tool": "run_unittests",
+        "expected_arg": None,
+        "fixture_variant": "failing",
+        "expected_key": ("gagal", "fail", "error")
     }
 ]
 
-def validate_user_prompts_file_integrity(prompts_path: Path, expected_sha256: Optional[str] = None) -> None:
-    """Memvalidasi integritas file prompt user terhadap kunci SHA256.
+# Manifest Fixture Workspace untuk Validasi Preflight & Kunci Fidelity
+FIXTURE_MANIFEST: Dict[str, Any] = {
+    "files": {
+        "README.md": {
+            "path": "README.md",
+            "aliases": ["readme", "readme.md"],
+            "keys": ("enki", "asisten", "gpu", "local assistant", "4gb"),
+            "description": "Dokumen judul dan deskripsi proyek ENKI"
+        },
+        "requirements.txt": {
+            "path": "requirements.txt",
+            "aliases": ["requirements", "requirements.txt"],
+            "keys": ("fastapi", "uvicorn", "pydantic", "pytest"),
+            "description": "Daftar dependensi Python proyek"
+        },
+        "app/main.py": {
+            "path": "app/main.py",
+            "aliases": ["main.py", "app/main.py"],
+            "keys": ("get_status", "ok"),
+            "description": "Kode sumber modul app dengan endpoint status"
+        },
+        "tests/test_app.py": {
+            "path": "tests/test_app.py",
+            "aliases": ["test_app.py", "tests/test_app.py"],
+            "keys": ("test_status", "test_health", "unittest"),
+            "description": "Suite pengujian aplikasi"
+        }
+    },
+    "git": {
+        "status": {
+            "action": "status",
+            "keys": ("feat/enki-core-v2", "modified", "app/main.py", "perubahan", "uncommitted"),
+            "description": "Branch aktif dan file termodifikasi"
+        },
+        "diff": {
+            "action": "diff",
+            "keys": ("uncommitted change", "main.py", "diff"),
+            "description": "Perubahan uncommitted di app/main.py"
+        },
+        "log": {
+            "action": "log",
+            "keys": ("feat: initial commit", "initial commit", "tester"),
+            "description": "Riwayat commit repository"
+        }
+    },
+    "tests": {
+        "passing": {
+            "variant": "passing",
+            "keys": ("lulus", "berhasil", "ok", "pass"),
+            "description": "Hasil eksekusi test suite normal (seluruh test lulus)"
+        },
+        "failing": {
+            "variant": "failing",
+            "keys": ("gagal", "fail", "error"),
+            "description": "Hasil eksekusi test suite varian kegagalan (1 test gagal)"
+        }
+    }
+}
+
+DEFAULT_SET4_LOCK_PATH = ROOT_DIR / "docs" / "set4_lock.txt"
+
+def read_set4_lock_hash(lock_file: Optional[Path] = None) -> str:
+    target_lock = lock_file or DEFAULT_SET4_LOCK_PATH
+    if not target_lock.exists():
+        raise RuntimeError(f"[FATAL LOCK]: Berkas kunci lock tidak ditemukan di {target_lock}!")
+    text = target_lock.read_text(encoding="utf-8")
+    for line in text.splitlines():
+        line_clean = line.strip()
+        if not line_clean or line_clean.startswith("#"):
+            continue
+        if "SHA256" in line_clean.upper() and "=" in line_clean:
+            parts = line_clean.split("=", 1)
+            return parts[1].strip()
+        elif len(line_clean) == 64:
+            return line_clean
+    return ""
+
+def validate_user_prompts_file_integrity(
+    prompts_path: Path,
+    expected_sha256: Optional[str] = None,
+    lock_file: Optional[Path] = None
+) -> None:
+    """Memvalidasi integritas file prompt user terhadap kunci SHA256 dari docs/set4_lock.txt.
     Runner gagal keras jika:
-    1. Kunci konfigurasi kosong, placeholder, atau sama dengan hash template kosong.
-    2. Hash riil file tidak cocok dengan kunci konfigurasi yang sah.
+    1. Berkas lock tidak ada, kosong, placeholder, atau hash = template kosong.
+    2. Hash riil file prompt tidak cocok dengan kunci lock.
     """
     if not prompts_path.exists():
         raise RuntimeError(f"File prompt user tidak ditemukan: {prompts_path}")
 
-    if not expected_sha256:
-        config_file = ROOT_DIR / "config.json"
-        if config_file.exists():
-            try:
-                cfg = json.loads(config_file.read_text(encoding="utf-8"))
-                expected_sha256 = cfg.get("set4_prompts_sha256", "").strip()
-            except Exception:
-                expected_sha256 = ""
+    target_lock = lock_file or DEFAULT_SET4_LOCK_PATH
+    if expected_sha256 is None:
+        expected_sha256 = read_set4_lock_hash(target_lock)
 
-    if not expected_sha256 or expected_sha256.startswith("PENDING") or expected_sha256 == "<ISI_SHA256_FILE_PROMPT_USER>":
+    expected_sha256 = expected_sha256.strip()
+    if not expected_sha256 or expected_sha256.startswith("[") or expected_sha256.startswith("<") or expected_sha256.startswith("PENDING"):
         raise RuntimeError(
-            "[FATAL CONFIG]: Kunci SHA256 prompt ujian belum diisi oleh pengguna di config.json! "
-            "Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
+            f"[FATAL LOCK]: Kunci SHA256 pada {target_lock} belum diisi oleh pengguna! "
+            f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
         )
 
     if expected_sha256 == TEMPLATE_EMPTY_SHA256:
         raise RuntimeError(
-            f"[FATAL CONFIG]: Kunci konfigurasi '{expected_sha256}' adalah hash template kosong! "
-            "Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
+            f"[FATAL LOCK]: Kunci pada {target_lock} ('{expected_sha256}') adalah hash template kosong! "
+            f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
         )
 
     import hashlib
@@ -326,15 +413,19 @@ def validate_user_prompts_file_integrity(prompts_path: Path, expected_sha256: Op
     actual_hash = hashlib.sha256(raw_bytes).hexdigest()
     if actual_hash != expected_sha256:
         raise RuntimeError(
-            f"[FATAL SHA256 MISMATCH]: Hash file prompt ({actual_hash}) tidak cocok dengan kunci ujian ({expected_sha256})! "
+            f"[FATAL SHA256 MISMATCH]: Hash file prompt ({actual_hash}) tidak cocok dengan kunci ujian di lock ({expected_sha256})! "
             f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN."
         )
 
-def load_user_prompts(prompts_path: Path, expected_sha256: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_user_prompts(
+    prompts_path: Path,
+    expected_sha256: Optional[str] = None,
+    lock_file: Optional[Path] = None
+) -> List[Dict[str, Any]]:
     """Membaca dan memvalidasi file prompt dari pengguna.
     Wajib minimal 15 baris valid, atau melempar RuntimeError.
     """
-    validate_user_prompts_file_integrity(prompts_path, expected_sha256)
+    validate_user_prompts_file_integrity(prompts_path, expected_sha256, lock_file=lock_file)
 
     valid_prompts = []
     lines = prompts_path.read_text(encoding="utf-8").splitlines()
@@ -377,17 +468,48 @@ def load_user_prompts(prompts_path: Path, expected_sha256: Optional[str] = None)
         elif p_type in ("FILE", "GIT", "TEST", "NEG"):
             if len(parts) < 2:
                 continue
-            prompt_text = parts[1]
+            prompt_text = parts[1].strip()
             exp_tool = None
             exp_arg = None
+            exp_key = None
+
             if p_type == "FILE":
                 exp_tool = "read_file"
-                exp_arg = "requirements.txt" if "requirements" in prompt_text.lower() else "README.md"
+                matched_file_info = None
+                for f_id, f_data in FIXTURE_MANIFEST["files"].items():
+                    candidates = [f_id, f_data["path"]] + f_data.get("aliases", [])
+                    if any(c.lower() in prompt_text.lower() for c in candidates):
+                        matched_file_info = f_data
+                        break
+
+                if not matched_file_info:
+                    sys.stderr.write(
+                        f"\n[PREFLIGHT VIOLATION]: Baris FILE '{prompt_text}' menyebut file "
+                        f"yang TIDAK terdaftar di FIXTURE_MANIFEST!\n"
+                        f"File sah: {list(FIXTURE_MANIFEST['files'].keys())}\n"
+                        f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN.\n"
+                    )
+                    sys.exit(1)
+
+                exp_arg = matched_file_info["path"]
+                exp_key = matched_file_info["keys"]
+
             elif p_type == "GIT":
                 exp_tool = "git"
-                exp_arg = "diff" if "diff" in prompt_text.lower() else "status"
+                if "diff" in prompt_text.lower():
+                    exp_arg = "diff"
+                    exp_key = FIXTURE_MANIFEST["git"]["diff"]["keys"]
+                elif "log" in prompt_text.lower():
+                    exp_arg = "log"
+                    exp_key = FIXTURE_MANIFEST["git"]["log"]["keys"]
+                else:
+                    exp_arg = "status"
+                    exp_key = FIXTURE_MANIFEST["git"]["status"]["keys"]
+
             elif p_type == "TEST":
                 exp_tool = "run_unittests"
+                exp_arg = None
+                exp_key = FIXTURE_MANIFEST["tests"]["passing"]["keys"]
 
             valid_prompts.append({
                 "id": f"S4A_U{user_idx:02d}_{p_type}",
@@ -395,7 +517,7 @@ def load_user_prompts(prompts_path: Path, expected_sha256: Optional[str] = None)
                 "prompt": prompt_text,
                 "expected_tool": exp_tool,
                 "expected_arg": exp_arg,
-                "expected_key": None
+                "expected_key": exp_key
             })
             user_idx += 1
 
@@ -496,6 +618,28 @@ def setup_real_temporary_workspace(root_dir: Path):
     # 6. Buat perubahan belum dicommit agar git diff dan git status nyata
     (app_dir / "main.py").write_text("def get_status():\n    return 'OK'\n\n# uncommitted change for benchmark test\n", encoding="utf-8")
 
+def configure_workspace_test_suite(ws_path: Path, variant: str = "passing") -> None:
+    """Mengatur konten berkas unit test di workspace (normal lulus vs varian kegagalan)."""
+    test_file = ws_path / "tests" / "test_app.py"
+    if variant == "failing":
+        test_file.write_text(
+            "import unittest\nfrom app.main import get_status\n\n"
+            "class TestApp(unittest.TestCase):\n"
+            "    def test_status(self):\n        self.assertEqual(get_status(), 'OK')\n"
+            "    def test_deliberate_failure(self):\n        self.assertEqual(1 + 1, 3, 'Sengaja gagal untuk uji deteksi kegagalan')\n\n"
+            "if __name__ == '__main__':\n    unittest.main()\n",
+            encoding="utf-8"
+        )
+    else:
+        test_file.write_text(
+            "import unittest\nfrom app.main import get_status\n\n"
+            "class TestApp(unittest.TestCase):\n"
+            "    def test_status(self):\n        self.assertEqual(get_status(), 'OK')\n"
+            "    def test_health(self):\n        self.assertTrue(True)\n\n"
+            "if __name__ == '__main__':\n    unittest.main()\n",
+            encoding="utf-8"
+        )
+
 def run_single_benchmark_turn(
     prompt_item: Dict[str, Any],
     coordinator: ReActCoordinator,
@@ -505,6 +649,10 @@ def run_single_benchmark_turn(
     model: str = "qwen2.5:3b"
 ) -> Dict[str, Any]:
     """Menjalankan 1 prompt dalam benchmark Set 4 dengan pencatatan metrik detail."""
+    variant = prompt_item.get("fixture_variant", "passing")
+    ws_root = getattr(coordinator, "workspace_root", None)
+    if ws_root:
+        configure_workspace_test_suite(ws_root, variant)
     user_prompt = prompt_item["prompt"]
     expected_tool = prompt_item.get("expected_tool")
     expected_arg = prompt_item.get("expected_arg")
@@ -788,6 +936,9 @@ class TestReActBenchmarkSet4(unittest.TestCase):
         pass
 
 if __name__ == "__main__":
+    from tests.benchmark_common import check_working_tree_clean_for_benchmark
+    check_working_tree_clean_for_benchmark()
+
     client = OllamaClient()
     check_ollama_idle(client)
 

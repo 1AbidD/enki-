@@ -1,0 +1,78 @@
+================================================================================
+PENGUKURAN FALSE-OPEN RATE: 20 KALIMAT OBROLAN / PENGETAHUAN UMUM
+Menguji kalimat non-perintah yang kebetulan memuat kata kunci alat.
+================================================================================
+
+[FALSE-OPEN    ]  1. Kata kunci: 'file'
+               Kalimat   : "apa itu file system di linux?"
+               Tool Aktif: ['read_file']
+[FALSE-OPEN    ]  2. Kata kunci: 'file'
+               Kalimat   : "bagaimana cara kerja format file audio MP3 dalam mengompres suara?"
+               Tool Aktif: ['read_file']
+[FALSE-OPEN    ]  3. Kata kunci: 'file'
+               Kalimat   : "apa beda file sharing peer-to-peer dengan client-server?"
+               Tool Aktif: ['read_file']
+[FALSE-OPEN    ]  4. Kata kunci: 'folder'
+               Kalimat   : "mengapa folder temporary sering dibersihkan oleh sistem operasi?"
+               Tool Aktif: ['list_dir']
+[FALSE-OPEN    ]  5. Kata kunci: 'folder'
+               Kalimat   : "apakah folder spam di email otomatis dihapus setelah 30 hari?"
+               Tool Aktif: ['list_dir']
+[CLOSED (BENAR)]  6. Kata kunci: 'test'
+               Kalimat   : "siapa penemu test kecerdasan IQ pertama kali?"
+               Tool Aktif: None
+[CLOSED (BENAR)]  7. Kata kunci: 'test'
+               Kalimat   : "apa beda speed test internet dan bandwidth test?"
+               Tool Aktif: None
+[CLOSED (BENAR)]  8. Kata kunci: 'test'
+               Kalimat   : "mengapa kita perlu test drive mobil sebelum memutuskan membeli?"
+               Tool Aktif: None
+[FALSE-OPEN    ]  9. Kata kunci: 'commit'
+               Kalimat   : "apa arti kata commit dalam komitmen hubungan?"
+               Tool Aktif: ['git']
+[FALSE-OPEN    ] 10. Kata kunci: 'commit'
+               Kalimat   : "dalam organisasi, apa maksudnya commit to excellence?"
+               Tool Aktif: ['git']
+[FALSE-OPEN    ] 11. Kata kunci: 'branch'
+               Kalimat   : "di bank syariah apa fungsi kantor branch atau cabang?"
+               Tool Aktif: ['git']
+[FALSE-OPEN    ] 12. Kata kunci: 'branch'
+               Kalimat   : "apa fungsi branch perbankan di era digital?"
+               Tool Aktif: ['git']
+[FALSE-OPEN    ] 13. Kata kunci: 'dir'
+               Kalimat   : "apa kepanjangan dari perintah dir di DOS zaman dulu?"
+               Tool Aktif: ['list_dir']
+[FALSE-OPEN    ] 14. Kata kunci: 'dir'
+               Kalimat   : "apa asal usul kata dir dalam bahasa Arab atau singkatan?"
+               Tool Aktif: ['list_dir']
+[CLOSED (BENAR)] 15. Kata kunci: 'riwayat'
+               Kalimat   : "bisa ceritakan riwayat hidup Albert Einstein secara singkat?"
+               Tool Aktif: None
+[CLOSED (BENAR)] 16. Kata kunci: 'riwayat'
+               Kalimat   : "bagaimana riwayat perkembangan candi Borobudur dari masa ke masa?"
+               Tool Aktif: None
+[CLOSED (BENAR)] 17. Kata kunci: 'catatan'
+               Kalimat   : "apa beda catatan kaki dan catatan akhir dalam penulisan ilmiah?"
+               Tool Aktif: None
+[CLOSED (BENAR)] 18. Kata kunci: 'catatan'
+               Kalimat   : "tolong berikan catatan penting saat merawat tanaman hias di rumah?"
+               Tool Aktif: None
+[FALSE-OPEN    ] 19. Kata kunci: 'tadi'
+               Kalimat   : "tadi pagi sarapan apa yang sehat untuk sarapan cepat?"
+               Tool Aktif: ['search_memory']
+[FALSE-OPEN    ] 20. Kata kunci: 'tadi'
+               Kalimat   : "tadi malam hujan deras sekali ya di daerahmu?"
+               Tool Aktif: ['search_memory']
+
+================================================================================
+RINGKASAN HASIL PENGUKURAN
+================================================================================
+Total Kalimat Diuji : 20
+Tertutup Sempurna   : 7/20 (35.0%) [0 Tool]
+False-Open (Bocor)  : 13/20 (65.0%) [Membuka Tool]
+
+Distribusi Tool yang Terbuka (False-Open):
+  - list_dir       : 4 kali
+  - git            : 4 kali
+  - read_file      : 3 kali
+  - search_memory  : 2 kali

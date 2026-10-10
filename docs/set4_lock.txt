@@ -1,0 +1,3 @@
+# Kunci integritas ujian Set 4 (tracked)
+# Format: SHA256 = <64_karakter_hash_sha256>
+SHA256 = [MENUNGGU_KUNCI_PENGGUNA]

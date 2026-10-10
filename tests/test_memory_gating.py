@@ -29,7 +29,7 @@ class TestMemoryGating(unittest.TestCase):
     def test_explicit_memory_keywords(self):
         """Memastikan kata kunci eksplisit memori mengaktifkan tool search_memory."""
         explicit_prompts = [
-            "coba cari di catatan masa lalu",
+            "coba cari di catatan lama kita",
             "tolong periksa riwayat obrolan kita",
             "buka log obrolan kemarin",
             "apa yang ada di sesi lampau?",
@@ -43,6 +43,27 @@ class TestMemoryGating(unittest.TestCase):
                     should_enable_memory_tool(prompt),
                     f"Prompt kata kunci eksplisit gagal mengaktifkan memory tool: {prompt}"
                 )
+
+    def test_narrowed_riwayat_and_catatan_gating(self):
+        """Memastikan riwayat dan catatan dipersempit agar tidak salah terpicu pada istilah non-percakapan."""
+        # 'riwayat perubahan di repo kita' -> tanpa search_memory
+        self.assertFalse(should_enable_memory_tool("riwayat perubahan di repo kita"))
+        tools1 = get_active_tools_for_turn("bagaimana riwayat perubahan terakhir di repo kita?")
+        names1 = [t["function"]["name"] for t in tools1] if tools1 else []
+        self.assertNotIn("search_memory", names1)
+
+        # 'buka catatan di ./docs/catatan.txt' -> tanpa search_memory
+        self.assertFalse(should_enable_memory_tool("buka catatan di ./docs/catatan.txt"))
+        tools2 = get_active_tools_for_turn("buka catatan di ./docs/catatan.txt")
+        names2 = [t["function"]["name"] for t in tools2] if tools2 else []
+        self.assertNotIn("search_memory", names2)
+        self.assertIn("read_file", names2)
+
+        # 'buka riwayat percakapan lama' -> search_memory
+        self.assertTrue(should_enable_memory_tool("buka riwayat percakapan lama"))
+        tools3 = get_active_tools_for_turn("buka riwayat percakapan lama")
+        names3 = [t["function"]["name"] for t in tools3] if tools3 else []
+        self.assertIn("search_memory", names3)
 
     def test_negative_prompts_do_not_enable_memory_tool(self):
         """Memastikan prompt umum/coding/resep/sapaan TIDAK mengaktifkan memory tool."""

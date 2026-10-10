@@ -252,26 +252,94 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         self.assertIn("read_file", names_read, "'baca README.md' wajib memicu tool read_file!")
 
     def test_set4_integrity_validation_failures(self):
-        """Memverifikasi runner Set 4 gagal keras pada hash template kosong dan hash tidak cocok."""
+        """Memverifikasi runner Set 4 membaca docs/set4_lock.txt dan gagal keras pada 3 kondisi:
+        1. Lock file tidak ditemukan
+        2. Lock file memuat hash template kosong
+        3. Hash di lock file tidak cocok dengan isi file prompt
+        Serta lulus jika hash cocok sempurna.
+        """
+        import hashlib
         dummy_prompt_file = self.temp_path / "dummy_prompts.txt"
         dummy_prompt_file.write_text("MEM|prompt|fakta|kunci|recall\n", encoding="utf-8")
+        real_hash = hashlib.sha256(dummy_prompt_file.read_bytes()).hexdigest()
 
-        # Kasus 1: Kunci konfigurasi adalah template kosong -> GAGAL KERAS
+        # 1. Lock file tidak ditemukan -> GAGAL KERAS
+        non_existent_lock = self.temp_path / "non_existent_lock.txt"
+        with self.assertRaises(RuntimeError) as ctx_missing:
+            validate_user_prompts_file_integrity(dummy_prompt_file, lock_file=non_existent_lock)
+        self.assertIn("tidak ditemukan", str(ctx_missing.exception))
+
+        # 2. Hash di lock file adalah template kosong -> GAGAL KERAS
+        empty_lock = self.temp_path / "empty_lock.txt"
+        empty_lock.write_text(f"SHA256 = {TEMPLATE_EMPTY_SHA256}\n", encoding="utf-8")
         with self.assertRaises(RuntimeError) as ctx_empty:
-            validate_user_prompts_file_integrity(
-                dummy_prompt_file,
-                expected_sha256=TEMPLATE_EMPTY_SHA256
-            )
+            validate_user_prompts_file_integrity(dummy_prompt_file, lock_file=empty_lock)
         self.assertIn("hash template kosong", str(ctx_empty.exception))
 
-        # Kasus 2: Kunci konfigurasi tidak cocok dengan hash file riil -> GAGAL KERAS
-        fake_expected_hash = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+        # 3. Hash di lock file tidak cocok -> GAGAL KERAS
+        mismatch_lock = self.temp_path / "mismatch_lock.txt"
+        mismatch_lock.write_text("SHA256 = abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789\n", encoding="utf-8")
         with self.assertRaises(RuntimeError) as ctx_mismatch:
-            validate_user_prompts_file_integrity(
-                dummy_prompt_file,
-                expected_sha256=fake_expected_hash
-            )
-        self.assertIn("tidak cocok dengan kunci ujian", str(ctx_mismatch.exception))
+            validate_user_prompts_file_integrity(dummy_prompt_file, lock_file=mismatch_lock)
+        self.assertIn("tidak cocok dengan kunci ujian di lock", str(ctx_mismatch.exception))
+
+        # 4. Hash di lock file cocok sempurna -> LULUS
+        valid_lock = self.temp_path / "valid_lock.txt"
+        valid_lock.write_text(f"SHA256 = {real_hash}\n", encoding="utf-8")
+        validate_user_prompts_file_integrity(dummy_prompt_file, lock_file=valid_lock)
+
+    def test_set4_fixture_manifest_and_preflight(self):
+        """Memverifikasi preflight manifest fixture untuk baris FILE, GIT, TEST user."""
+        from tests.test_react_benchmark_set4 import load_user_prompts, FIXTURE_MANIFEST
+        import hashlib
+
+        # Buat dummy 15 baris prompt: 6 MEM, 4 WS (2 FILE, 1 GIT, 1 TEST), 5 NEG
+        prompts_lines = [
+            # 6 MEM
+            "MEM | siapa nama user | nama user Budi | budi | profile",
+            "MEM | apa bahasa kesukaan | suka rust | rust | profile",
+            "MEM | di mana kota tinggal | tinggal di Bandung | bandung | profile",
+            "MEM | kemarin kita bahas apa | kemarin bahas docker | docker | recall",
+            "MEM | tadi kamu bilang apa | tadi bilang redis | redis | recall",
+            "MEM | ingat database apa | ingat postgresql | postgresql | recall",
+            # 4 WS
+            "FILE | tolong bacakan file requirements.txt di repo",
+            "FILE | coba lihat isi README.md sekarang",
+            "GIT | tolong cek git diff perubahan kode kita",
+            "TEST | coba jalankan unit test proyek sekarang",
+            # 5 NEG
+            "NEG | apa ibukota perancis saat ini?",
+            "NEG | berapa hasil 15 dikali 4?",
+            "NEG | jelaskan teori relativitas einstein",
+            "NEG | sebutkan 3 benua terbesar di dunia",
+            "NEG | resep nasi liwet yang gurih"
+        ]
+        valid_file = self.temp_path / "valid_set4_prompts.txt"
+        valid_file.write_text("\n".join(prompts_lines), encoding="utf-8")
+        h = hashlib.sha256(valid_file.read_bytes()).hexdigest()
+
+        lock_file = self.temp_path / "lock.txt"
+        lock_file.write_text(f"SHA256 = {h}\n", encoding="utf-8")
+
+        parsed = load_user_prompts(valid_file, lock_file=lock_file)
+        self.assertEqual(len(parsed), 15)
+
+        # Verifikasi FILE requirements.txt dipetakan ke manifest
+        p_req = next(p for p in parsed if "requirements" in p["prompt"])
+        self.assertEqual(p_req["expected_tool"], "read_file")
+        self.assertEqual(p_req["expected_arg"], "requirements.txt")
+        self.assertEqual(p_req["expected_key"], FIXTURE_MANIFEST["files"]["requirements.txt"]["keys"])
+
+        # Verifikasi GIT diff dipetakan ke manifest
+        p_git = next(p for p in parsed if p["category"] == "GIT")
+        self.assertEqual(p_git["expected_tool"], "git")
+        self.assertEqual(p_git["expected_arg"], "diff")
+        self.assertEqual(p_git["expected_key"], FIXTURE_MANIFEST["git"]["diff"]["keys"])
+
+        # Verifikasi TEST dipetakan ke hasil lulus
+        p_test = next(p for p in parsed if p["category"] == "TEST")
+        self.assertEqual(p_test["expected_tool"], "run_unittests")
+        self.assertEqual(p_test["expected_key"], ("lulus", "berhasil", "ok", "pass"))
 
 if __name__ == "__main__":
     unittest.main()

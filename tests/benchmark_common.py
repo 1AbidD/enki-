@@ -233,11 +233,17 @@ def create_benchmark_jsonl_header(
         ollama_ps_out = f"error: {e}"
 
     git_head = "unknown"
+    git_dirty = False
     try:
         res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5)
         git_head = res.stdout.strip()
+        st_res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, timeout=5)
+        if st_res.returncode == 0:
+            st_lines = [l.strip() for l in st_res.stdout.strip().splitlines() if l.strip()]
+            git_dirty = (len(st_lines) > 0)
     except Exception as e:
         git_head = f"error: {e}"
+        git_dirty = None
 
     prompts_sha256 = None
     if user_prompts_file and user_prompts_file.exists():
@@ -255,8 +261,28 @@ def create_benchmark_jsonl_header(
         "ollama_registry_env": get_ollama_registry_env(),
         "runner_num_ctx": runner_num_ctx,
         "git_head": git_head,
+        "git_dirty": git_dirty,
         "set4_user_prompts_sha256": prompts_sha256
     }
+
+def check_working_tree_clean_for_benchmark(allowed_file_suffix: str = "set4_user_prompts.txt") -> None:
+    """Memeriksa apakah working tree git bersih sebelum benchmark Set 4 dijalankan.
+    Menolak berjalan jika working tree kotor (dirty) selain file prompt pengguna.
+    """
+    proc = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, timeout=5)
+    if proc.returncode == 0:
+        lines = [l.strip() for l in proc.stdout.strip().splitlines() if l.strip()]
+        disallowed_dirty = []
+        for line in lines:
+            parts = line.split(maxsplit=1)
+            f_path = parts[1] if len(parts) > 1 else line
+            if not f_path.endswith(allowed_file_suffix):
+                disallowed_dirty.append(line)
+        if disallowed_dirty:
+            raise RuntimeError(
+                f"Working tree git sedang kotor (dirty)! File belum bersih: {disallowed_dirty}. "
+                f"Runner Set 4 menolak berjalan."
+            )
 
 def check_ollama_idle(client: Any) -> None:
     """Memeriksa kesiapan server Ollama dan status model aktif di VRAM."""

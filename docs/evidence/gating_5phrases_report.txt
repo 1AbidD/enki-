@@ -1,168 +1,95 @@
 ================================================================================
-LAPORAN EVALUASI GATING DETERMINISTIK: 5 FRASA PENGUJIAN SAH PER TOOL
+KELUARAN MENTAH GATING DETERMINISTIK: 30 FRASA UJI PER KATEGORI ALAT
+Catatan: Nama tools diambil langsung dari [schema['function']['name']]
 ================================================================================
 
-Tool: [read_file]
+Kategori Target: [read_file]
 --------------------------------------------------------------------------------
-  1. Frasa   : "tolong tampilkan isi README.md"
-     Status  : LOLOS (Tools aktif: ['read_file'])
-     Catatan : Memuat ekstensi file .md
+  [MATCH] 1. "tolong tampilkan isi README.md"
+          Tools Aktif : ['read_file']
+  [MATCH] 2. "bisa tolong baca berkas konfigurasi?"
+          Tools Aktif : ['read_file']
+  [MATCH] 3. "coba periksa file config.json kita"
+          Tools Aktif : ['read_file']
+  [MATCH] 4. "buka catatan di ./docs/catatan.txt"
+          Tools Aktif : ['read_file']
+  [NO_MATCH] 5. "bisa bantu baca skrip implementasi utama kita?"
+          Tools Aktif : None
+Ringkasan [read_file]: 4/5 cocok
 
-  2. Frasa   : "bisa tolong baca berkas konfigurasi?"
-     Status  : LOLOS (Tools aktif: ['read_file'])
-     Catatan : Memuat kata kunci 'berkas'
-
-  3. Frasa   : "coba periksa file config.json kita"
-     Status  : LOLOS (Tools aktif: ['read_file'])
-     Catatan : Memuat kata kunci 'file' dan ekstensi .json
-
-  4. Frasa   : "buka catatan di ./docs/catatan.txt"
-     Status  : LOLOS (Tools aktif: ['search_memory', 'read_file'])
-     Catatan : Memuat prefix './' dan folder 'docs/' serta .txt
-
-  5. Frasa   : "bisa bantu baca skrip implementasi utama kita?"
-     Status  : TIDAK LOLOS (Tools aktif: None)
-     Catatan : Intensi sah, tapi tidak memuat ekstensi, path, atau kata file/berkas (Limitasi Gating)
-
-  Ringkasan [read_file]: 4/5 Lolos
-
-Tool: [git]
+Kategori Target: [git]
 --------------------------------------------------------------------------------
-  1. Frasa   : "cek git status saat ini"
-     Status  : LOLOS (Tools aktif: ['git'])
-     Catatan : Memuat kata kunci 'git'
+  [MATCH] 1. "cek git status saat ini"
+          Tools Aktif : ['git']
+  [MATCH] 2. "tolong buat commit baru untuk perubahan tadi"
+          Tools Aktif : ['search_memory', 'git']
+  [MATCH] 3. "ada berapa branch di repository ini?"
+          Tools Aktif : ['git']
+  [MATCH] 4. "tampilkan git diff terakhir"
+          Tools Aktif : ['git']
+  [NO_MATCH] 5. "bagaimana riwayat perubahan terakhir di repo kita?"
+          Tools Aktif : None
+Ringkasan [git]: 4/5 cocok
 
-  2. Frasa   : "tolong buat commit baru untuk perubahan tadi"
-     Status  : LOLOS (Tools aktif: ['search_memory', 'git'])
-     Catatan : Memuat kata kunci 'commit'
-
-  3. Frasa   : "ada berapa branch di repository ini?"
-     Status  : LOLOS (Tools aktif: ['git'])
-     Catatan : Memuat kata kunci 'branch'
-
-  4. Frasa   : "tampilkan git diff terakhir"
-     Status  : LOLOS (Tools aktif: ['git'])
-     Catatan : Memuat kata kunci 'git' dan 'diff'
-
-  5. Frasa   : "bagaimana riwayat perubahan terakhir di repo kita?"
-     Status  : TIDAK LOLOS (Tools aktif: ['search_memory'])
-     Catatan : Intensi sah (repo), tapi kata 'repo' saja tanpa 'git' tidak mengaktifkan tool (Limitasi Gating)
-
-  Ringkasan [git]: 4/5 Lolos
-
-Tool: [run_unittests]
+Kategori Target: [run_unittests]
 --------------------------------------------------------------------------------
-  1. Frasa   : "jalankan unit test sekarang"
-     Status  : LOLOS (Tools aktif: ['run_unittests'])
-     Catatan : Memuat 'unit test'
+  [MATCH] 1. "jalankan unit test sekarang"
+          Tools Aktif : ['run_unittests']
+  [MATCH] 2. "coba jalanin semua test di proyek ini"
+          Tools Aktif : ['run_unittests']
+  [MATCH] 3. "tolong run pytest untuk memeriksa regresi"
+          Tools Aktif : ['run_unittests']
+  [MATCH] 4. "jalankan tes kode sebelum push"
+          Tools Aktif : ['run_unittests']
+  [NO_MATCH] 5. "coba cek hasil pengujian perangkat lunak"
+          Tools Aktif : None
+Ringkasan [run_unittests]: 4/5 cocok
 
-  2. Frasa   : "coba jalanin semua test di proyek ini"
-     Status  : LOLOS (Tools aktif: ['run_unittests'])
-     Catatan : Memuat 'jalanin' + 'test' + 'semua'/'proyek'
-
-  3. Frasa   : "tolong run pytest untuk memeriksa regresi"
-     Status  : LOLOS (Tools aktif: ['run_unittests'])
-     Catatan : Memuat 'pytest'
-
-  4. Frasa   : "jalankan tes kode sebelum push"
-     Status  : LOLOS (Tools aktif: ['run_unittests'])
-     Catatan : Memuat 'jalankan' + 'tes' + 'kode'
-
-  5. Frasa   : "coba cek hasil pengujian perangkat lunak"
-     Status  : TIDAK LOLOS (Tools aktif: None)
-     Catatan : Intensi sah untuk testing, tapi kata 'pengujian' tidak cocok dengan regex test action/noun (Limitasi Gating)
-
-  Ringkasan [run_unittests]: 4/5 Lolos
-
-Tool: [python_version]
+Kategori Target: [python_version]
 --------------------------------------------------------------------------------
-  1. Frasa   : "cek versi python yang terpasang"
-     Status  : LOLOS (Tools aktif: ['python_version'])
-     Catatan : Memuat 'python' dan 'versi'
+  [MATCH] 1. "cek versi python yang terpasang"
+          Tools Aktif : ['python_version']
+  [MATCH] 2. "python version berapa yang kita gunakan?"
+          Tools Aktif : ['python_version']
+  [MATCH] 3. "apakah python di komputer ini versi terbaru?"
+          Tools Aktif : ['python_version']
+  [MATCH] 4. "tolong tampilkan version python di mesin ini"
+          Tools Aktif : ['python_version']
+  [NO_MATCH] 5. "cek versi interpreter bahasa yang sedang aktif"
+          Tools Aktif : None
+Ringkasan [python_version]: 4/5 cocok
 
-  2. Frasa   : "python version berapa yang kita gunakan?"
-     Status  : LOLOS (Tools aktif: ['python_version'])
-     Catatan : Memuat 'python' dan 'version'
-
-  3. Frasa   : "apakah python di komputer ini versi terbaru?"
-     Status  : LOLOS (Tools aktif: ['python_version'])
-     Catatan : Memuat 'python' dan 'versi'
-
-  4. Frasa   : "tolong tampilkan version python di mesin ini"
-     Status  : LOLOS (Tools aktif: ['python_version'])
-     Catatan : Memuat 'version' dan 'python'
-
-  5. Frasa   : "cek versi interpreter bahasa yang sedang aktif"
-     Status  : TIDAK LOLOS (Tools aktif: None)
-     Catatan : Intensi sah untuk cek runtime, tapi tidak menyebut token 'python' (Limitasi Gating)
-
-  Ringkasan [python_version]: 4/5 Lolos
-
-Tool: [list_dir]
+Kategori Target: [list_dir]
 --------------------------------------------------------------------------------
-  1. Frasa   : "tampilkan daftar berkas di folder saat ini"
-     Status  : LOLOS (Tools aktif: ['read_file', 'list_dir'])
-     Catatan : Memuat kata 'folder'
+  [MATCH] 1. "tampilkan daftar berkas di folder saat ini"
+          Tools Aktif : ['read_file', 'list_dir']
+  [MATCH] 2. "apa saja isi dari direktori workspace?"
+          Tools Aktif : ['list_dir']
+  [MATCH] 3. "coba jalankan ls untuk melihat berkas"
+          Tools Aktif : ['read_file', 'list_dir']
+  [MATCH] 4. "bisa bantu list isi dir proyek?"
+          Tools Aktif : ['list_dir']
+  [NO_MATCH] 5. "tunjukkan seluruh isi struktur proyek"
+          Tools Aktif : None
+Ringkasan [list_dir]: 4/5 cocok
 
-  2. Frasa   : "apa saja isi dari direktori workspace?"
-     Status  : LOLOS (Tools aktif: ['list_dir'])
-     Catatan : Memuat kata 'direktori'
-
-  3. Frasa   : "coba jalankan ls untuk melihat berkas"
-     Status  : LOLOS (Tools aktif: ['read_file', 'list_dir'])
-     Catatan : Memuat token 'ls'
-
-  4. Frasa   : "bisa bantu list isi dir proyek?"
-     Status  : LOLOS (Tools aktif: ['list_dir'])
-     Catatan : Memuat token 'dir'
-
-  5. Frasa   : "tunjukkan seluruh isi struktur proyek"
-     Status  : TIDAK LOLOS (Tools aktif: None)
-     Catatan : Intensi sah melihat isi proyek, tapi tidak memuat kata folder/direktori/ls/dir (Limitasi Gating)
-
-  Ringkasan [list_dir]: 4/5 Lolos
-
-Tool: [search_memory]
+Kategori Target: [search_memory]
 --------------------------------------------------------------------------------
-  1. Frasa   : "kemarin kita sempat diskusi soal arsitektur apa ya?"
-     Status  : LOLOS (Tools aktif: ['search_memory'])
-     Catatan : Memuat kata pemicu aktif 'kemarin'
-
-  2. Frasa   : "ingat tidak preferensi bahasa yang saya sebutkan?"
-     Status  : LOLOS (Tools aktif: ['search_memory'])
-     Catatan : Memuat kata pemicu aktif 'ingat'
-
-  3. Frasa   : "pernahkah kita membahas masalah koneksi database sebelumnya?"
-     Status  : LOLOS (Tools aktif: ['search_memory'])
-     Catatan : Memuat kata pemicu aktif 'pernah'
-
-  4. Frasa   : "buka riwayat percakapan lama tentang deployment"
-     Status  : LOLOS (Tools aktif: ['search_memory'])
-     Catatan : Memuat kata kunci eksplisit 'riwayat' dan 'percakapan lama'
-
-  5. Frasa   : "apa nama domain server yang saya ceritakan pada obrolan awal?"
-     Status  : TIDAK LOLOS (Tools aktif: None)
-     Catatan : Intensi sah memori lama, tapi tanpa kata pemicu leksikal baku (Limitasi Gating)
-
-  Ringkasan [search_memory]: 4/5 Lolos
+  [MATCH] 1. "kemarin kita sempat diskusi soal arsitektur apa ya?"
+          Tools Aktif : ['search_memory']
+  [MATCH] 2. "ingat tidak preferensi bahasa yang saya sebutkan?"
+          Tools Aktif : ['search_memory']
+  [MATCH] 3. "pernahkah kita membahas masalah koneksi database sebelumnya?"
+          Tools Aktif : ['search_memory']
+  [MATCH] 4. "buka riwayat percakapan lama tentang deployment"
+          Tools Aktif : ['search_memory']
+  [NO_MATCH] 5. "apa nama domain server yang saya ceritakan pada obrolan awal?"
+          Tools Aktif : None
+Ringkasan [search_memory]: 4/5 cocok
 
 ================================================================================
-RINGKASAN MENYELURUH
+RINGKASAN TOTAL
+Total Frasa : 30
+Total Cocok : 24 (80.0%)
+Tidak Cocok : 6 (20.0%) [Limitasi leksikal]
 ================================================================================
-Total Frasa Diuji    : 30
-Frasa Lolos Gating   : 24 (80.0%)
-Frasa Tidak Lolos    : 6 (20.0%) [Dicatat sebagai limitasi]
-
-DAFTAR FRASA YANG TIDAK LOLOS (LIMITASI GATING DETERMINISTIK):
-- Tool [read_file]: "bisa bantu baca skrip implementasi utama kita?"
-  Alasan / Limitasi: Intensi sah, tapi tidak memuat ekstensi, path, atau kata file/berkas (Limitasi Gating)
-- Tool [git]: "bagaimana riwayat perubahan terakhir di repo kita?"
-  Alasan / Limitasi: Intensi sah (repo), tapi kata 'repo' saja tanpa 'git' tidak mengaktifkan tool (Limitasi Gating)
-- Tool [run_unittests]: "coba cek hasil pengujian perangkat lunak"
-  Alasan / Limitasi: Intensi sah untuk testing, tapi kata 'pengujian' tidak cocok dengan regex test action/noun (Limitasi Gating)
-- Tool [python_version]: "cek versi interpreter bahasa yang sedang aktif"
-  Alasan / Limitasi: Intensi sah untuk cek runtime, tapi tidak menyebut token 'python' (Limitasi Gating)
-- Tool [list_dir]: "tunjukkan seluruh isi struktur proyek"
-  Alasan / Limitasi: Intensi sah melihat isi proyek, tapi tidak memuat kata folder/direktori/ls/dir (Limitasi Gating)
-- Tool [search_memory]: "apa nama domain server yang saya ceritakan pada obrolan awal?"
-  Alasan / Limitasi: Intensi sah memori lama, tapi tanpa kata pemicu leksikal baku (Limitasi Gating)
