@@ -54,7 +54,7 @@ def main():
 
     # Chat model
     lines.append("=== 2. LANGKAH 1: CHAT (qwen2.5:3b) ===")
-    warm_model("qwen2.5:3b", num_ctx=4096)
+    warm_model("qwen2.5:3b", num_ctx=8192)
     time.sleep(1)
     lines.append("[OLLAMA PS]")
     lines.append(run_cmd(["ollama", "ps"]))
@@ -99,9 +99,20 @@ def main():
     warm_model("qwen2.5:3b", num_ctx=8192)
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    # Jika baris server config ada di file lama, pertahankan catatan server config
-    content = "\n".join(lines)
-    print(f"Pengukuran selesai. Target: {OUTPUT_FILE}")
+    server_config_part = ""
+    if OUTPUT_FILE.exists():
+        old_text = OUTPUT_FILE.read_text(encoding="utf-8")
+        if "=== 5. BARIS 'SERVER CONFIG' TERAKHIR ===" in old_text:
+            server_config_part = old_text[old_text.find("=== 5. BARIS 'SERVER CONFIG' TERAKHIR ==="):]
+
+    content = "\n".join(lines).strip()
+    if server_config_part:
+        content += "\n\n" + server_config_part.strip() + "\n"
+    else:
+        content += "\n"
+
+    OUTPUT_FILE.write_text(content, encoding="utf-8")
+    print(f"Pengukuran selesai. Berkas disimpan di: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()

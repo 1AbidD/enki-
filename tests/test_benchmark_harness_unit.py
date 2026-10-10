@@ -328,18 +328,163 @@ class TestBenchmarkHarnessUnit(unittest.TestCase):
         p_req = next(p for p in parsed if "requirements" in p["prompt"])
         self.assertEqual(p_req["expected_tool"], "read_file")
         self.assertEqual(p_req["expected_arg"], "requirements.txt")
-        self.assertEqual(p_req["expected_key"], FIXTURE_MANIFEST["files"]["requirements.txt"]["keys"])
+        self.assertEqual(p_req["expected_key"], FIXTURE_MANIFEST["files"]["requirements.txt"]["key"])
 
         # Verifikasi GIT diff dipetakan ke manifest
         p_git = next(p for p in parsed if p["category"] == "GIT")
         self.assertEqual(p_git["expected_tool"], "git")
         self.assertEqual(p_git["expected_arg"], "diff")
-        self.assertEqual(p_git["expected_key"], FIXTURE_MANIFEST["git"]["diff"]["keys"])
+        self.assertEqual(p_git["expected_key"], FIXTURE_MANIFEST["git"]["diff"]["key"])
 
         # Verifikasi TEST dipetakan ke hasil lulus
         p_test = next(p for p in parsed if p["category"] == "TEST")
         self.assertEqual(p_test["expected_tool"], "run_unittests")
-        self.assertEqual(p_test["expected_key"], ("lulus", "berhasil", "ok", "pass"))
+        self.assertEqual(p_test["expected_key"], FIXTURE_MANIFEST["tests"]["passing"]["key"])
+
+    def test_polarity_aware_fidelity_matching(self):
+        """Uji tanpa LLM untuk pencocokan fidelity sadar polaritas dan word-boundary (A4):
+        - 'tidak ada kegagalan' TIDAK lolos varian gagal;
+        - 'semua tes lulus' lolos varian lulus;
+        - 'tidak ada tes yang lulus' TIDAK lolos varian lulus;
+        - 'lokal' tidak cocok 'ok';
+        - 'password' tidak cocok 'pass';
+        - 'tidak ada perubahan' TIDAK lolos git status saat ada perubahan.
+        """
+        from tests.benchmark_common import check_fidelity_match
+
+        # 1. 'tidak ada kegagalan' TIDAK lolos varian gagal (key: kegagalan)
+        self.assertFalse(check_fidelity_match("kegagalan", "tidak ada kegagalan"))
+
+        # 2. 'semua tes lulus' lolos varian lulus (key: lulus)
+        self.assertTrue(check_fidelity_match("lulus", "semua tes lulus"))
+
+        # 3. 'tidak ada tes yang lulus' TIDAK lolos varian lulus (key: lulus)
+        self.assertFalse(check_fidelity_match("lulus", "tidak ada tes yang lulus"))
+
+        # 4. 'lokal' tidak cocok 'ok' (word-boundary & key <= 3 huruf)
+        self.assertFalse(check_fidelity_match("ok", "lokal"))
+
+        # 5. 'password' tidak cocok 'pass' (word-boundary)
+        self.assertFalse(check_fidelity_match("pass", "password"))
+
+        # 6. 'tidak ada perubahan' TIDAK lolos git status (key: perubahan)
+        self.assertFalse(check_fidelity_match("perubahan", "tidak ada perubahan"))
+
+        # Tambahan: respon positif tanpa negasi lolos
+        self.assertTrue(check_fidelity_match("kegagalan", "terjadi 1 kegagalan assertion"))
+        self.assertTrue(check_fidelity_match("perubahan", "terdapat perubahan uncommitted pada berkas"))
+
+    def test_preflight_fidelity_key_rules(self):
+        """Memverifikasi aturan ketat kunci fidelity (A2):
+        1. Kunci <= 3 huruf ditolak keras
+        2. Kunci yang ada di system prompt base ditolak keras
+        3. Kunci yang ada di teks pertanyaan ditolak keras
+        4. Kunci sama dengan nama tool ditolak keras
+        """
+        from tests.test_react_benchmark_set4 import validate_prompt_fidelity_keys
+
+        # Kasus 1: Kunci <= 3 huruf (misal 'ok', 'k6')
+        with self.assertRaises(SystemExit):
+            validate_prompt_fidelity_keys({"id": "TEST_KEY_LEN", "prompt": "apa itu?", "expected_key": "ok"})
+
+        # Kasus 2: Kunci ada di system prompt base (misal 'enki', 'asisten', 'lokal')
+        with self.assertRaises(SystemExit):
+            validate_prompt_fidelity_keys({"id": "TEST_SYS_PROMPT", "prompt": "baca dokumen", "expected_key": "enki"})
+
+        # Kasus 3: Kunci ada di teks pertanyaan (misal 'lulus' pada pertanyaan yang menyebut 'lulus')
+        with self.assertRaises(SystemExit):
+            validate_prompt_fidelity_keys({
+                "id": "TEST_IN_QUESTION",
+                "prompt": "apakah tes unit kita lulus?",
+                "expected_key": "lulus"
+            })
+
+        # Kasus 4: Kunci sama dengan nama tool (misal 'read_file', 'git')
+        with self.assertRaises(SystemExit):
+            validate_prompt_fidelity_keys({"id": "TEST_TOOL_NAME", "prompt": "cek kode", "expected_key": "read_file"})
+
+        # Kasus 5: Kunci sah dan unik -> Lulus tanpa exception
+        validate_prompt_fidelity_keys({
+            "id": "TEST_VALID_KEY",
+            "prompt": "coba periksa isi berkas konfigurasi utama",
+            "expected_key": "zephyrsentinel"
+        })
+
+    def test_git_routing_and_dynamic_action_fidelity(self):
+        """Memverifikasi perlakuan baris GIT (A5):
+        - Routing GIT = tool git (aksi apa pun yang valid di enum)
+        - Fidelity dinilai terhadap aksi yang benar-benar dipanggil
+        - Ketidakcocokan aksi dilaporkan terpisah sebagai action_mismatch, bukan routing gagal
+        """
+        from tests.test_react_benchmark_set4 import FIXTURE_MANIFEST
+
+        # Kasus 1: User minta diff, LLM panggil diff -> routing ok, fidelity ok, action_mismatch False
+        res1 = evaluate_benchmark_turn(
+            expected_tool="git",
+            expected_arg="diff",
+            expected_key="telemetry patch",
+            tool_calls_recorded=['git({"action": "diff"})'],
+            tool_observations_recorded=["# uncommitted telemetry patch"],
+            final_text="Terdapat telemetry patch pada berkas main.py",
+            fixture_manifest=FIXTURE_MANIFEST
+        )
+        self.assertTrue(res1["routing_ok"])
+        self.assertTrue(res1["fidelity_ok"])
+        self.assertFalse(res1["action_mismatch"])
+        self.assertTrue(res1["is_success"])
+
+        # Kasus 2: User minta status, LLM panggil diff:
+        # Routing tetap OK! Action mismatch True, tapi fidelity dinilai thd diff (telemetry patch)
+        res2 = evaluate_benchmark_turn(
+            expected_tool="git",
+            expected_arg="status",
+            expected_key="perubahan",
+            tool_calls_recorded=['git({"action": "diff"})'],
+            tool_observations_recorded=["# uncommitted telemetry patch"],
+            final_text="Hasil diff menunjukkan telemetry patch",
+            fixture_manifest=FIXTURE_MANIFEST
+        )
+        self.assertTrue(res2["routing_ok"], "Routing git harus tetap True meskipun aksi berbeda!")
+        self.assertTrue(res2["action_mismatch"], "Ketidakcocokan aksi dilaporkan terpisah!")
+        self.assertTrue(res2["fidelity_ok"], "Fidelity dinilai thd aksi yang benar-benar dipanggil (diff)!")
+        self.assertTrue(res2["is_success"])
+
+        # Kasus 3: Tool bukan git -> routing gagal
+        res3 = evaluate_benchmark_turn(
+            expected_tool="git",
+            expected_arg="status",
+            expected_key="perubahan",
+            tool_calls_recorded=['read_file({"file_path": "README.md"})'],
+            tool_observations_recorded=["# README"],
+            final_text="README ada perubahan",
+            fixture_manifest=FIXTURE_MANIFEST
+        )
+        self.assertFalse(res3["routing_ok"])
+        self.assertFalse(res3["is_success"])
+
+    def test_gating_freeze_diff_clean_check(self):
+        """Memverifikasi fungsi check_gating_freeze_diff_clean."""
+        from tests.benchmark_common import check_gating_freeze_diff_clean
+        from unittest.mock import patch
+
+        # Kasus 1: Subprocess mengembalikan diff kosong -> return True
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            self.assertTrue(check_gating_freeze_diff_clean())
+
+        # Kasus 2: Subprocess mengembalikan diff tidak kosong -> return False
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "diff --git a/enki/core/react_loop.py ..."
+            self.assertFalse(check_gating_freeze_diff_clean())
+
+        # Kasus 3: Subprocess returncode non-zero (misal tag belum ada) -> return False
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 128
+            mock_run.return_value.stdout = ""
+            self.assertFalse(check_gating_freeze_diff_clean())
 
 if __name__ == "__main__":
     unittest.main()
+

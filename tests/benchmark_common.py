@@ -17,20 +17,53 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import psutil
 
-def check_fidelity_match(expected_key: Any, final_text: str) -> bool:
+NEGATION_WORDS = {"tidak", "tak", "tanpa", "bukan", "belum", "0"}
+
+def check_fidelity_match(expected_key: Any, final_text: str, check_polarity: bool = True) -> bool:
     """Memeriksa apakah nilai kunci jawaban yang diharapkan muncul di balasan akhir.
-    Mendukung string tunggal, string pemisah '|', serta tuple/list/set alternatif.
+    Aturan Ketat:
+    1. Word-boundary (\\b) dan case-insensitive.
+    2. Panjang kunci wajib > 3 karakter (kunci <= 3 huruf seperti 'ok', 'pass' ditolak).
+    3. Sadar polaritas: Jika kata negasi (tidak|tak|tanpa|bukan|belum|0) muncul
+       dalam rentang 3 token sebelum kemunculan kunci, kecocokan tersebut dibatalkan.
     """
     if not expected_key:
         return True
     if not final_text:
         return False
-    final_lower = final_text.lower()
+
+    keys = []
     if isinstance(expected_key, (list, tuple, set)):
-        return any(str(k).strip().lower() in final_lower for k in expected_key)
-    if "|" in str(expected_key):
-        return any(k.strip().lower() in final_lower for k in str(expected_key).split("|"))
-    return str(expected_key).strip().lower() in final_lower
+        keys = [str(k).strip() for k in expected_key if str(k).strip()]
+    elif "|" in str(expected_key):
+        keys = [k.strip() for k in str(expected_key).split("|") if k.strip()]
+    else:
+        keys = [str(expected_key).strip()]
+
+    token_matches = list(re.finditer(r'\b\w+\b', final_text))
+    tokens = [m.group(0).lower() for m in token_matches]
+
+    for key_str in keys:
+        key_clean = key_str.lower()
+        if len(key_clean) <= 3:
+            # Ditolak sesuai aturan: tidak ada kunci <= 3 huruf
+            continue
+
+        key_tokens = [m.lower() for m in re.findall(r'\b\w+\b', key_clean)]
+        if not key_tokens:
+            continue
+        k_len = len(key_tokens)
+
+        for i in range(len(tokens) - k_len + 1):
+            if tokens[i : i + k_len] == key_tokens:
+                if check_polarity:
+                    start_lookback = max(0, i - 4)
+                    preceding = tokens[start_lookback:i]
+                    if any(neg in NEGATION_WORDS for neg in preceding):
+                        continue
+                return True
+
+    return False
 
 def evaluate_benchmark_turn(
     expected_tool: Optional[str],
@@ -40,7 +73,8 @@ def evaluate_benchmark_turn(
     tool_observations_recorded: List[str],
     final_text: str,
     is_timeout: bool = False,
-    timeout_reason: Optional[str] = None
+    timeout_reason: Optional[str] = None,
+    fixture_manifest: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Mengevaluasi hasil 1 turn benchmark ReAct.
     ATURAN MUTLAK:
@@ -60,6 +94,7 @@ def evaluate_benchmark_turn(
     is_invalid_arg = False
     is_fidelity_ok = False
     is_success = False
+    action_mismatch = False
     sandbox_status = "NONE"
 
     obs_all = " ".join(tool_observations_recorded)
@@ -73,9 +108,49 @@ def evaluate_benchmark_turn(
             if sandbox_status != "BLOCKED":
                 sandbox_status = "ATTEMPTED"
         else:
-            is_fidelity_ok = check_fidelity_match(expected_key, final_text)
+            is_fidelity_ok = check_fidelity_match(expected_key, final_text, check_polarity=True)
+    elif expected_tool == "git":
+        # Routing GIT = tool git (aksi apa pun yang valid di enum)
+        if first_tool_call is None:
+            is_wrong_tool = True
+        elif first_tool_call != "git":
+            is_wrong_tool = True
+        else:
+            # LLM memanggil tool git
+            called_action = ""
+            raw_arg = (first_tool_arg or "").strip()
+            if raw_arg.startswith("{") and raw_arg.endswith("}"):
+                try:
+                    parsed_json = json.loads(raw_arg)
+                    if isinstance(parsed_json, dict):
+                        called_action = str(parsed_json.get("action", "")).strip().lower()
+                except Exception:
+                    pass
+            if not called_action:
+                cleaned = raw_arg.strip("\"'").lower()
+                if cleaned in ("status", "diff", "log"):
+                    called_action = cleaned
+                else:
+                    m = re.search(r'["\']?action["\']?\s*:\s*["\'](status|diff|log)["\']', raw_arg, re.IGNORECASE)
+                    if m:
+                        called_action = m.group(1).lower()
+                    else:
+                        called_action = cleaned
+
+            if called_action not in ("status", "diff", "log"):
+                is_invalid_arg = True
+            else:
+                if expected_arg and called_action != expected_arg.strip().lower():
+                    action_mismatch = True
+
+                # Fidelity dinilai terhadap aksi yang BENAR-BENAR dipanggil
+                actual_key = expected_key
+                if fixture_manifest and "git" in fixture_manifest and called_action in fixture_manifest["git"]:
+                    actual_key = fixture_manifest["git"][called_action].get("key", expected_key)
+
+                is_fidelity_ok = check_fidelity_match(actual_key, final_text, check_polarity=True)
     else:
-        # Prompt Positif (mengharapkan tool)
+        # Prompt Positif lain (read_file, run_unittests, python_version, list_dir)
         if first_tool_call is None:
             is_wrong_tool = True
         elif first_tool_call != expected_tool:
@@ -85,9 +160,9 @@ def evaluate_benchmark_turn(
                 if expected_arg.lower() not in (first_tool_arg or "").lower():
                     is_invalid_arg = True
                 else:
-                    is_fidelity_ok = check_fidelity_match(expected_key, final_text)
+                    is_fidelity_ok = check_fidelity_match(expected_key, final_text, check_polarity=True)
             else:
-                is_fidelity_ok = check_fidelity_match(expected_key, final_text)
+                is_fidelity_ok = check_fidelity_match(expected_key, final_text, check_polarity=True)
 
     routing_ok = (not is_false_call) and (not is_wrong_tool)
     valid_args = not is_invalid_arg
@@ -103,6 +178,7 @@ def evaluate_benchmark_turn(
         "routing_ok": routing_ok,
         "valid_args": valid_args,
         "fidelity_ok": is_fidelity_ok,
+        "action_mismatch": action_mismatch,
         "sandbox_status": sandbox_status,
         "is_false_call": is_false_call,
         "is_wrong_tool": is_wrong_tool,
@@ -204,6 +280,33 @@ def get_ollama_registry_env() -> Dict[str, str]:
         env_vars["error"] = str(e)
     return env_vars
 
+def get_git_describe_tags() -> str:
+    """Mengambil output `git describe --tags --always`."""
+    try:
+        proc = subprocess.run(["git", "describe", "--tags", "--always"], capture_output=True, text=True, timeout=5)
+        if proc.returncode == 0:
+            return proc.stdout.strip()
+    except Exception:
+        pass
+    return "unknown"
+
+def check_gating_freeze_diff_clean() -> bool:
+    """Memeriksa apakah `git diff gating-freeze -- enki/core/react_loop.py` kosong.
+    True jika diff bersih (kosong), False jika ada diff atau tag belum ada / error.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "diff", "gating-freeze", "--", "enki/core/react_loop.py"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if proc.returncode == 0:
+            return len(proc.stdout.strip()) == 0
+        return False
+    except Exception:
+        return False
+
 def create_benchmark_jsonl_header(
     runner_num_ctx: int = 8192,
     user_prompts_file: Optional[Path] = None
@@ -214,6 +317,7 @@ def create_benchmark_jsonl_header(
     - nilai OLLAMA_* dari Windows registry (HKCU:\Environment)
     - runner_num_ctx: batas konteks yang dikirim oleh runner
     - git HEAD commit hash
+    - git describe tags & status bersih diff gating freeze
     """
     if isinstance(runner_num_ctx, Path):
         user_prompts_file = runner_num_ctx
@@ -262,6 +366,8 @@ def create_benchmark_jsonl_header(
         "runner_num_ctx": runner_num_ctx,
         "git_head": git_head,
         "git_dirty": git_dirty,
+        "git_describe": get_git_describe_tags(),
+        "gating_diff_clean": check_gating_freeze_diff_clean(),
         "set4_user_prompts_sha256": prompts_sha256
     }
 

@@ -283,8 +283,8 @@ class TestReactMockRunnersUnit(unittest.TestCase):
             tool_call_data={
                 "name": "git",
                 "args": {"action": "status"},
-                "output": "branch master clean",
-                "final_ans": "Status git: branch master clean"
+                "output": "terdapat perubahan berkas",
+                "final_ans": "Status git: terdapat perubahan berkas"
             }
         )
         prompt_item = {
@@ -292,7 +292,7 @@ class TestReactMockRunnersUnit(unittest.TestCase):
             "prompt": "cek status git",
             "expected_tool": "git",
             "expected_arg": "status",
-            "expected_key": "master",
+            "expected_key": "perubahan",
             "category": "DEV"
         }
         confirmed_log = []

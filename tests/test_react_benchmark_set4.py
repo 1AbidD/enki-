@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import json
 import time
 import datetime
@@ -109,8 +110,8 @@ BUILTIN_PROMPTS_4A = [
         "mode": "profile",
         "prompt": "tool pengujian load testing performa endpoint http apa?",
         "expected_tool": None,
-        "expected_key": "k6",
-        "memory_inject": ("user", "Pengujian load testing performa endpoint HTTP proyek kita dilakukan dengan k6 script.", "assistant", "Oke, skrip load testing menggunakan k6.")
+        "expected_key": "locust",
+        "memory_inject": ("user", "Pengujian load testing performa endpoint HTTP proyek kita dilakukan dengan skrip Locust.", "assistant", "Oke, skrip load testing menggunakan framework Locust.")
     },
     {
         "id": "S4A_P20_MEM",
@@ -138,7 +139,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "coba intip file README.md, apa judul proyeknya?",
         "expected_tool": "read_file",
         "expected_arg": "README.md",
-        "expected_key": "enki"
+        "expected_key": "zephyrsentinel"
     },
     {
         "id": "S4A_P23_WS",
@@ -146,7 +147,7 @@ BUILTIN_PROMPTS_4A = [
         "prompt": "tolong cek git diff sebentar, ada baris apa yg berubah?",
         "expected_tool": "git",
         "expected_arg": "diff",
-        "expected_key": "uncommitted"
+        "expected_key": "telemetry patch"
     },
 
     # 7 NEGATIF MURNI (4 Berpemicu Aktif Tanpa Topik Memori, 3 Tanpa Pemicu)
@@ -264,7 +265,7 @@ REGRESSION_PROMPTS_4R = [
         "prompt": "isi file requirements.txt apa aja ya?",
         "expected_tool": "read_file",
         "expected_arg": "requirements.txt",
-        "expected_key": "fastapi"
+        "expected_key": "structlog"
     },
     {
         "id": "S4R_P08_REG",
@@ -272,7 +273,7 @@ REGRESSION_PROMPTS_4R = [
         "prompt": "bisa tolong liat branch git kita yg aktif dan status commit terakhir?",
         "expected_tool": "git",
         "expected_arg": "status",
-        "expected_key": "feat/enki-core-v2"
+        "expected_key": "perubahan"
     },
     {
         "id": "S4R_P09_REG",
@@ -281,7 +282,7 @@ REGRESSION_PROMPTS_4R = [
         "expected_tool": "run_unittests",
         "expected_arg": None,
         "fixture_variant": "passing",
-        "expected_key": ("lulus", "berhasil", "ok", "pass")
+        "expected_key": "lulus"
     },
     {
         "id": "S4R_P10_REG",
@@ -293,69 +294,70 @@ REGRESSION_PROMPTS_4R = [
     {
         "id": "S4R_P11_REG",
         "origin_id": "BUILTIN_TEST_FAIL",
-        "prompt": "coba jalankan tes unit proyek, apakah hasilnya lulus atau ada kegagalan?",
+        "prompt": "coba eksekusi seluruh rangkaian pengujian di proyek dan laporkan status akhirnya",
         "expected_tool": "run_unittests",
         "expected_arg": None,
         "fixture_variant": "failing",
-        "expected_key": ("gagal", "fail", "error")
+        "expected_key": "kegagalan"
     }
 ]
 
 # Manifest Fixture Workspace untuk Validasi Preflight & Kunci Fidelity
+# Menggunakan satu kunci wajib per fixture dengan nilai unik (panjang > 3 huruf, tidak ada di system prompt base)
 FIXTURE_MANIFEST: Dict[str, Any] = {
     "files": {
         "README.md": {
             "path": "README.md",
             "aliases": ["readme", "readme.md"],
-            "keys": ("enki", "asisten", "gpu", "local assistant", "4gb"),
-            "description": "Dokumen judul dan deskripsi proyek ENKI"
+            "key": "zephyrsentinel",
+            "description": "Dokumen judul proyek unik ZephyrSentinel"
         },
         "requirements.txt": {
             "path": "requirements.txt",
             "aliases": ["requirements", "requirements.txt"],
-            "keys": ("fastapi", "uvicorn", "pydantic", "pytest"),
-            "description": "Daftar dependensi Python proyek"
+            "key": "structlog",
+            "description": "Dependensi paket logging terstruktur unik"
         },
         "app/main.py": {
             "path": "app/main.py",
             "aliases": ["main.py", "app/main.py"],
-            "keys": ("get_status", "ok"),
-            "description": "Kode sumber modul app dengan endpoint status"
+            "key": "zephyr-9082-alpha",
+            "description": "Konstanta revisi build unik di app/main.py"
         },
         "tests/test_app.py": {
             "path": "tests/test_app.py",
             "aliases": ["test_app.py", "tests/test_app.py"],
-            "keys": ("test_status", "test_health", "unittest"),
-            "description": "Suite pengujian aplikasi"
+            "key": "test_telemetry_pipeline",
+            "description": "Nama pengujian fungsi pipeline unik"
         }
     },
     "git": {
         "status": {
             "action": "status",
-            "keys": ("feat/enki-core-v2", "modified", "app/main.py", "perubahan", "uncommitted"),
-            "description": "Branch aktif dan file termodifikasi"
+            "key": "perubahan",
+            "description": "Status adanya perubahan uncommitted (sadar polaritas)"
         },
         "diff": {
             "action": "diff",
-            "keys": ("uncommitted change", "main.py", "diff"),
-            "description": "Perubahan uncommitted di app/main.py"
+            "key": "telemetry patch",
+            "description": "Cuplikan patch perubahan unik di git diff"
         },
         "log": {
             "action": "log",
-            "keys": ("feat: initial commit", "initial commit", "tester"),
-            "description": "Riwayat commit repository"
+            "key": "telemetry ingest",
+            "description": "Pesan commit unik di riwayat git log"
         }
     },
     "tests": {
         "passing": {
             "variant": "passing",
-            "keys": ("lulus", "berhasil", "ok", "pass"),
-            "description": "Hasil eksekusi test suite normal (seluruh test lulus)"
+            "key": "lulus",
+            "description": "Hasil tes passing lulus (sadar polaritas)"
         },
         "failing": {
             "variant": "failing",
-            "keys": ("gagal", "fail", "error"),
-            "description": "Hasil eksekusi test suite varian kegagalan (1 test gagal)"
+            "key": "kegagalan",
+            "description": "Hasil tes failing terdapat kegagalan (sadar polaritas)"
         }
     }
 }
@@ -454,7 +456,7 @@ def load_user_prompts(
                 else:
                     mode = "profile"
 
-            valid_prompts.append({
+            mem_entry = {
                 "id": f"S4A_U{user_idx:02d}_MEM",
                 "category": "MEM",
                 "mode": mode,
@@ -462,7 +464,9 @@ def load_user_prompts(
                 "expected_tool": None,
                 "expected_key": key_val,
                 "memory_inject": ("user", prompt_text, "assistant", mem_sentence)
-            })
+            }
+            validate_prompt_fidelity_keys(mem_entry)
+            valid_prompts.append(mem_entry)
             user_idx += 1
 
         elif p_type in ("FILE", "GIT", "TEST", "NEG"):
@@ -492,33 +496,35 @@ def load_user_prompts(
                     sys.exit(1)
 
                 exp_arg = matched_file_info["path"]
-                exp_key = matched_file_info["keys"]
+                exp_key = matched_file_info["key"]
 
             elif p_type == "GIT":
                 exp_tool = "git"
                 if "diff" in prompt_text.lower():
                     exp_arg = "diff"
-                    exp_key = FIXTURE_MANIFEST["git"]["diff"]["keys"]
+                    exp_key = FIXTURE_MANIFEST["git"]["diff"]["key"]
                 elif "log" in prompt_text.lower():
                     exp_arg = "log"
-                    exp_key = FIXTURE_MANIFEST["git"]["log"]["keys"]
+                    exp_key = FIXTURE_MANIFEST["git"]["log"]["key"]
                 else:
                     exp_arg = "status"
-                    exp_key = FIXTURE_MANIFEST["git"]["status"]["keys"]
+                    exp_key = FIXTURE_MANIFEST["git"]["status"]["key"]
 
             elif p_type == "TEST":
                 exp_tool = "run_unittests"
                 exp_arg = None
-                exp_key = FIXTURE_MANIFEST["tests"]["passing"]["keys"]
+                exp_key = FIXTURE_MANIFEST["tests"]["passing"]["key"]
 
-            valid_prompts.append({
+            p_entry = {
                 "id": f"S4A_U{user_idx:02d}_{p_type}",
                 "category": p_type,
                 "prompt": prompt_text,
                 "expected_tool": exp_tool,
                 "expected_arg": exp_arg,
                 "expected_key": exp_key
-            })
+            }
+            validate_prompt_fidelity_keys(p_entry)
+            valid_prompts.append(p_entry)
             user_idx += 1
 
     if len(valid_prompts) < 15:
@@ -530,6 +536,68 @@ def load_user_prompts(
         sys.exit(1)
 
     return valid_prompts
+
+FORBIDDEN_TOOL_NAMES = {"read_file", "git", "run_unittests", "python_version", "list_dir", "search_memory"}
+
+def validate_prompt_fidelity_keys(
+    prompt_item: Dict[str, Any],
+    system_prompt_base: str = DEFAULT_SYSTEM_PROMPT
+) -> None:
+    """Preflight check keras untuk kunci fidelity pada setiap prompt:
+    1. Panjang kunci wajib > 3 karakter (kunci <= 3 huruf dilarang keras).
+    2. Kunci tidak boleh ada di system prompt base (ENKI, asisten, lokal, dll).
+    3. Kunci tidak boleh ada di teks pertanyaan prompt itu sendiri.
+    4. Kunci tidak boleh sama dengan nama tool.
+    Jika melanggar salah satu aturan, runner GAGAL KERAS (sys.exit(1) / RuntimeError).
+    """
+    exp_key = prompt_item.get("expected_key")
+    if not exp_key:
+        return
+
+    keys = []
+    if isinstance(exp_key, (list, tuple, set)):
+        keys = [str(k).strip() for k in exp_key if str(k).strip()]
+    elif "|" in str(exp_key):
+        keys = [k.strip() for k in str(exp_key).split("|") if k.strip()]
+    else:
+        keys = [str(exp_key).strip()]
+
+    prompt_text = prompt_item.get("prompt", "")
+    pid = prompt_item.get("id", "UNKNOWN")
+
+    for k in keys:
+        k_clean = k.strip()
+        # 1. Kunci <= 3 huruf
+        if len(k_clean) <= 3:
+            sys.stderr.write(
+                f"\n[PREFLIGHT FIDELITY VIOLATION]: Prompt '{pid}': Kunci '{k_clean}' "
+                f"memiliki panjang <= 3 huruf! Dilarang keras.\n"
+            )
+            sys.exit(1)
+
+        # 2. Muncul di system prompt base
+        if re.search(r'\b' + re.escape(k_clean) + r'\b', system_prompt_base, re.IGNORECASE):
+            sys.stderr.write(
+                f"\n[PREFLIGHT FIDELITY VIOLATION]: Prompt '{pid}': Kunci '{k_clean}' "
+                f"muncul di system prompt base! Dilarang keras.\n"
+            )
+            sys.exit(1)
+
+        # 3. Muncul di teks pertanyaan
+        if re.search(r'\b' + re.escape(k_clean) + r'\b', prompt_text, re.IGNORECASE):
+            sys.stderr.write(
+                f"\n[PREFLIGHT FIDELITY VIOLATION]: Prompt '{pid}': Kunci '{k_clean}' "
+                f"muncul di dalam teks pertanyaan: \"{prompt_text}\"! Dilarang keras.\n"
+            )
+            sys.exit(1)
+
+        # 4. Sama dengan nama tool
+        if k_clean.lower() in FORBIDDEN_TOOL_NAMES:
+            sys.stderr.write(
+                f"\n[PREFLIGHT FIDELITY VIOLATION]: Prompt '{pid}': Kunci '{k_clean}' "
+                f"sama dengan nama tool! Dilarang keras.\n"
+            )
+            sys.exit(1)
 
 def validate_mem_prompts_preflight(mem_prompts: List[Dict[str, Any]]) -> None:
     """Preflight check keras untuk prompt MEM Set 4:
@@ -584,39 +652,56 @@ def setup_real_temporary_workspace(root_dir: Path):
     """Membuat direktori kerja nyata dengan git repo aktif, commit, uncommitted change, dan unittest."""
     root_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. README.md
-    (root_dir / "README.md").write_text("# ENKI Project\nAsisten AI lokal untuk developer pada GPU 4GB.", encoding="utf-8")
+    # 1. README.md (Judul unik ZephyrSentinel, tidak ada di system prompt)
+    (root_dir / "README.md").write_text(
+        "# ZephyrSentinel\nPlatform telemetri observabilitas cuaca ekstrem frekuensi tinggi.\n",
+        encoding="utf-8"
+    )
 
-    # 2. requirements.txt
-    (root_dir / "requirements.txt").write_text("fastapi==0.110.0\nuvicorn==0.28.0\npydantic==2.6.4\npytest==8.1.1\n", encoding="utf-8")
+    # 2. requirements.txt (Paket unik structlog)
+    (root_dir / "requirements.txt").write_text(
+        "aiohttp==3.9.5\nprometheus-client==0.20.0\nstructlog==24.1.0\ncerberus==1.3.5\n",
+        encoding="utf-8"
+    )
 
-    # 3. app/main.py
+    # 3. app/main.py (Konstanta revisi build unik)
     app_dir = root_dir / "app"
     app_dir.mkdir(parents=True, exist_ok=True)
-    (app_dir / "main.py").write_text("def get_status():\n    return 'OK'\n", encoding="utf-8")
+    (app_dir / "main.py").write_text(
+        "SERVICE_BUILD_REVISION = 'ZEPHYR-9082-ALPHA'\n\n"
+        "def get_status():\n"
+        "    return SERVICE_BUILD_REVISION\n",
+        encoding="utf-8"
+    )
 
-    # 4. tests/test_app.py
+    # 4. tests/test_app.py (Fungsi pengujian unik)
     test_dir = root_dir / "tests"
     test_dir.mkdir(parents=True, exist_ok=True)
     (test_dir / "test_app.py").write_text(
         "import unittest\nfrom app.main import get_status\n\n"
-        "class TestApp(unittest.TestCase):\n"
-        "    def test_status(self):\n        self.assertEqual(get_status(), 'OK')\n"
-        "    def test_health(self):\n        self.assertTrue(True)\n\n"
+        "class TestZephyrSuite(unittest.TestCase):\n"
+        "    def test_status(self):\n        self.assertIn('ZEPHYR', get_status())\n"
+        "    def test_telemetry_pipeline(self):\n        self.assertTrue(True)\n\n"
         "if __name__ == '__main__':\n    unittest.main()\n",
         encoding="utf-8"
     )
 
     # 5. Inisialisasi Git nyata
     subprocess.run(["git", "init"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "config", "user.name", "ENKI Tester"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "config", "user.email", "tester@enki.internal"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "checkout", "-b", "feat/enki-core-v2"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    subprocess.run(["git", "config", "user.name", "Zephyr Engineer"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    subprocess.run(["git", "config", "user.email", "engineer@zephyr.internal"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    subprocess.run(["git", "checkout", "-b", "feat/telemetry-monitor-v2"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     subprocess.run(["git", "add", "."], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-    subprocess.run(["git", "commit", "-m", "feat: initial commit"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    subprocess.run(["git", "commit", "-m", "feat: initial telemetry ingest pipeline"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
     # 6. Buat perubahan belum dicommit agar git diff dan git status nyata
-    (app_dir / "main.py").write_text("def get_status():\n    return 'OK'\n\n# uncommitted change for benchmark test\n", encoding="utf-8")
+    (app_dir / "main.py").write_text(
+        "SERVICE_BUILD_REVISION = 'ZEPHYR-9082-ALPHA'\n\n"
+        "def get_status():\n"
+        "    return SERVICE_BUILD_REVISION\n\n"
+        "# uncommitted telemetry patch for delta verification\n",
+        encoding="utf-8"
+    )
 
 def configure_workspace_test_suite(ws_path: Path, variant: str = "passing") -> None:
     """Mengatur konten berkas unit test di workspace (normal lulus vs varian kegagalan)."""
@@ -624,18 +709,18 @@ def configure_workspace_test_suite(ws_path: Path, variant: str = "passing") -> N
     if variant == "failing":
         test_file.write_text(
             "import unittest\nfrom app.main import get_status\n\n"
-            "class TestApp(unittest.TestCase):\n"
-            "    def test_status(self):\n        self.assertEqual(get_status(), 'OK')\n"
-            "    def test_deliberate_failure(self):\n        self.assertEqual(1 + 1, 3, 'Sengaja gagal untuk uji deteksi kegagalan')\n\n"
+            "class TestZephyrSuite(unittest.TestCase):\n"
+            "    def test_status(self):\n        self.assertIn('ZEPHYR', get_status())\n"
+            "    def test_deliberate_telemetry_fault(self):\n        self.assertEqual(1, 2, 'Simulasi kegagalan assertion untuk benchmark')\n\n"
             "if __name__ == '__main__':\n    unittest.main()\n",
             encoding="utf-8"
         )
     else:
         test_file.write_text(
             "import unittest\nfrom app.main import get_status\n\n"
-            "class TestApp(unittest.TestCase):\n"
-            "    def test_status(self):\n        self.assertEqual(get_status(), 'OK')\n"
-            "    def test_health(self):\n        self.assertTrue(True)\n\n"
+            "class TestZephyrSuite(unittest.TestCase):\n"
+            "    def test_status(self):\n        self.assertIn('ZEPHYR', get_status())\n"
+            "    def test_telemetry_pipeline(self):\n        self.assertTrue(True)\n\n"
             "if __name__ == '__main__':\n    unittest.main()\n",
             encoding="utf-8"
         )
@@ -743,7 +828,8 @@ def run_single_benchmark_turn(
         tool_observations_recorded=tool_observations_recorded,
         final_text=final_text,
         is_timeout=is_timeout,
-        timeout_reason=timeout_reason
+        timeout_reason=timeout_reason,
+        fixture_manifest=FIXTURE_MANIFEST
     )
 
     return {
@@ -936,8 +1022,19 @@ class TestReActBenchmarkSet4(unittest.TestCase):
         pass
 
 if __name__ == "__main__":
-    from tests.benchmark_common import check_working_tree_clean_for_benchmark
+    from tests.benchmark_common import check_working_tree_clean_for_benchmark, check_gating_freeze_diff_clean
     check_working_tree_clean_for_benchmark()
+
+    if not check_gating_freeze_diff_clean():
+        sys.stderr.write(
+            "\n[FATAL GATING FREEZE VIOLATION]: 'git diff gating-freeze -- enki/core/react_loop.py' TIDAK KOSONG!\n"
+            "Pola gating telah dibekukan. Perubahan pada react_loop.py setelah tag gating-freeze dilarang keras.\n"
+            "Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN.\n"
+        )
+        sys.exit(1)
+
+    for p in BUILTIN_PROMPTS_4A + REGRESSION_PROMPTS_4R:
+        validate_prompt_fidelity_keys(p)
 
     client = OllamaClient()
     check_ollama_idle(client)

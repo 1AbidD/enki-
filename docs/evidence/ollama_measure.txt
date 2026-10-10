@@ -9,10 +9,10 @@ qwen2.5-coder:3b           f72c60cabf62    1.9 GB    4 months ago
 === 2. LANGKAH 1: CHAT (qwen2.5:3b) ===
 [OLLAMA PS]
 NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
-qwen2.5:3b    357c53fb659c    2.2 GB    100% GPU     4096       4 minutes from now
+qwen2.5:3b    357c53fb659c    2.3 GB    100% GPU     8192       4 minutes from now
 
 [NVIDIA-SMI]
-NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 2732 MiB, 1231 MiB
+NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 2641 MiB, 1322 MiB
 
 === 3. LANGKAH 2: CODER (qwen2.5-coder:3b) ===
 [OLLAMA PS]
@@ -20,7 +20,7 @@ NAME                ID              SIZE      PROCESSOR    CONTEXT    UNTIL
 qwen2.5-coder:3b    f72c60cabf62    2.2 GB    100% GPU     4096       4 minutes from now
 
 [NVIDIA-SMI]
-NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 2482 MiB, 1481 MiB
+NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 2493 MiB, 1470 MiB
 
 === 4. LANGKAH 3: NOMIC EMBEDDING (nomic-embed-text:latest) ===
 [OLLAMA PS]
@@ -28,7 +28,7 @@ NAME                       ID              SIZE      PROCESSOR    CONTEXT    UNT
 nomic-embed-text:latest    0a109f422b47    323 MB    100% GPU     2048       4 minutes from now
 
 [NVIDIA-SMI]
-NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 732 MiB, 3231 MiB
+NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 743 MiB, 3220 MiB
 
 === 5. BARIS 'SERVER CONFIG' TERAKHIR ===
 File: C:\Users\aabid\.gemini\antigravity\brain\a3643989-15e5-4938-925d-0e812833c0cc\.system_generated\tasks\task-2598.log

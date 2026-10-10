@@ -48,6 +48,22 @@ test_confirmed_commands_isolation_per_turn (test_benchmark_harness_unit.TestBenc
 Memastikan confirmed_log direset per turn dan tidak menumpuk ke record turn berikutnya. ... ok
 test_fidelity_failure_forces_is_success_false (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_fidelity_failure_forces_is_success_false)
 Memastikan jika fidelity_ok=False, maka is_success WAJIB False, ... ok
+test_gating_freeze_diff_clean_check (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_gating_freeze_diff_clean_check)
+Memverifikasi fungsi check_gating_freeze_diff_clean. ... ok
+test_git_routing_and_dynamic_action_fidelity (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_git_routing_and_dynamic_action_fidelity)
+Memverifikasi perlakuan baris GIT (A5): ... ok
+test_polarity_aware_fidelity_matching (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_polarity_aware_fidelity_matching)
+Uji tanpa LLM untuk pencocokan fidelity sadar polaritas dan word-boundary (A4): ... ok
+test_preflight_fidelity_key_rules (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_preflight_fidelity_key_rules)
+Memverifikasi aturan ketat kunci fidelity (A2): ... 
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_KEY_LEN': Kunci 'ok' memiliki panjang <= 3 huruf! Dilarang keras.
+
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_SYS_PROMPT': Kunci 'enki' muncul di system prompt base! Dilarang keras.
+
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_IN_QUESTION': Kunci 'lulus' muncul di dalam teks pertanyaan: "apakah tes unit kita lulus?"! Dilarang keras.
+
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_TOOL_NAME': Kunci 'read_file' sama dengan nama tool! Dilarang keras.
+ok
 test_set4_fixture_manifest_and_preflight (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_set4_fixture_manifest_and_preflight)
 Memverifikasi preflight manifest fixture untuk baris FILE, GIT, TEST user. ... ok
 test_set4_integrity_validation_failures (test_benchmark_harness_unit.TestBenchmarkHarnessUnit.test_set4_integrity_validation_failures)
@@ -192,6 +208,6 @@ test_run_unittests_execution_and_confirmation (test_shell_tools.TestFixedArgumen
 Memastikan run_unittests mengeksekusi python -m unittest discover dengan start dir yang tepat. ... ok
 
 ----------------------------------------------------------------------
-Ran 86 tests in 6.807s
+Ran 90 tests in 6.441s
 
 OK (skipped=3)
