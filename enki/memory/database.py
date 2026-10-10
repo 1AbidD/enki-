@@ -119,5 +119,18 @@ class MemoryDatabase:
             # Jika query syntax invalid di FTS5, kembalikan list kosong
             return []
 
+    def get_term_turn_frequency(self, term: str) -> float:
+        """Menghitung persentase Document Frequency (DF %) sebuah term dalam tabel turns_fts."""
+        try:
+            cur_total = self.conn.execute("SELECT count(*) as c FROM turns WHERE role in ('user', 'assistant')")
+            total = cur_total.fetchone()["c"]
+            if total == 0:
+                return 0.0
+            cur_match = self.conn.execute("SELECT count(*) as c FROM turns_fts WHERE turns_fts MATCH ?", (f'"{term}"',))
+            matches = cur_match.fetchone()["c"]
+            return (matches / total) * 100.0
+        except Exception:
+            return 0.0
+
     def close(self):
         self.conn.close()

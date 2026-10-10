@@ -103,10 +103,19 @@ def format_passive_recall_block(snippets: List[Dict[str, Any]], max_tokens: int 
 
     return formatted
 
-def execute_passive_recall(user_text: str, db: Any, current_session_id: str, max_tokens: int = 300) -> Optional[str]:
-    """Mengeksekusi recall pasif dengan ambang batas ketat deterministik:
-    - Minimal 2 kata substantif berbeda cocok dalam turn yang sama, ATAU
-    - 1 kata cocok jika kata itu adalah kata langka (panjang >= 7 karakter).
+def execute_passive_recall(
+    user_text: str,
+    db: Any,
+    current_session_id: str,
+    max_tokens: int = 300,
+    df_threshold_pct: float = 5.0
+) -> Optional[str]:
+    """Mengeksekusi recall pasif dengan ambang batas Document Frequency (DF) yang telah terkalibrasi dan dibekukan:
+    - Kata dengan Document Frequency (DF) > df_threshold_pct % (default 5.0%) dianggap umum dan tidak boleh memicu recall sendirian.
+    - Kata dengan DF <= df_threshold_pct % dianggap spesifik/domain token dan boleh memicu recall.
+    - Turn kandidat lolos jika:
+      * Minimal 2 kata substantif berbeda cocok dalam turn yang sama, ATAU
+      * 1 kata cocok jika kata itu adalah kata spesifik (DF <= 5.0%).
     - Maksimal 3 cuplikan teratas, maksimal ~300 token.
     """
     tokens = extract_substantive_tokens(user_text)
@@ -122,7 +131,13 @@ def execute_passive_recall(user_text: str, db: Any, current_session_id: str, max
     for snip in candidates:
         content_lower = snip.get("content", "").lower()
         matched = {t for t in tokens if re.search(r'\b' + re.escape(t), content_lower)}
-        is_rare_word = any(len(t) >= 7 for t in matched)
+        if not matched:
+            continue
+
+        if hasattr(db, "get_term_turn_frequency"):
+            is_rare_word = any(db.get_term_turn_frequency(t) <= df_threshold_pct for t in matched)
+        else:
+            is_rare_word = any(len(t) >= 7 for t in matched)
 
         # Ambang batas evaluasi
         if len(matched) >= 2 or (len(matched) == 1 and is_rare_word):

@@ -1,0 +1,41 @@
+# ==============================================================================
+# ENKI BENCHMARK SET 4A - USER PROMPTS TEMPLATE
+# ==============================================================================
+# Petunjuk Pengisian:
+# 1. Masukkan tepat 15 prompt dari pengguna (6 MEM, 4 WORKSPACE [FILE/GIT/TEST], 5 NEG).
+# 2. Format baris (satu prompt per baris, abaikan baris diawali '#'):
+#    - Untuk NON-MEMORI (NEG / FILE / GIT / TEST):
+#      TIPE | prompt
+#      Contoh:
+#      NEG | jelaskan binary search dan kompleksitas waktunya
+#      FILE | bisa tolong bacakan isi requirements.txt?
+#      GIT | cek status git kita sekarang dong ada perubahan apa
+#      TEST | coba jalankan unit test proyek kita
+#
+#    - Untuk MEMORI (MEM):
+#      MEM | prompt | kalimat memori lama yang diharapkan | nilai kunci
+#      Contoh:
+#      MEM | apa framework web frontend kita ya? | Frontend dashboard kita menggunakan Vue 3 dengan bundling Vite. | vue
+#
+# 3. DAFTAR FILE & FIXTURE YANG TERSEDIA DI WORKSPACE PENGUJIAN:
+#    - README.md (deskripsi proyek)
+#    - requirements.txt (daftar dependencies: fastapi, uvicorn, pydantic, pytest)
+#    - app/main.py (kode aplikasi)
+#    - tests/test_app.py (file unit test, memuat 2 tes)
+#    - Git repo aktif: branch 'feat/enki-core-v2', memiliki 1 uncommitted change di app/main.py
+#
+# PERINGATAN: Runner Set 4 akan GAGAL KERAS (exit non-zero) jika file ini
+# berisi kurang dari 15 baris prompt valid!
+# ==============================================================================
+
+# --- 6 PROMPT MEMORI (MEM) ---
+# Format: MEM | prompt | kalimat memori lama yang diharapkan | nilai kunci
+
+
+# --- 4 PROMPT WORKSPACE (FILE / GIT / TEST) ---
+# Format: TIPE | prompt
+
+
+# --- 5 PROMPT NEGATIF (NEG) ---
+# Format: NEG | prompt
+

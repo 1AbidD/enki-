@@ -4,8 +4,15 @@ import urllib.error
 from typing import Dict, Any, List, Optional, Generator, Tuple
 
 class OllamaClient:
-    def __init__(self, base_url: str = "http://127.0.0.1:11434"):
+    def __init__(
+        self,
+        base_url: str = "http://127.0.0.1:11434",
+        default_timeout: float = 60.0,
+        default_num_predict: int = 1024
+    ):
         self.base_url = base_url.rstrip("/")
+        self.default_timeout = default_timeout
+        self.default_num_predict = default_num_predict
 
     def is_ready(self) -> bool:
         """Memeriksa apakah server Ollama aktif dan merespon."""
@@ -22,16 +29,22 @@ class OllamaClient:
         messages: List[Dict[str, str]],
         num_ctx: int = 8192,
         temperature: float = 0.2,
-        tools: Optional[List[Dict[str, Any]]] = None
+        tools: Optional[List[Dict[str, Any]]] = None,
+        num_predict: Optional[int] = None,
+        request_timeout: Optional[float] = None
     ) -> Dict[str, Any]:
         """Mengirim request chat non-streaming ke Ollama."""
+        timeout_val = request_timeout if request_timeout is not None else self.default_timeout
+        num_pred_val = num_predict if num_predict is not None else self.default_num_predict
+
         payload: Dict[str, Any] = {
             "model": model,
             "messages": messages,
             "stream": False,
             "options": {
                 "num_ctx": num_ctx,
-                "temperature": temperature
+                "temperature": temperature,
+                "num_predict": num_pred_val
             }
         }
         if tools:
@@ -44,12 +57,14 @@ class OllamaClient:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=timeout_val) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             err_msg = e.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"Ollama HTTP {e.code}: {err_msg}")
         except Exception as e:
+            if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
+                raise TimeoutError(f"Ollama chat HTTP request timed out after {timeout_val}s: {e}")
             raise RuntimeError(f"Gagal menghubungi Ollama di {self.base_url}: {e}")
 
         msg = data.get("message", {})
@@ -82,18 +97,24 @@ class OllamaClient:
         messages: List[Dict[str, str]],
         num_ctx: int = 8192,
         temperature: float = 0.2,
-        tools: Optional[List[Dict[str, Any]]] = None
+        tools: Optional[List[Dict[str, Any]]] = None,
+        num_predict: Optional[int] = None,
+        request_timeout: Optional[float] = None
     ) -> Generator[Tuple[str, Optional[Dict[str, Any]]], None, None]:
         """Streaming chat completion dari Ollama.
         Yields (token_text, final_metrics_dict). Pada token terakhir final_metrics_dict terisi.
         """
+        timeout_val = request_timeout if request_timeout is not None else self.default_timeout
+        num_pred_val = num_predict if num_predict is not None else self.default_num_predict
+
         payload: Dict[str, Any] = {
             "model": model,
             "messages": messages,
             "stream": True,
             "options": {
                 "num_ctx": num_ctx,
-                "temperature": temperature
+                "temperature": temperature,
+                "num_predict": num_pred_val
             }
         }
         if tools:
@@ -106,7 +127,7 @@ class OllamaClient:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=timeout_val) as resp:
                 tool_calls = []
                 for line in resp:
                     line = line.strip()
@@ -141,4 +162,6 @@ class OllamaClient:
             err_msg = e.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"Ollama HTTP {e.code}: {err_msg}")
         except Exception as e:
+            if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
+                raise TimeoutError(f"Ollama chat_stream HTTP request timed out after {timeout_val}s: {e}")
             raise RuntimeError(f"Gagal streaming dari Ollama di {self.base_url}: {e}")

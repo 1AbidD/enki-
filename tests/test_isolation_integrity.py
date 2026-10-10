@@ -37,7 +37,8 @@ class TestDirectoryIsolationIntegrity(unittest.TestCase):
             "tests.test_prompt_injection",
             "tests.test_memory_gating",
             "tests.test_policy_rejection",
-            "tests.test_passive_recall"
+            "tests.test_passive_recall",
+            "tests.test_negative_isolation_failure"
         ]:
             suite.addTests(loader.loadTestsFromName(mod_name))
 
