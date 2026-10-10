@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import datetime
 import shutil
 import tempfile
 import unittest
@@ -18,6 +19,60 @@ from enki.core.react_loop import ReActCoordinator
 from enki.memory.database import MemoryDatabase
 from enki.memory.recall import execute_passive_recall
 
+LOCK_FILE = ROOT_DIR / "tests" / ".benchmark_lock"
+
+class BenchmarkLock:
+    """Kunci file agar dua benchmark tidak bisa dijalankan bersamaan."""
+    def __enter__(self):
+        if LOCK_FILE.exists():
+            try:
+                content = LOCK_FILE.read_text(encoding="utf-8").strip()
+                lock_data = json.loads(content)
+                pid = lock_data.get("pid")
+                t_str = lock_data.get("time_str", "waktu tidak diketahui")
+                raise RuntimeError(
+                    f"\n[BENCHMARK LOCK ERROR] Benchmark terkunci oleh proses PID={pid} pada {t_str}.\n"
+                    f"File lock: {LOCK_FILE}\n"
+                    f"Eksekusi dibatalkan untuk mencegah tabrakan/konkurensi."
+                )
+            except json.JSONDecodeError:
+                raise RuntimeError(f"\n[BENCHMARK LOCK ERROR] File lock {LOCK_FILE} ditemukan. Ada benchmark lain yang sedang berjalan.")
+
+        lock_info = {
+            "pid": os.getpid(),
+            "timestamp": time.time(),
+            "time_str": datetime.datetime.now().isoformat()
+        }
+        LOCK_FILE.write_text(json.dumps(lock_info, indent=2), encoding="utf-8")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if LOCK_FILE.exists():
+            try:
+                LOCK_FILE.unlink()
+            except Exception:
+                pass
+
+def check_ollama_idle(client: OllamaClient):
+    """Memeriksa kesiapan server Ollama dan status model aktif di VRAM."""
+    if not client.is_ready():
+        raise RuntimeError("Server Ollama tidak aktif di http://127.0.0.1:11434!")
+
+    try:
+        proc = subprocess.run(["ollama", "ps"], capture_output=True, text=True, timeout=5)
+        if proc.returncode == 0:
+            lines = [l.strip() for l in proc.stdout.strip().splitlines() if l.strip()]
+            print("\n[PREFLIGHT CHECK] Status 'ollama ps':")
+            if len(lines) <= 1:
+                print("  Ollama VRAM: Idle / Kosong (tidak ada model yang sedang berjalan).")
+            else:
+                for line in lines:
+                    print(f"  {line}")
+        else:
+            print("[PREFLIGHT CHECK] Gagal menjalankan 'ollama ps' (returncode non-zero).")
+    except Exception as e:
+        print(f"[PREFLIGHT CHECK] Tidak dapat menjalankan 'ollama ps': {e}")
+
 USER_PROMPTS_FILE = ROOT_DIR / "tests" / "set4_user_prompts.txt"
 
 # ----------------------------------------------------------------------
@@ -25,54 +80,54 @@ USER_PROMPTS_FILE = ROOT_DIR / "tests" / "set4_user_prompts.txt"
 # Gaya bahasa: variasi santai, typo, praktis, tanpa pemicu waktu untuk memori
 # ----------------------------------------------------------------------
 BUILTIN_PROMPTS_4A = [
-    # 6 MEM (Memori pasif - bias vs truth, variasi santai/typo)
+    # 6 MEM (Memori pasif - domain baru tanpa kontaminasi kalibrasi & Set 3)
     {
         "id": "S4A_P16_MEM",
         "category": "MEM",
-        "prompt": "port default redis cache kita yg disepakati brp ya?",
+        "prompt": "format serialisasi data sensor iot kemarin kita sepakati apa?",
         "expected_tool": None,  # Melalui recall pasif
-        "expected_key": "6379",
-        "memory_inject": ("user", "cache layer kita pakai apa ya?", "assistant", "Kita memakai Redis sebagai cache memory di port default 6379.")
+        "expected_key": "protobuf",
+        "memory_inject": ("user", "format serialisasi data sensor iot kita pakai apa?", "assistant", "Kita sepakati memakai Protobuf binary untuk serialisasi payload sensor.")
     },
     {
         "id": "S4A_P17_MEM",
         "category": "MEM",
-        "prompt": "script deploy server kmrn kita namain apa di repo?",
+        "prompt": "database analitik buat data gudang kemarin kita putusin pakai apa ya?",
         "expected_tool": None,
-        "expected_key": "fabfile",
-        "memory_inject": ("user", "otomatisasi deploy server pakai tool apa?", "assistant", "Otomatisasi deployment menggunakan fabfile dengan Python Fabric.")
+        "expected_key": "duckdb",
+        "memory_inject": ("user", "database analitik pemrosesan data gudang mau pakai apa?", "assistant", "Untuk analitik data gudang kita memutuskan memakai embedded DuckDB.")
     },
     {
         "id": "S4A_P18_MEM",
         "category": "MEM",
-        "prompt": "siapa yg megang lead arsitektur tim enki kmrn?",
+        "prompt": "siapa nama qa engineer yg megang testing otomatis kemarin?",
         "expected_tool": None,
-        "expected_key": "budi",
-        "memory_inject": ("user", "siapa yang jadi tech lead proyek enki?", "assistant", "Tech lead dan ketua tim proyek enki adalah Budi Santoso.")
+        "expected_key": "rian",
+        "memory_inject": ("user", "siapa qa engineer yang bertanggung jawab atas automated testing?", "assistant", "QA engineer yang memegang automasi testing adalah Rian Ardianto.")
     },
     {
         "id": "S4A_P19_MEM",
         "category": "MEM",
-        "prompt": "service pengumpul log server kita diarahkan ke mana?",
+        "prompt": "cloud storage buat arsip backup bulanan kemarin kita taruh di mana ya?",
         "expected_tool": None,
-        "expected_key": "loki",
-        "memory_inject": ("user", "koleksi log server dikumpulkan ke mana?", "assistant", "Log server diagregasi menggunakan Vector dan disimpan di Grafana Loki.")
+        "expected_key": "wasabi",
+        "memory_inject": ("user", "arsip backup bulanan sistem disimpan di vendor cloud mana?", "assistant", "Arsip cadangan data bulanan disimpan di Wasabi hot cloud storage.")
     },
     {
         "id": "S4A_P20_MEM",
         "category": "MEM",
-        "prompt": "reverse proxy web gateway kita kmrn pake webserver apa?",
+        "prompt": "port service search dokumen tim kemarin kita setel di berapa ya?",
         "expected_tool": None,
-        "expected_key": "caddy",
-        "memory_inject": ("user", "reverse proxy dan sertifikat SSL diurus oleh apa?", "assistant", "Reverse proxy gateway menggunakan Caddy server dengan auto-SSL.")
+        "expected_key": "7700",
+        "memory_inject": ("user", "mesin pencari dokumen internal berjalan di port berapa?", "assistant", "Service pencarian dokumen internal menggunakan Meilisearch pada port 7700.")
     },
     {
         "id": "S4A_P21_MEM",
         "category": "MEM",
-        "prompt": "port staging server bwt ngetes api kita kmrn brp?",
+        "prompt": "protokol komunikasi antar mikroservis internal kemarin kita sepakati apa?",
         "expected_tool": None,
-        "expected_key": "9042",
-        "memory_inject": ("user", "server staging kita jalan di port berapa?", "assistant", "Kita sepakati server staging berjalan di port 9042.")
+        "expected_key": "grpc",
+        "memory_inject": ("user", "protokol komunikasi sinkron antar mikroservis kita mau pakai apa?", "assistant", "Komunikasi antar mikroservis backend disepakati menggunakan gRPC over HTTP/2.")
     },
 
     # 2 WORKSPACE (1 FILE / LIST, 1 GIT)
@@ -387,11 +442,17 @@ def run_single_benchmark_turn(
                 final_metrics = metrics
     except TimeoutError as te:
         is_timeout = True
-        timeout_reason = "http_request_timeout"
+        timeout_reason = "no_first_token" if len(chunks) == 0 else "http_request_timeout"
     except Exception as e:
         if "timeout" in str(e).lower() or "timed out" in str(e).lower():
             is_timeout = True
-            timeout_reason = "http_request_timeout"
+            timeout_reason = "no_first_token" if len(chunks) == 0 else "http_request_timeout"
+
+    if is_timeout and len(chunks) == 0:
+        timeout_reason = "no_first_token"
+    elif timeout_reason == "turn_timeout" and len(chunks) == 0:
+        is_timeout = True
+        timeout_reason = "no_first_token"
 
     final_text = "".join(chunks).strip()
 
@@ -581,6 +642,9 @@ class TestReActBenchmarkSet4(unittest.TestCase):
         pass
 
 if __name__ == "__main__":
+    client = OllamaClient()
+    check_ollama_idle(client)
+
     print("=" * 80)
     print("VERIFIKASI AWAL FILE USER PROMPTS:")
     user_prompts = load_user_prompts(USER_PROMPTS_FILE)
@@ -598,11 +662,12 @@ if __name__ == "__main__":
     if out_file.exists():
         out_file.unlink()
 
-    # Jalankan Set 4A
-    res_4a = run_benchmark_suite("set_4a_exam", set_4a_prompts, num_runs=3, output_jsonl=out_file)
+    with BenchmarkLock():
+        # Jalankan Set 4A
+        res_4a = run_benchmark_suite("set_4a_exam", set_4a_prompts, num_runs=3, output_jsonl=out_file)
 
-    # Jalankan Set 4R
-    res_4r = run_benchmark_suite("set_4r_regression", REGRESSION_PROMPTS_4R, num_runs=3, output_jsonl=out_file)
+        # Jalankan Set 4R
+        res_4r = run_benchmark_suite("set_4r_regression", REGRESSION_PROMPTS_4R, num_runs=3, output_jsonl=out_file)
 
-    print("\nBENCHMARK SET 4 SELESAI. Raw JSONL tersimpan di:", out_file)
+        print("\nBENCHMARK SET 4 SELESAI. Raw JSONL tersimpan di:", out_file)
 

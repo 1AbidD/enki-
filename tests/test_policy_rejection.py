@@ -177,6 +177,47 @@ class TestPolicyRejectionHandling(unittest.TestCase):
         self.assertFalse(mock_client.call_history[2]["has_tools"])
         self.assertIsNone(mock_client.call_history[2]["tools"])
 
+    def test_reading_file_with_rejection_string_does_not_trigger_policy_rejection(self):
+        """Membaca file sah yang teksnya memuat '[Akses Ditolak]' TIDAK BOLEH memicu policy rejection di ReAct loop."""
+        test_file = self.workspace / "faq.txt"
+        test_file.write_text("[Akses Ditolak] terjadi saat permission 000.", encoding="utf-8")
+
+        step1_response = {
+            "content": "",
+            "tool_calls": [{
+                "function": {
+                    "name": "read_file",
+                    "arguments": json.dumps({"file_path": "faq.txt"})
+                }
+            }]
+        }
+        step2_response = {
+            "content": "Isi FAQ menjelaskan tentang [Akses Ditolak].",
+            "tool_calls": None
+        }
+
+        mock_client = MockOllamaClient([step1_response, step2_response])
+        coordinator = ReActCoordinator(
+            client=mock_client,
+            assembler=self.assembler,
+            workspace_root=self.workspace,
+            db=self.db,
+            max_iterations=5
+        )
+
+        chunks = []
+        for chunk, _ in coordinator.run_react_turn("baca faq.txt", self.session_id, history=[]):
+            if chunk:
+                chunks.append(chunk)
+
+        ans = "".join(chunks)
+        self.assertEqual(ans, "Isi FAQ menjelaskan tentang [Akses Ditolak].")
+        self.assertEqual(len(mock_client.call_history), 2)
+        # Call 1: Ada tools
+        self.assertTrue(mock_client.call_history[0]["has_tools"])
+        # Call 2: Karena pembacaan file berhasil (bukan policy rejection), tools TIDAK dicabut!
+        self.assertTrue(mock_client.call_history[1]["has_tools"])
+
 if __name__ == "__main__":
     import json
     unittest.main()

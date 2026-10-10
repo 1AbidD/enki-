@@ -1,4 +1,4 @@
-diff --git a/.gitignore b/.gitignore
+﻿diff --git a/.gitignore b/.gitignore
 index c98fd8e..45c5433 100644
 --- a/.gitignore
 +++ b/.gitignore
@@ -10,6 +10,849 @@ index c98fd8e..45c5433 100644
 +# Scratch directory
 +scratch/
 +
+diff --git a/docs/diff_plan_v2_2_vs_v2_4.txt b/docs/diff_plan_v2_2_vs_v2_4.txt
+new file mode 100644
+index 0000000..ad0a110
+--- /dev/null
++++ b/docs/diff_plan_v2_2_vs_v2_4.txt
+@@ -0,0 +1,323 @@
++diff --git a/docs/plan_v2_2_recovered.md b/docs/implementation_plan.md
++index b0181d1..323b536 100644
++--- a/docs/plan_v2_2_recovered.md
+++++ b/docs/implementation_plan.md
++@@ -1,168 +1,197 @@
++-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.2 (Hasil Spike Tahap 0)
+++# Rencana Implementasi: ENKI (Local AI Assistant) - v2.4
++ 
++ ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
++-Tahap 0 (Spike) telah **LULUS** dengan akurasi tool-calling **91.11%** (82/90 sukses) dan jejak VRAM riil **2644 MiB pada context 8192 token** (100% GPU di 67.4 tok/s). Folder `D:\ENKI\ENKI\_spike\` tetap dipertahankan sebagai rangkaian uji regresi (*regression test suite*).
+++Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
++ 
++ ---
++ 
++ ## 1. Status Model, Runtime Ollama & Kebijakan Hardware
++ 
++-### Hasil Pengukuran Riil Tahap 0 & Status GPU
+++### Hasil Pengukuran Riil & Status GPU
++ * **Versi Ollama:** `v0.33.0`
++ * **Model Terpasang & Verifikasi `ollama ps`:**
++-  * `qwen2.5:3b` : Terverifikasi **100% GPU** (Ukuran: 2.2 GB, Context: 4096/8192)
++-  * `qwen2.5-coder:3b` : Terverifikasi **100% GPU** (Ukuran: 2.2 GB)
++-  * Saat switch model, `qwen2.5:3b` otomatis ter-eject dari VRAM berkat kebijakan `OLLAMA_MAX_LOADED_MODELS=1`.
++-* **Angka Mentah VRAM (`nvidia-smi`):**
++-  * Baseline Idle: **347 MiB** (dari 4096 MiB total)
++-  * Inferensi `num_ctx = 4096`: **2496 MiB** (Sisa free: 1467 MiB) @ 70.97 tok/s
++-  * Inferensi `num_ctx = 8192`: **2644 MiB** (Sisa free: 1319 MiB) @ 67.43 tok/s
++-* **Pengukuran Tambahan (Tahap 1):** Mengukur ulang VRAM saat VS Code dan Browser (Chrome/Edge) sedang terbuka aktif untuk melihat sisa headroom VRAM harian.
++-* **Pengukuran Swap Model (Tahap 3):** Mencatat waktu latensi swap `/coder` (unload 3B chat -> load 3B coder).
+++  * Terbukti hanya **1 model tunggal** yang dimuat di VRAM pada satu waktu:
+++    * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2774 MiB**, Free: **1189 MiB**).
+++    * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2773 MiB**, Free: **1190 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
+++  * Saat beralih model via `/coder`, model chat 3B langsung dieviktasi otomatis dari VRAM berkat kebijakan `OLLAMA_MAX_LOADED_MODELS=1`.
+++* **Reflector Model Safety:** `reflect_session` dan perintah `/reflect` mengunci pemanggilan model ke `qwen2.5:3b`, menjamin refleksi memori tidak pernah berjalan pada model coder.
+++* **Pengakuan Batas Model 3B:** Model 3B tidak dapat diandalkan untuk menyaring serangan jailbreak atau memvalidasi string shell bebas secara otonom. Oleh karena itu, string perintah bebas dihapus total, dan seluruh aksi sistem wajib dikonfirmasi manusia `[y/N]`.
++ 
++ ### Cara Set Environment Variable Ollama Secara Permanen di Windows
++-Agar konfigurasi tidak hilang saat restart atau buka terminal baru:
++-1. **Via PowerShell (Run as Administrator):**
++-   ```powershell
++-   [System.Environment]::SetEnvironmentVariable('OLLAMA_MAX_LOADED_MODELS', '1', 'Machine')
++-   [System.Environment]::SetEnvironmentVariable('OLLAMA_NUM_PARALLEL', '1', 'Machine')
++-   [System.Environment]::SetEnvironmentVariable('OLLAMA_FLASH_ATTENTION', '1', 'Machine')
++-   ```
++-2. **Via GUI Windows:**
++-   * Buka *Start Menu* -> ketik *Environment Variables* -> pilih *Edit the system environment variables*.
++-   * Klik tombol *Environment Variables...* -> pada bagian *System variables*, klik *New...* dan tambahkan ketiga key-value di atas.
++-   * Restart aplikasi Ollama / service agar variabel terbaca permanen.
+++Konfigurasi diset pada level scope **'User'**:
+++```powershell
+++[System.Environment]::SetEnvironmentVariable('OLLAMA_MAX_LOADED_MODELS', '1', 'User')
+++[System.Environment]::SetEnvironmentVariable('OLLAMA_NUM_PARALLEL', '1', 'User')
+++[System.Environment]::SetEnvironmentVariable('OLLAMA_FLASH_ATTENTION', '1', 'User')
+++```
++ 
++ ---
++ 
++-## 2. Anggaran Context Eksplisit (Context Budgeting)
+++## 2. Anggaran Context Dinamis (Dynamic Context Budgeting)
++ 
++-Context target utama adalah **8192 token** (telah terbukti stabil di VRAM 2.6 GB):
+++Target context runtime adalah **8192 token** (`num_ctx = 8192`). Anggaran dikelola secara **dinamis berbasis pengukuran riil**:
++ 
++-| Komponen Context | Alokasi Token | Keterangan & Kebijakan Truncation |
++-| :--- | :--- | :--- |
++-| **System Prompt Base** | ~250 token | Statis, di awal prompt (prefix cache). |
++-| **Profile (`profile.json`)** | Max 500 token | Statis, di awal prompt (prefix cache). Ditolak jika over 500 token. |
++-| **Schema 6 Tools Native** | ~800–1200 token | Definisi JSON schema tools untuk Ollama function calling. |
++-| **Riwayat Chat (History)** | ~1500–2000 token | Sliding window turn aktif. |
++-| **Tool Output (Per Aksi)** | **Max 1000 token** | Dipotong tegas: `"... [Output dipotong: sisa N baris]"`. |
++-| **Total Observasi Per Turn** | **Max 2000 token** | Akumulasi observasi multi-step ReAct dibatasi 2000 token. Observasi langkah lama dipangkas otomatis jika melampaui batas. |
++-| **Slack / Output Generation** | ~2000–3000 token | Ruang aman untuk ReAct loop & generasi respon. |
++-| **Total `num_ctx`** | **8192 token** | Diset eksplisit di setiap request payload ke Ollama. |
+++$$\text{Sisa Token} = \text{num\_ctx} - (\text{System Base} + \text{Profile} + \text{Schema Tools} + \text{History Window})$$
++ 
++-*Perangkuman riwayat chat dijalankan saat **IDLE**, bukan di tengah giliran percakapan.*
+++* **Perhitungan Token Riil:** Dihitung langsung menggunakan metrik `prompt_eval_count` dari respon Ollama API, diverifikasi dengan estimasi lokal (`estimate_tokens_local`) sebagai batas atas sebelum pengiriman request.
+++* **Overhead Statis (~1500–2000 token):**
+++  * System Prompt Base: ~250 token (hanya aturan dan perilaku, tanpa fakta diri user).
+++  * Profile (`profile.json`): Max 500 token (fakta tentang user dimuat eksklusif dari sini). Ditolak jika over 500 token.
+++  * Schema Tools Tetap: ~600–900 token.
+++* **Pembagian Sisa Token (Observasi Tool vs Respon Model):**
+++  * Observasi tool per aksi: Maksimal 1000 token (dipotong tegas dengan penanda `... [Output dipotong: sisa N baris]`).
+++  * Pemangkasan observasi ReAct: Observasi langkah terdahulu dipadatkan otomatis menjadi ringkasan satu baris jika ReAct loop berlanjut.
+++  * Batas generasi respon per request: `num_predict = 1024`, dengan per-request HTTP timeout = 60 detik.
+++* **Perangkuman History:** Dijalankan saat sistem berstatus **IDLE**, bukan di tengah giliran percakapan aktif.
++ 
++ ---
++ 
++-## 3. Sistem Belajar & Memori Deterministik (Anti-Gagal)
++-
++-Berdasarkan temuan Tahap 0 (model 3B gagal memanggil tool memori saat user bertanya implisit seperti *"kamu ingat solusinya apa?"*), sistem memori diperkuat dengan pendekatan deterministik berlapis:
++-
++-### A. Recall Otomatis Deterministik (Intersepsi Kode)
++-* **Pemicu Kata Kunci Leksikal:**
++-  Jika pesan user mengandung salah satu pemicu:  
++-  `["kemarin", "pernah", "ingat", "sebelumnya", "tadi", "waktu itu", "remember", "earlier"]`
++-* **Mekanisme:**
++-  Kode Python **langsung menjalankan pencarian SQLite FTS5** di `sessions.db` dan menyuntikkan top 2–3 cuplikan percakapan masa lalu ke dalam prompt turn tersebut **secara otomatis tanpa menunggu LLM memanggil tool**.
++-* **Tool `search_memory(query)` Tetap Tersedia:**
++-  Berfungsi sebagai cadangan jika user memberikan instruksi eksplisit pencarian topik yang tidak terjangkau kata pemicu otomatis.
++-
++-### B. Reflector Daemon (Pembelajaran Terstruktur)
++-* **Hanya Ekstraksi Pesan User:** Respon ENKI diabaikan; fakta baru hanya bersumber dari ketikan user.
++-* **Validasi Substring Kode (`source_quote`):** Kode Python memeriksa apakah string kutipan benar-benar ada di pesan user. Jika tidak cocok 100% verbatim, usulan langsung **dibuang otomatis**.
++-* **Constrained Decoding Murni:** Menggunakan parameter `format` Pydantic (tanpa parameter `tools`, sesuai temuan kompatibilitas Tahap 0).
++-* **Key-Based Upsert & Deduplikasi:** Fakta yang cocok dengan key lama diperbarui, bukan ditumpuk.
++-* **Proposal Queue:** Tersimpan di `pending_proposals.json` sampai disetujui via `/memory approve <id>`.
+++## 3. Sistem Memori: Dual Recall (Aktif & Pasif) + Reflector Strict
+++
+++### A. Recall Aktif Deterministik (Pemicu Leksikal)
+++* **Pemicu Regex Word-Boundary:**
+++  `\b(kemarin|pernah|ingat|sebelumnya|tadi|waktu itu|remember|earlier)\b`
+++* **Query Builder:** Kata pemicu dan stopword percakapan dibuang; query FTS5 menggunakan kata substantif unik dengan operator `OR`.
+++* **Grounding Keras:**
+++  ```text
+++  [Instruksi Wajib]: Jawab berdasarkan hasil pencarian di atas. Jika hasil memuat jawabannya, sampaikan isinya. Jangan menambah saran umum.
+++  ```
+++
+++### B. Recall Pasif Deterministik (Terkalibrasi DF & Dibekukan)
+++Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?"*), FTS5 dijalankan secara pasif dengan **ambang batas Document Frequency (DF)**:
+++1. **Definisi Token Spesifik vs Umum:**
+++   * Token dianggap **Umum** jika Document Frequency di corpus turn lampau $\text{DF} > 5.0\%$. Kata umum tidak boleh memicu recall sendirian.
+++   * Token dianggap **Spesifik / Domain** jika $\text{DF} \le 5.0\%$.
+++2. **Kondisi Lolos Injeksi (DIBEKUKAN pada DF $\le 5.0\%$):**
+++   * Turn kandidat mencocokkan **minimal 2 kata substantif berbeda** dalam turn yang sama, ATAU
+++   * Mencocokkan **minimal 1 kata spesifik** yang memiliki $\text{DF} \le 5.0\%$.
+++3. **Format Blok Konteks Latar (Tanpa Grounding Keras):**
+++   ```text
+++   <untrusted_memory_content source="sqlite_fts5_passive_recall">
+++   [Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
+++   - User: ...
+++   - Assistant: ...
+++   </untrusted_memory_content>
+++   ```
+++4. **Kapasitas Injeksi:** Maksimal 3 cuplikan teratas, maksimal 300 token.
++ 
++-### C. Pengujian Memori Deterministik
++-1. **Unit Test Perakitan Prompt (Tanpa LLM):** Memastikan fakta dari `profile.json` dan hasil recall FTS5 selalu hadir dalam teks prompt hasil rakitan.
++-2. **Integration Test Token Unik Lintas Sesi:** Inject fakta unik (`TOKEN_PROYEK_XYZ99`) -> simpan & approve -> buka sesi bersih -> assert kemunculan token di respons teks.
+++### C. Reflector Daemon & Proposal Queue
+++* **Eksklusif Pesan User:** Hanya pesan pengguna yang diekstraksi; respon asisten diabaikan sepenuhnya.
+++* **Verifikasi Substring Verbatim (`source_quote`):** Kode Python memeriksa apakah string kutipan benar-benar ada secara verbatim di pesan user. Quote recovery hanya menghasilkan potongan teks asli dari pesan user.
+++* **Filter Hipotesis Deterministik:** Usulan yang mengandung kata pengandaian (*seandainya, andaikan, kalau aku jadi, if I were*) ditolak otomatis di kode, sedangkan preferensi legal (*kalau kasih kode, tolong sertakan...*) tetap lolos.
+++* **Filter Rahasia Deterministik:** Pola credential (API key, token, private key, password) dibuang otomatis di level kode.
+++* **Proposal Queue & CLI `/memory`:**
+++  * Usulan tersimpan di `pending_proposals.json` hingga disetujui via `/memory approve <id>`.
+++  * Perintah tersedia: `/memory pending`, `/memory approve <id>`, `/memory reject <id>`, `/memory list`, `/memory stats`.
++ 
++ ---
++ 
++-## 4. Definisi & Perbedaan 6 Tools Native (Menghilangkan Ambiguitas)
+++## 4. Definisi Tool Berargumen Tetap (Fixed Argument Tools)
++ 
++-Pada pengujian Spike prompt ID 26 (*"periksa apa saja dependency di requirements.txt"*), model sempat bingung antara membaca file atau menjalankan perintah shell. Deskripsi 6 tools diperjelas secara tegas:
+++String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Seluruh interaksi menggunakan alat berargumen tetap tanpa celah parameter injection:
++ 
++ 1. `search_memory(query: str)`:
++-   * *Deskripsi:* Cari catatan atau riwayat obrolan masa lalu di database memori (FTS5). Gunakan jika informasi yang dicari berada di percakapan lampau.
++-2. `screen_inspect(target: str)`:
++-   * *Deskripsi:* Tangkap dan baca teks yang sedang tampil di layar/window aktif menggunakan OCR.
++-3. `web_fetch(url: str)`:
++-   * *Deskripsi:* Ambil dan ekstrak konten teks utama dari URL web/artikel.
++-4. `open_url(url: str)`:
++-   * *Deskripsi:* Buka URL di browser peramban default pengguna.
++-5. `read_file(file_path: str)`:
++-   * *Deskripsi:* **Gunakan HANYA untuk membaca/melihat isi teks file dokumen atau kode program** (misalnya .py, .json, .txt, .md, requirements.txt). **JANGAN gunakan untuk mengeksekusi script atau menjalankan instalasi.**
++-6. `run_shell_command(command: str)`:
++-   * *Deskripsi:* **Gunakan HANYA untuk mengeksekusi perintah terminal/shell** (misalnya git, pytest, dir, python script.py, pip install). **JANGAN gunakan hanya untuk sekadar membaca isi file teks (gunakan read_file).**
+++   * *Gating Deterministik:* Hanya dimuat dalam schema tools jika pesan mengandung pemicu recall leksikal atau kata kunci pencarian eksplisit (*catatan, riwayat, log obrolan, sesi lampau, memori*).
+++2. `read_file(file_path: str)`:
+++   * Membaca isi file teks di dalam workspace. Path diisolasi via `Path.resolve()`, direktori sensitif (`.git`, `data/`, `logs/`, credentials) diblokir keras.
+++3. `git(action: enum["status", "log", "diff"])`:
+++   * Menjalankan perintah Git terdaftar. Memerlukan konfirmasi manual pengguna `[y/N]` yang menampilkan perintah persis sebelum dieksekusi.
+++4. `python_version()`:
+++   * Menjalankan `python --version`. Memerlukan konfirmasi pengguna `[y/N]`.
+++5. `run_unittests()`:
+++   * Menjalankan `python -m unittest`. Memerlukan konfirmasi pengguna `[y/N]`.
+++6. `list_dir(path: Optional[str])`:
+++   * Membaca daftar file dan folder di dalam workspace secara aman via Python `Path.iterdir()` (tanpa subprocess shell). Path traversal di luar workspace diblokir keras.
+++7. **Audit Log:** Seluruh eksekusi tool dicatat ke `tool_audit.log` (mendukung path injection untuk pengujian).
++ 
++ ---
++ 
++-## 5. Keamanan & Sandboxing (Pertahanan Prompt Injection)
+++## 5. Keamanan & Kebijakan ReAct Loop
++ 
++-1. **Sanitasi Closing Tag:**
++-   Kode Python membuang/escape semua string penutup `</untrusted_external_content>` dari teks OCR layar dan web sebelum disuntikkan ke prompt.
++-2. **Pengakuan Batas Model 3B:**
++-   Model 3B tidak bisa diandalkan kebal jailbreak/injection. Pertahanan utama adalah **konfirmasi manual `[Y/n]` untuk semua aksi tulis/modifikasi file dan eksekusi shell**.
++-3. **Path Traversal Guard:**
++-   Semua path file wajib melewati `os.path.resolve()` dan divalidasi berada dalam root workspace yang diizinkan.
++-4. **Shell Allowlist:**
++-   Perintah shell dibatasi pada daftar aman yang terdaftar.
+++1. **Sanitasi Tag Untrusted Tunggal:**
+++   Semua konten eksternal (output tool, file, recall FTS5) dibersihkan menggunakan regex tunggal `sanitize_untrusted_text` untuk melucuti tag pembuka dan penutup `<untrusted_*>` sebelum dibungkus ke dalam prompt.
+++2. **Path Traversal Guard:**
+++   Semua path file wajib melewati `Path.resolve()` dan divalidasi `is_relative_to(workspace_root)`. UNC path (`\\` atau `//`) diblokir seketika.
+++3. **Penolakan Kebijakan (Policy Rejection):**
+++   Jika terjadi pelanggaran kebijakan (path traversal ke luar workspace, penolakan konfirmasi `[y/N]` oleh pengguna, pemanggilan tool yang tidak terdaftar, atau loop guard identik berturut-turut), observasi error dicatat dan iterasi ReAct berikutnya dikirim **TANPA TOOLS (`tools=None`)**. Model dipaksa merespons dengan teks penjelasan tanpa opsi memanggil tool lagi.
+++4. **Retry Argumen:**
+++   Kesalahan validasi argumen hanya diperbolehkan retry maksimal 1 kali. Jika gagal lagi, dianggap sebagai pelanggaran kebijakan (`tools=None`).
++ 
++ ---
++ 
++ ## 6. Voice Output (TTS) & Zero-Cost Mute
++ 
++-*Voice Input (STT) telah resmi **DIBUANG PERMANEN**.*
+++*Voice Input (STT) dan Avatar 3D telah resmi **DIBUANG PERMANEN** untuk menghemat resource dan fokus pada keandalan sistem lokal.*
++ 
++ 1. **Zero-Cost Mute:**
++-   Status mute dicek sebelum pipeline audio dipanggil. Jika mute: **0 sintesis, 0 thread, 0 library audio**.
++-2. **Evaluasi Suara Nyata Windows di Tahap 4:**
++-   * Keputusan akhir suara **akan dimulai dari enumerasi daftar suara Indonesia yang benar-benar terdeteksi di Windows pengguna** (via Windows OneCore / SAPI5), tidak mengasumsikan nama suara.
++-   * `edge-tts` disiapkan sebagai opsi online sekunder jika diinginkan suara neural cloud.
+++   Status mute dicek sebelum pipeline audio dipanggil. Jika mute aktif: **0 sintesis, 0 thread background, 0 library audio di-load**.
+++2. **Evaluasi Suara Nyata Windows (Tahap 4):**
+++   * Keputusan akhir suara akan dimulai dari enumerasi daftar suara Indonesia yang benar-benar terdeteksi di Windows pengguna (via Windows OneCore / SAPI5).
+++   * Opsi fallback: `edge-tts` (online sekunder).
++ 3. **Pembatasan Beban CPU:**
++-   Proses sintesis dibatasi ke **1–2 core CPU** (menggunakan setelan thread affinity / `OMP_NUM_THREADS=2`).
+++   Proses sintesis dibatasi ke **1–2 core CPU** (thread affinity / `OMP_NUM_THREADS=2`).
++ 4. **Interupsi Instan:**
++-   Input baru dari user langsung memicu cancel flag dan mengosongkan antrean audio.
+++   Input baru dari user di konsol langsung memicu cancel flag dan mengosongkan antrean pemutaran audio seketika.
+++
+++---
+++
+++## 7. Status Rangkaian Benchmark & Pengujian
+++
+++* **Set 1 (Tahap 0 Spike, 30 Prompt):** Status **DEV SET 1**. Akurasi tool-calling 91.11%.
+++* **Set 2 (Tahap 3 Dev Set, 20 Prompt x 3 Runs):** Status **DEV SET 2**. Akurasi 81.7%. Menunjukkan keandalan grounding WAL (3/3 pass) dan eliminasi false call `search_memory` via deterministic gating.
+++* **Set 3 (Tahap 3 Eks-Ujian, 24 Prompt x 3 Runs):** Status **DEV SET 3 (Eks-Ujian)**. Gagal gate (routing 61.1%, false call shell 22.2%). Menjadi dasar arsitektur fixed argument tools dan kalibrasi recall pasif.
+++* **Set 4R (Regresi Tahap 3, 10 Prompt x 3 Runs):** Status **REGRESSION SET (TIDAK IKUT GATE)**. Menguji 10 prompt bermasalah dari Set 3 (false call shell lama, timeout) untuk membuktikan tidak adanya regresi.
+++* **Set 4A (Ujian Akhir, 30 Prompt x 3 Runs):** Status **UJIAN AKHIR (MENENTUKAN GATE)**.
+++
+++### Kriteria Kelulusan Set 4A (Ditulis Di Muka Sebelum Run):
+++1. **Routing Positif:** $\ge 90.0\%$ (dihitung per prompt unik $n$ dan per run)
+++2. **False Call Negatif:** $\le 10.0\%$ (termasuk yang diblokir sandbox, prompt konfirmasi dilaporkan terpisah)
+++3. **Fidelity Jawaban:** $\ge 85.0\%$ dari run yang memanggil tool yang benar
+++4. **Total Timeout:** $= 0$
+++5. **Argumen Invalid:** $= 0$
+++6. **Injeksi Recall Pasif ke Prompt Negatif:** $\le 10.0\%$
+++
+++### Komposisi 30 Prompt Set 4A:
+++* **12 Positif Memori (Recall Pasif):** 6 dari user, 6 buatan asisten.
+++* **6 Positif Workspace / Git / Test:** 4 dari user, 2 buatan asisten.
+++* **12 Negatif Murni (No Tool):** 5 dari user, 7 buatan asisten.
++ 
++ ---
++ 
++-## 7. Roadmap Pelaksanaan
++-
++-### Tahap 1: Core CLI Shell & Context Budgeting
++-* Setup folder di `D:\ENKI\ENKI`.
++-* Implementasi `config.json` (termasuk status mute) dan console CLI transparan (hanya `[Tool call]`, `[Tool result]`, `[Jawaban]`).
++-* Implementasi prompt assembler dengan prefix caching, pemotongan hard limit tool output (1000 token), dan batas total observasi (2000 token).
++-* Ukur ulang baseline VRAM saat VS Code dan browser sedang terbuka aktif.
++-
++-### Tahap 2: Memory Engine (FTS5 + Recall Deterministik + Reflector Strict)
++-* SQLite logging di `sessions.db`.
++-* **Implementasi Recall Otomatis Deterministik:** Intersepsi keyword (*kemarin, pernah, ingat*, dll) langsung menarik top 2–3 cuplikan FTS5 ke prompt.
++-* Implementasi fallback tool `search_memory(query)`.
++-* Reflector daemon (hanya pesan user, verifikasi verbatim `source_quote`, key-based upsert, skema `format` Pydantic).
++-* Proposal queue (`/memory pending`, `/memory approve <id>`).
++-* Unit test assembler (tanpa LLM) & integration test token unik lintas sesi.
++-
++-### Tahap 3: ReAct Loop, Multi-Turn Benchmark & Model Switcher
++-* Loop ReAct terkontrol (maks 5 iterasi, temperature 0.2, error feedback jika argumen salah).
++-* **Multi-Turn Benchmark Set Kedua:**
++-  * Menyiapkan 15–20 prompt BARU (termasuk 10–15 prompt dengan gaya bahasa santai/berantakan seperti orang ngetik sungguhan dengan singkatan & typo).
++-  * Pengujian alur multi-turn: `User input -> Tool call -> Tool execution -> Observasi kembali ke LLM -> Respon akhir`.
++-* Integrasi perintah switch model `/coder` (unload 3B chat, load 3B coder) dan catat waktu swap.
++-* Sandbox keamanan: `path.resolve()` workspace lock, shell allowlist, konfirmasi manual `[Y/n]`.
++-
++-### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute
++-* Implementasi zero-cost mute check.
++-* Enumerasi daftar suara Indonesia riil dari Windows pengguna (OneCore/SAPI5).
++-* Perdengarkan dan bandingkan sampel suara.
++-* Sentence chunking, thread affinity 1–2 core, dan interupsi instan.
++-
++-### Tahap 5: Screen Reader (OCR Bounding Box)
++-* Deteksi active window bounding box.
+++## 8. Roadmap Pelaksanaan
+++
+++### Tahap 1: Core CLI Shell & Context Budgeting (SELESAI - LULUS)
+++* Struktur folder di `D:\ENKI\ENKI`.
+++* `config.json` (status mute) dan console trace `[Tool call]`, `[Tool result]`, `[Jawaban]`.
+++* Prompt assembler dengan dynamic context budgeting dan token truncation.
+++* Suite unit test assembler tanpa LLM (4 unit test lulus).
+++
+++### Tahap 2: Memory Engine & Dual Recall FTS5 (SELESAI - LULUS)
+++* Skema SQLite `sessions.db` (tabel sessions, turns, virtual table turns_fts).
+++* Recall aktif dengan keyword boundaries dan stopword cleaning.
+++* Reflector daemon (eksklusif user turns, verbatim quote recovery, filter hipotesis & filter rahasia).
+++* Proposal queue dan perintah CLI `/memory`.
+++* Suite unit test memori terisolasi (14 unit test lulus).
+++
+++### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (DALAM PROSES)
+++* Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests`, `list_dir`, `read_file`, `search_memory`.
+++* Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya.
+++* Kalibrasi Document Frequency (DF $\le 5.0\%$) untuk recall pasif pada corpus realistis (>250 turns).
+++* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection (50 unit test lulus).
+++* Persiapan pengujian Set 4A dan Set 4R.
+++
+++### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
+++* Implementasi zero-cost mute check sebelum audio pipeline.
+++* Enumerasi daftar suara Indonesia nyata dari sistem Windows pengguna (OneCore / SAPI5).
+++* Komparasi sampel suara langsung di perangkat pengguna.
+++* Sentence chunking, thread affinity 1–2 core CPU, dan interupsi instan.
+++
+++### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
+++* Deteksi bounding box window aktif.
++ * Komparasi langsung Windows Media OCR vs RapidOCR pada layar VS Code.
++ * Integrasi tool `screen_inspect`.
++ 
++-### Tahap 6: Web Tools (`open_url`, `web_fetch`) & Evaluasi Menyeluruh
+++### Tahap 6: Web Tools (`open_url`, `web_fetch`) & Evaluasi Menyeluruh (AKAN DATANG)
++ * Implementasi `web_fetch` (trafilatura + requests) dengan sanitasi tag injection.
++-* Pengujian end-to-end seluruh kapabilitas ENKI.
+++* Integrasi `open_url` aman.
+++* Pengujian integrasi ujung ke ujung seluruh kapabilitas ENKI.
+diff --git a/docs/diff_tahap3_redesign.txt b/docs/diff_tahap3_redesign.txt
+new file mode 100644
+index 0000000..e90317c
+--- /dev/null
++++ b/docs/diff_tahap3_redesign.txt
+@@ -0,0 +1,121 @@
++﻿diff --git a/.gitignore b/.gitignore
++index c98fd8e..45c5433 100644
++--- a/.gitignore
+++++ b/.gitignore
++@@ -15,3 +15,7 @@ config.json
++ .env
++ venv/
++ .venv/
+++
+++# Scratch directory
+++scratch/
+++
++diff --git a/docs/diff_plan_v2_2_vs_v2_4.txt b/docs/diff_plan_v2_2_vs_v2_4.txt
++new file mode 100644
++index 0000000..ad0a110
++--- /dev/null
+++++ b/docs/diff_plan_v2_2_vs_v2_4.txt
++@@ -0,0 +1,323 @@
+++diff --git a/docs/plan_v2_2_recovered.md b/docs/implementation_plan.md
+++index b0181d1..323b536 100644
+++--- a/docs/plan_v2_2_recovered.md
++++++ b/docs/implementation_plan.md
+++@@ -1,168 +1,197 @@
+++-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.2 (Hasil Spike Tahap 0)
++++# Rencana Implementasi: ENKI (Local AI Assistant) - v2.4
+++ 
+++ ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
+++-Tahap 0 (Spike) telah **LULUS** dengan akurasi tool-calling **91.11%** (82/90 sukses) dan jejak VRAM riil **2644 MiB pada context 8192 token** (100% GPU di 67.4 tok/s). Folder `D:\ENKI\ENKI\_spike\` tetap dipertahankan sebagai rangkaian uji regresi (*regression test suite*).
++++Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
+++ 
+++ ---
+++ 
+++ ## 1. Status Model, Runtime Ollama & Kebijakan Hardware
+++ 
+++-### Hasil Pengukuran Riil Tahap 0 & Status GPU
++++### Hasil Pengukuran Riil & Status GPU
+++ * **Versi Ollama:** `v0.33.0`
+++ * **Model Terpasang & Verifikasi `ollama ps`:**
+++-  * `qwen2.5:3b` : Terverifikasi **100% GPU** (Ukuran: 2.2 GB, Context: 4096/8192)
+++-  * `qwen2.5-coder:3b` : Terverifikasi **100% GPU** (Ukuran: 2.2 GB)
+++-  * Saat switch model, `qwen2.5:3b` otomatis ter-eject dari VRAM berkat kebijakan `OLLAMA_MAX_LOADED_MODELS=1`.
+++-* **Angka Mentah VRAM (`nvidia-smi`):**
+++-  * Baseline Idle: **347 MiB** (dari 4096 MiB total)
+++-  * Inferensi `num_ctx = 4096`: **2496 MiB** (Sisa free: 1467 MiB) @ 70.97 tok/s
+++-  * Inferensi `num_ctx = 8192`: **2644 MiB** (Sisa free: 1319 MiB) @ 67.43 tok/s
+++-* **Pengukuran Tambahan (Tahap 1):** Mengukur ulang VRAM saat VS Code dan Browser (Chrome/Edge) sedang terbuka aktif untuk melihat sisa headroom VRAM harian.
+++-* **Pengukuran Swap Model (Tahap 3):** Mencatat waktu latensi swap `/coder` (unload 3B chat -> load 3B coder).
++++  * Terbukti hanya **1 model tunggal** yang dimuat di VRAM pada satu waktu:
++++    * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2774 MiB**, Free: **1189 MiB**).
++++    * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2773 MiB**, Free: **1190 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
++++  * Saat beralih model via `/coder`, model chat 3B langsung dieviktasi otomatis dari VRAM berkat kebijakan `OLLAMA_MAX_LOADED_MODELS=1`.
++++* **Reflector Model Safety:** `reflect_session` dan perintah `/reflect` mengunci pemanggilan model ke `qwen2.5:3b`, menjamin refleksi memori tidak pernah berjalan pada model coder.
++++* **Pengakuan Batas Model 3B:** Model 3B tidak dapat diandalkan untuk menyaring serangan jailbreak atau memvalidasi string shell bebas secara otonom. Oleh karena itu, string perintah bebas dihapus total, dan seluruh aksi sistem wajib dikonfirmasi manusia `[y/N]`.
+++ 
+++ ### Cara Set Environment Variable Ollama Secara Permanen di Windows
+++-Agar konfigurasi tidak hilang saat restart atau buka terminal baru:
+++-1. **Via PowerShell (Run as Administrator):**
+++-   ```powershell
+++-   [System.Environment]::SetEnvironmentVariable('OLLAMA_MAX_LOADED_MODELS', '1', 'Machine')
+++-   [System.Environment]::SetEnvironmentVariable('OLLAMA_NUM_PARALLEL', '1', 'Machine')
+++-   [System.Environment]::SetEnvironmentVariable('OLLAMA_FLASH_ATTENTION', '1', 'Machine')
+++-   ```
+++-2. **Via GUI Windows:**
+++-   * Buka *Start Menu* -> ketik *Environment Variables* -> pilih *Edit the system environment variables*.
+++-   * Klik tombol *Environment Variables...* -> pada bagian *System variables*, klik *New...* dan tambahkan ketiga key-value di atas.
+++-   * Restart aplikasi Ollama / service agar variabel terbaca permanen.
++++Konfigurasi diset pada level scope **'User'**:
++++```powershell
++++[System.Environment]::SetEnvironmentVariable('OLLAMA_MAX_LOADED_MODELS', '1', 'User')
++++[System.Environment]::SetEnvironmentVariable('OLLAMA_NUM_PARALLEL', '1', 'User')
++++[System.Environment]::SetEnvironmentVariable('OLLAMA_FLASH_ATTENTION', '1', 'User')
++++```
+++ 
+++ ---
+++ 
+++-## 2. Anggaran Context Eksplisit (Context Budgeting)
++++## 2. Anggaran Context Dinamis (Dynamic Context Budgeting)
+++ 
+++-Context target utama adalah **8192 token** (telah terbukti stabil di VRAM 2.6 GB):
++++Target context runtime adalah **8192 token** (`num_ctx = 8192`). Anggaran dikelola secara **dinamis berbasis pengukuran riil**:
+++ 
+++-| Komponen Context | Alokasi Token | Keterangan & Kebijakan Truncation |
+++-| :--- | :--- | :--- |
+++-| **System Prompt Base** | ~250 token | Statis, di awal prompt (prefix cache). |
+++-| **Profile (`profile.json`)** | Max 500 token | Statis, di awal prompt (prefix cache). Ditolak jika over 500 token. |
+++-| **Schema 6 Tools Native** | ~800–1200 token | Definisi JSON schema tools untuk Ollama function calling. |
+++-| **Riwayat Chat (History)** | ~1500–2000 token | Sliding window turn aktif. |
+++-| **Tool Output (Per Aksi)** | **Max 1000 token** | Dipotong tegas: `"... [Output dipotong: sisa N baris]"`. |
+++-| **Total Observasi Per Turn** | **Max 2000 token** | Akumulasi observasi multi-step ReAct dibatasi 2000 token. Observasi langkah lama dipangkas otomatis jika melampaui batas. |
+++-| **Slack / Output Generation** | ~2000–3000 token | Ruang aman untuk ReAct loop & generasi respon. |
+++-| **Total `num_ctx`** | **8192 token** | Diset eksplisit di setiap request payload ke Ollama. |
++++$$\text{Sisa Token} = \text{num\_ctx} - (\text{System Base} + \text{Profile} + \text{Schema Tools} + \text{History Window})$$
+++ 
+++-*Perangkuman riwayat chat dijalankan saat **IDLE**, bukan di tengah giliran percakapan.*
++++* **Perhitungan Token Riil:** Dihitung langsung menggunakan metrik `prompt_eval_count` dari respon Ollama API, diverifikasi dengan estimasi lokal (`estimate_tokens_local`) sebagai batas atas sebelum pengiriman request.
++++* **Overhead Statis (~1500–2000 token):**
++++  * System Prompt Base: ~250 token (hanya aturan dan perilaku, tanpa fakta diri user).
++++  * Profile (`profile.json`): Max 500 token (fakta tentang user dimuat eksklusif dari sini). Ditolak jika over 500 token.
++++  * Schema Tools Tetap: ~600–900 token.
++++* **Pembagian Sisa Token (Observasi Tool vs Respon Model):**
++++  * Observasi tool per aksi: Maksimal 1000 token (dipotong tegas dengan penanda `... [Output dipotong: sisa N baris]`).
++++  * Pemangkasan observasi ReAct: Observasi langkah terdahulu dipadatkan otomatis menjadi ringkasan satu baris jika ReAct loop berlanjut.
++++  * Batas generasi respon per request: `num_predict = 1024`, dengan per-request HTTP timeout = 60 detik.
++++* **Perangkuman History:** Dijalankan saat sistem berstatus **IDLE**, bukan di tengah giliran percakapan aktif.
+++ 
+++ ---
+++ 
+++-## 3. Sistem Belajar & Memori Deterministik (Anti-Gagal)
+++-
+++-Berdasarkan temuan Tahap 0 (model 3B gagal memanggil tool memori saat user bertanya implisit seperti *"kamu ingat solusinya apa?"*), sistem memori diperkuat dengan pendekatan deterministik berlapis:
+++-
+++-### A. Recall Otomatis Deterministik (Intersepsi Kode)
+++-* **Pemicu Kata Kunci Leksikal:**
+++-  Jika pesan user mengandung salah satu pemicu:  
+++-  `["kemarin", "pernah", "ingat", "sebelumnya", "tadi", "waktu itu", "remember", "earlier"]`
+++-* **Mekanisme:**
+++-  Kode Python **langsung menjalankan pencarian SQLite FTS5** di `sessions.db` dan menyuntikkan top 2–3 cuplikan percakapan masa lalu ke dalam prompt turn tersebut **secara otomatis tanpa menunggu LLM memanggil tool**.
+++-* **Tool `search_memory(query)` Tetap Tersedia:**
+++-  Berfungsi sebagai cadangan jika user memberikan instruksi eksplisit pencarian topik yang tidak terjangkau kata pemicu otomatis.
+++-
+++-### B. Reflector Daemon (Pembelajaran Terstruktur)
+diff --git a/docs/implementation_plan.md b/docs/implementation_plan.md
+new file mode 100644
+index 0000000..f6327ef
+--- /dev/null
++++ b/docs/implementation_plan.md
+@@ -0,0 +1,207 @@
++# Rencana Implementasi: ENKI (Local AI Assistant) - v2.4
++
++ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
++Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
++
++---
++
++## 1. Status Model, Runtime Ollama & Kebijakan Hardware
++
++### Hasil Pengukuran Riil & Status GPU
++* **Versi Ollama:** `v0.33.0`
++* **Model Terpasang & Verifikasi `ollama ps`:**
++  * Terbukti hanya **1 model tunggal** yang dimuat di VRAM pada satu waktu:
++    * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2774 MiB**, Free: **1189 MiB**).
++    * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2773 MiB**, Free: **1190 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
++  * Saat beralih model via `/coder`, model chat 3B langsung dieviktasi otomatis dari VRAM berkat kebijakan `OLLAMA_MAX_LOADED_MODELS=1`.
++* **Reflector Model Safety:** `reflect_session` dan perintah `/reflect` mengunci pemanggilan model ke `qwen2.5:3b`, menjamin refleksi memori tidak pernah berjalan pada model coder.
++* **Pengakuan Batas Model 3B:** Model 3B tidak dapat diandalkan untuk menyaring serangan jailbreak atau memvalidasi string shell bebas secara otonom. Oleh karena itu, string perintah bebas dihapus total, dan seluruh aksi sistem wajib dikonfirmasi manusia `[y/N]`.
++
++### Cara Set Environment Variable Ollama Secara Permanen di Windows
++Konfigurasi diset pada level scope **'User'**:
++```powershell
++[System.Environment]::SetEnvironmentVariable('OLLAMA_MAX_LOADED_MODELS', '1', 'User')
++[System.Environment]::SetEnvironmentVariable('OLLAMA_NUM_PARALLEL', '1', 'User')
++[System.Environment]::SetEnvironmentVariable('OLLAMA_FLASH_ATTENTION', '1', 'User')
++```
++
++---
++
++## 2. Anggaran Context Dinamis (Dynamic Context Budgeting)
++
++Target context runtime adalah **8192 token** (`num_ctx = 8192`). Anggaran dikelola secara **dinamis berbasis pengukuran riil**:
++
++$$\text{Sisa Token} = \text{num\_ctx} - (\text{System Base} + \text{Profile} + \text{Schema Tools} + \text{History Window})$$
++
++* **Perhitungan Token Riil:** Dihitung langsung menggunakan metrik `prompt_eval_count` dari respon Ollama API, diverifikasi dengan estimasi lokal (`estimate_tokens_local`) sebagai batas atas sebelum pengiriman request.
++* **Overhead Statis (~1500–2000 token):**
++  * System Prompt Base: ~250 token (hanya aturan dan perilaku, tanpa fakta diri user).
++  * Profile (`profile.json`): Max 500 token (fakta tentang user dimuat eksklusif dari sini). Ditolak jika over 500 token.
++  * Schema Tools Tetap: ~600–900 token.
++* **Pembagian Sisa Token (Observasi Tool vs Respon Model):**
++  * Observasi tool per aksi: Maksimal 1000 token (dipotong tegas dengan penanda `... [Output dipotong: sisa N baris]`).
++  * Pemangkasan observasi ReAct: Observasi langkah terdahulu dipadatkan otomatis menjadi ringkasan satu baris jika ReAct loop berlanjut.
++  * Batas generasi respon per request: `num_predict = 1024`, dengan per-request HTTP timeout = 60 detik.
++* **Perangkuman History Saat Idle:** [BELUM DIIMPLEMENTASI] (Belum ada kode implementasi peringkasan saat status idle; saat ini riwayat dipangkas FIFO berbasis batas token konteks).
++
++---
++
++## 3. Sistem Memori: Dual Recall (Aktif & Pasif) + Reflector Strict
++
++### A. Recall Aktif Deterministik (Pemicu Leksikal)
++* **Pemicu Regex Word-Boundary:**
++  `\b(kemarin|pernah|ingat|sebelumnya|tadi|waktu itu|remember|earlier)\b`
++* **Query Builder:** Kata pemicu dan stopword percakapan dibuang; query FTS5 menggunakan kata substantif unik dengan operator `OR`.
++* **Grounding Keras:**
++  ```text
++  [Instruksi Wajib]: Jawab berdasarkan hasil pencarian di atas. Jika hasil memuat jawabannya, sampaikan isinya. Jangan menambah saran umum.
++  ```
++
++### B. Recall Pasif Deterministik (Dalam Kalibrasi Ulang)
++Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?"*), FTS5 dijalankan secara pasif dengan **ambang batas Document Frequency (DF)**.
++> **Status Kalibrasi:** Label "DIBEKUKAN" dicabut. Pada kalibrasi awal dev set, aturan DF $\le 5.0\%$ menghasilkan False Positive (FP) 35/40 (87.5%) pada query negatif dan gagal memenuhi gate kriteria 6 (FP rate $\le 10\%$). Recall pasif dibuka kembali untuk kalibrasi ulang multi-kondisi (Korpus Kecil A vs Korpus Realistis B) dan multi-aturan (R1, R2, R3, R4) sebelum benchmark Set 4.
++
++1. **Definisi Token Spesifik vs Umum:**
++   * Token dianggap **Umum** jika Document Frequency di corpus turn lampau $\text{DF} > 5.0\%$. Kata umum tidak boleh memicu recall sendirian.
++   * Token dianggap **Spesifik / Domain** jika $\text{DF} \le 5.0\%$.
++2. **Kondisi Lolos Injeksi (Evaluasi Ulang):**
++   * Diuji pada split 50/50 Dev & Holdout dengan perbandingan aturan R1, R2, R3, dan estimasi R4.
++3. **Format Blok Konteks Latar (Tanpa Grounding Keras):**
++   ```text
++   <untrusted_memory_content source="sqlite_fts5_passive_recall">
++   [Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
++   - User: ...
++   - Assistant: ...
++   </untrusted_memory_content>
++   ```
++4. **Kapasitas Injeksi:** Maksimal 3 cuplikan teratas, maksimal 300 token.
++
++### C. Reflector Daemon & Proposal Queue
++* **Eksklusif Pesan User:** Hanya pesan pengguna yang diekstraksi; respon asisten diabaikan sepenuhnya.
++* **Verifikasi Substring Verbatim (`source_quote`):** Kode Python memeriksa apakah string kutipan benar-benar ada secara verbatim di pesan user. Quote recovery hanya menghasilkan potongan teks asli dari pesan user.
++* **Filter Hipotesis Deterministik:** Usulan yang mengandung kata pengandaian (*seandainya, andaikan, kalau aku jadi, if I were*) ditolak otomatis di kode, sedangkan preferensi legal (*kalau kasih kode, tolong sertakan...*) tetap lolos.
++* **Filter Rahasia Deterministik:** Pola credential (API key, token, private key, password) dibuang otomatis di level kode.
++* **Proposal Queue & CLI `/memory`:**
++  * Usulan tersimpan di `pending_facts.json` (di bawah folder data/memory) hingga disetujui via `/memory approve <id>`.
++  * Daftar perintah CLI lengkap (persis output `/memory help`):
++    - `/memory view`              : Lihat seluruh fakta profil aktif
++    - `/memory pending`           : Lihat antrean usulan fakta baru
++    - `/memory approve <id>`      : Setujui usulan fakta dan simpan ke profil
++    - `/memory reject <id>`       : Tolak usulan fakta
++    - `/memory edit <id> <val>`   : Koreksi nilai usulan fakta sebelum disetujui
++    - `/memory delete <key>`      : Hapus fakta dari profil
++    - `/memory log`               : Lihat riwayat audit perubahan profil
++    - `/memory stats`             : Lihat metrik usulan (diterima, ditolak, diedit, dibuang filter)
++    - `/reflect`                  : Jalankan refleksi manual atas sesi yang belum direfleksi
++
++---
++
++## 4. Definisi Tool Berargumen Tetap (Fixed Argument Tools)
++
++String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Seluruh interaksi menggunakan alat berargumen tetap tanpa celah parameter injection:
++
++1. `search_memory(query: str)`:
++   * *Gating Deterministik:* Hanya dimuat dalam schema tools jika pesan mengandung pemicu recall leksikal atau kata kunci pencarian eksplisit (*catatan, riwayat, log obrolan, sesi lampau, memori*).
++2. `read_file(file_path: str)`:
++   * Membaca isi file teks di dalam workspace. Path diisolasi via `Path.resolve()`, direktori sensitif (`.git`, `data/`, `logs/`, credentials) diblokir keras.
++3. `git(action: enum["status", "log", "diff"])`:
++   * Menjalankan perintah Git terdaftar. Memerlukan konfirmasi manual pengguna `[y/N]` yang menampilkan perintah persis sebelum dieksekusi.
++4. `python_version()`:
++   * Menjalankan `python --version`. Memerlukan konfirmasi pengguna `[y/N]`.
++5. `run_unittests()`:
++   * Menjalankan `python -m unittest`. Memerlukan konfirmasi pengguna `[y/N]`.
++6. `list_dir(path: Optional[str])`:
++   * Membaca daftar file dan folder di dalam workspace secara aman via Python `Path.iterdir()` (tanpa subprocess shell). Path traversal di luar workspace diblokir keras.
++7. **Audit Log:** Seluruh eksekusi tool dicatat ke `tool_audit.log` (mendukung path injection untuk pengujian).
++
++---
++
++## 5. Keamanan & Kebijakan ReAct Loop
++
++1. **Sanitasi Tag Untrusted Tunggal:**
++   Semua konten eksternal (output tool, file, recall FTS5) dibersihkan menggunakan regex tunggal `sanitize_untrusted_text` untuk melucuti tag pembuka dan penutup `<untrusted_*>` sebelum dibungkus ke dalam prompt.
++2. **Path Traversal Guard:**
++   Semua path file wajib melewati `Path.resolve()` dan divalidasi `is_relative_to(workspace_root)`. UNC path (`\\` atau `//`) diblokir seketika.
++3. **Penolakan Kebijakan (Policy Rejection):**
++   Jika terjadi pelanggaran kebijakan (path traversal ke luar workspace, penolakan konfirmasi `[y/N]` oleh pengguna, pemanggilan tool yang tidak terdaftar, atau loop guard identik berturut-turut), observasi error dicatat dan iterasi ReAct berikutnya dikirim **TANPA TOOLS (`tools=None`)**. Model dipaksa merespons dengan teks penjelasan tanpa opsi memanggil tool lagi.
++4. **Retry Argumen:**
++   Kesalahan validasi argumen hanya diperbolehkan retry maksimal 1 kali. Jika gagal lagi, dianggap sebagai pelanggaran kebijakan (`tools=None`).
++
++---
++
++## 6. Voice Output (TTS) & Zero-Cost Mute
++
++*Voice Input (STT) dan Avatar 3D telah resmi **DIBUANG PERMANEN** untuk menghemat resource dan fokus pada keandalan sistem lokal.*
++
++1. **Zero-Cost Mute:**
++   Status mute dicek sebelum pipeline audio dipanggil. Jika mute aktif: **0 sintesis, 0 thread background, 0 library audio di-load**.
++2. **Evaluasi Suara Nyata Windows (Tahap 4):**
++   * Keputusan akhir suara akan dimulai dari enumerasi daftar suara Indonesia yang benar-benar terdeteksi di Windows pengguna (via Windows OneCore / SAPI5).
++   * Opsi fallback: `edge-tts` (online sekunder).
++3. **Pembatasan Beban CPU:**
++   Proses sintesis dibatasi ke **1–2 core CPU** (thread affinity / `OMP_NUM_THREADS=2`).
++4. **Interupsi Instan:**
++   Input baru dari user di konsol langsung memicu cancel flag dan mengosongkan antrean pemutaran audio seketika.
++
++---
++
++## 7. Status Rangkaian Benchmark & Pengujian
++
++* **Set 1 (Tahap 0 Spike, 30 Prompt):** Status **DEV SET 1**. Akurasi tool-calling 91.11%.
++* **Set 2 (Tahap 3 Dev Set, 20 Prompt x 3 Runs):** Status **DEV SET 2**. Akurasi 81.7%. Menunjukkan keandalan grounding WAL (3/3 pass) dan eliminasi false call `search_memory` via deterministic gating.
++* **Set 3 (Tahap 3 Eks-Ujian, 24 Prompt x 3 Runs):** Status **DEV SET 3 (Eks-Ujian)**. Gagal gate (routing 61.1%, false call shell 22.2%). Menjadi dasar arsitektur fixed argument tools dan kalibrasi recall pasif.
++* **Set 4R (Regresi Tahap 3, 10 Prompt x 3 Runs):** Status **REGRESSION SET (TIDAK IKUT GATE)**. Menguji 10 prompt bermasalah dari Set 3 (false call shell lama, timeout) untuk membuktikan tidak adanya regresi.
++* **Set 4A (Ujian Akhir, 30 Prompt x 3 Runs):** Status **UJIAN AKHIR (MENENTUKAN GATE)**.
++
++### Kriteria Kelulusan Set 4A (Ditulis Di Muka Sebelum Run):
++1. **Routing Positif:** $\ge 90.0\%$ (dihitung per prompt unik $n$ dan per run)
++2. **False Call Negatif:** $\le 10.0\%$ (termasuk yang diblokir sandbox, prompt konfirmasi dilaporkan terpisah)
++3. **Fidelity Jawaban:** $\ge 85.0\%$ dari run yang memanggil tool yang benar
++4. **Total Timeout:** $= 0$
++5. **Argumen Invalid:** $= 0$
++6. **Injeksi Recall Pasif ke Prompt Negatif:** $\le 10.0\%$
++
++### Komposisi 30 Prompt Set 4A:
++* **12 Positif Memori (Recall Pasif):** 6 dari user, 6 buatan asisten.
++* **6 Positif Workspace / Git / Test:** 4 dari user, 2 buatan asisten.
++* **12 Negatif Murni (No Tool):** 5 dari user, 7 buatan asisten.
++
++---
++
++## 8. Roadmap Pelaksanaan
++
++### Tahap 1: Core CLI Shell & Context Budgeting (SELESAI - LULUS)
++* Struktur folder di `D:\ENKI\ENKI`.
++* `config.json` (status mute) dan console trace `[Tool call]`, `[Tool result]`, `[Jawaban]`.
++* Prompt assembler dengan dynamic context budgeting dan token truncation.
++* Suite unit test assembler tanpa LLM (4 unit test lulus).
++
++### Tahap 2: Memory Engine & Dual Recall FTS5 (SELESAI - LULUS)
++* Skema SQLite `sessions.db` (tabel sessions, turns, virtual table turns_fts).
++* Recall aktif dengan keyword boundaries dan stopword cleaning.
++* Reflector daemon (eksklusif user turns, verbatim quote recovery, filter hipotesis & filter rahasia).
++* Proposal queue dan perintah CLI `/memory`.
++* Suite unit test memori terisolasi (14 unit test lulus).
++
++### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (DALAM PROSES)
++* Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests`, `list_dir`, `read_file`, `search_memory`.
++* Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya.
++* Kalibrasi Document Frequency (DF $\le 5.0\%$) untuk recall pasif pada corpus realistis (>250 turns).
++* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection (57 unit test terdaftar: 54 lulus, 3 benchmark dilewati saat discovery).
++* Persiapan pengujian Set 4A dan Set 4R.
++
++### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
++* Implementasi zero-cost mute check sebelum audio pipeline.
++* Enumerasi daftar suara Indonesia nyata dari sistem Windows pengguna (OneCore / SAPI5).
++* Komparasi sampel suara langsung di perangkat pengguna.
++* Sentence chunking, thread affinity 1–2 core CPU, dan interupsi instan.
++
++### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
++* Deteksi bounding box window aktif.
++* Komparasi langsung Windows Media OCR vs RapidOCR pada layar VS Code.
++* Integrasi tool `screen_inspect`.
++
++### Tahap 6: Web Tools (`open_url`, `web_fetch`) & Evaluasi Menyeluruh (AKAN DATANG)
++* Implementasi `web_fetch` (trafilatura + requests) dengan sanitasi tag injection.
++* Integrasi `open_url` aman.
++* Pengujian integrasi ujung ke ujung seluruh kapabilitas ENKI.
+diff --git a/docs/plan_v2_2_recovered.md b/docs/plan_v2_2_recovered.md
+new file mode 100644
+index 0000000..b0181d1
+--- /dev/null
++++ b/docs/plan_v2_2_recovered.md
+@@ -0,0 +1,168 @@
++# Rencana Implementasi: ENKI (Local AI Assistant) - v2.2 (Hasil Spike Tahap 0)
++
++ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
++Tahap 0 (Spike) telah **LULUS** dengan akurasi tool-calling **91.11%** (82/90 sukses) dan jejak VRAM riil **2644 MiB pada context 8192 token** (100% GPU di 67.4 tok/s). Folder `D:\ENKI\ENKI\_spike\` tetap dipertahankan sebagai rangkaian uji regresi (*regression test suite*).
++
++---
++
++## 1. Status Model, Runtime Ollama & Kebijakan Hardware
++
++### Hasil Pengukuran Riil Tahap 0 & Status GPU
++* **Versi Ollama:** `v0.33.0`
++* **Model Terpasang & Verifikasi `ollama ps`:**
++  * `qwen2.5:3b` : Terverifikasi **100% GPU** (Ukuran: 2.2 GB, Context: 4096/8192)
++  * `qwen2.5-coder:3b` : Terverifikasi **100% GPU** (Ukuran: 2.2 GB)
++  * Saat switch model, `qwen2.5:3b` otomatis ter-eject dari VRAM berkat kebijakan `OLLAMA_MAX_LOADED_MODELS=1`.
++* **Angka Mentah VRAM (`nvidia-smi`):**
++  * Baseline Idle: **347 MiB** (dari 4096 MiB total)
++  * Inferensi `num_ctx = 4096`: **2496 MiB** (Sisa free: 1467 MiB) @ 70.97 tok/s
++  * Inferensi `num_ctx = 8192`: **2644 MiB** (Sisa free: 1319 MiB) @ 67.43 tok/s
++* **Pengukuran Tambahan (Tahap 1):** Mengukur ulang VRAM saat VS Code dan Browser (Chrome/Edge) sedang terbuka aktif untuk melihat sisa headroom VRAM harian.
++* **Pengukuran Swap Model (Tahap 3):** Mencatat waktu latensi swap `/coder` (unload 3B chat -> load 3B coder).
++
++### Cara Set Environment Variable Ollama Secara Permanen di Windows
++Agar konfigurasi tidak hilang saat restart atau buka terminal baru:
++1. **Via PowerShell (Run as Administrator):**
++   ```powershell
++   [System.Environment]::SetEnvironmentVariable('OLLAMA_MAX_LOADED_MODELS', '1', 'Machine')
++   [System.Environment]::SetEnvironmentVariable('OLLAMA_NUM_PARALLEL', '1', 'Machine')
++   [System.Environment]::SetEnvironmentVariable('OLLAMA_FLASH_ATTENTION', '1', 'Machine')
++   ```
++2. **Via GUI Windows:**
++   * Buka *Start Menu* -> ketik *Environment Variables* -> pilih *Edit the system environment variables*.
++   * Klik tombol *Environment Variables...* -> pada bagian *System variables*, klik *New...* dan tambahkan ketiga key-value di atas.
++   * Restart aplikasi Ollama / service agar variabel terbaca permanen.
++
++---
++
++## 2. Anggaran Context Eksplisit (Context Budgeting)
++
++Context target utama adalah **8192 token** (telah terbukti stabil di VRAM 2.6 GB):
++
++| Komponen Context | Alokasi Token | Keterangan & Kebijakan Truncation |
++| :--- | :--- | :--- |
++| **System Prompt Base** | ~250 token | Statis, di awal prompt (prefix cache). |
++| **Profile (`profile.json`)** | Max 500 token | Statis, di awal prompt (prefix cache). Ditolak jika over 500 token. |
++| **Schema 6 Tools Native** | ~800–1200 token | Definisi JSON schema tools untuk Ollama function calling. |
++| **Riwayat Chat (History)** | ~1500–2000 token | Sliding window turn aktif. |
++| **Tool Output (Per Aksi)** | **Max 1000 token** | Dipotong tegas: `"... [Output dipotong: sisa N baris]"`. |
++| **Total Observasi Per Turn** | **Max 2000 token** | Akumulasi observasi multi-step ReAct dibatasi 2000 token. Observasi langkah lama dipangkas otomatis jika melampaui batas. |
++| **Slack / Output Generation** | ~2000–3000 token | Ruang aman untuk ReAct loop & generasi respon. |
++| **Total `num_ctx`** | **8192 token** | Diset eksplisit di setiap request payload ke Ollama. |
++
++*Perangkuman riwayat chat dijalankan saat **IDLE**, bukan di tengah giliran percakapan.*
++
++---
++
++## 3. Sistem Belajar & Memori Deterministik (Anti-Gagal)
++
++Berdasarkan temuan Tahap 0 (model 3B gagal memanggil tool memori saat user bertanya implisit seperti *"kamu ingat solusinya apa?"*), sistem memori diperkuat dengan pendekatan deterministik berlapis:
++
++### A. Recall Otomatis Deterministik (Intersepsi Kode)
++* **Pemicu Kata Kunci Leksikal:**
++  Jika pesan user mengandung salah satu pemicu:  
++  `["kemarin", "pernah", "ingat", "sebelumnya", "tadi", "waktu itu", "remember", "earlier"]`
++* **Mekanisme:**
++  Kode Python **langsung menjalankan pencarian SQLite FTS5** di `sessions.db` dan menyuntikkan top 2–3 cuplikan percakapan masa lalu ke dalam prompt turn tersebut **secara otomatis tanpa menunggu LLM memanggil tool**.
++* **Tool `search_memory(query)` Tetap Tersedia:**
++  Berfungsi sebagai cadangan jika user memberikan instruksi eksplisit pencarian topik yang tidak terjangkau kata pemicu otomatis.
++
++### B. Reflector Daemon (Pembelajaran Terstruktur)
++* **Hanya Ekstraksi Pesan User:** Respon ENKI diabaikan; fakta baru hanya bersumber dari ketikan user.
++* **Validasi Substring Kode (`source_quote`):** Kode Python memeriksa apakah string kutipan benar-benar ada di pesan user. Jika tidak cocok 100% verbatim, usulan langsung **dibuang otomatis**.
++* **Constrained Decoding Murni:** Menggunakan parameter `format` Pydantic (tanpa parameter `tools`, sesuai temuan kompatibilitas Tahap 0).
++* **Key-Based Upsert & Deduplikasi:** Fakta yang cocok dengan key lama diperbarui, bukan ditumpuk.
++* **Proposal Queue:** Tersimpan di `pending_proposals.json` sampai disetujui via `/memory approve <id>`.
++
++### C. Pengujian Memori Deterministik
++1. **Unit Test Perakitan Prompt (Tanpa LLM):** Memastikan fakta dari `profile.json` dan hasil recall FTS5 selalu hadir dalam teks prompt hasil rakitan.
++2. **Integration Test Token Unik Lintas Sesi:** Inject fakta unik (`TOKEN_PROYEK_XYZ99`) -> simpan & approve -> buka sesi bersih -> assert kemunculan token di respons teks.
++
++---
++
++## 4. Definisi & Perbedaan 6 Tools Native (Menghilangkan Ambiguitas)
++
++Pada pengujian Spike prompt ID 26 (*"periksa apa saja dependency di requirements.txt"*), model sempat bingung antara membaca file atau menjalankan perintah shell. Deskripsi 6 tools diperjelas secara tegas:
++
++1. `search_memory(query: str)`:
++   * *Deskripsi:* Cari catatan atau riwayat obrolan masa lalu di database memori (FTS5). Gunakan jika informasi yang dicari berada di percakapan lampau.
++2. `screen_inspect(target: str)`:
++   * *Deskripsi:* Tangkap dan baca teks yang sedang tampil di layar/window aktif menggunakan OCR.
++3. `web_fetch(url: str)`:
++   * *Deskripsi:* Ambil dan ekstrak konten teks utama dari URL web/artikel.
++4. `open_url(url: str)`:
++   * *Deskripsi:* Buka URL di browser peramban default pengguna.
++5. `read_file(file_path: str)`:
++   * *Deskripsi:* **Gunakan HANYA untuk membaca/melihat isi teks file dokumen atau kode program** (misalnya .py, .json, .txt, .md, requirements.txt). **JANGAN gunakan untuk mengeksekusi script atau menjalankan instalasi.**
++6. `run_shell_command(command: str)`:
++   * *Deskripsi:* **Gunakan HANYA untuk mengeksekusi perintah terminal/shell** (misalnya git, pytest, dir, python script.py, pip install). **JANGAN gunakan hanya untuk sekadar membaca isi file teks (gunakan read_file).**
++
++---
++
++## 5. Keamanan & Sandboxing (Pertahanan Prompt Injection)
++
++1. **Sanitasi Closing Tag:**
++   Kode Python membuang/escape semua string penutup `</untrusted_external_content>` dari teks OCR layar dan web sebelum disuntikkan ke prompt.
++2. **Pengakuan Batas Model 3B:**
++   Model 3B tidak bisa diandalkan kebal jailbreak/injection. Pertahanan utama adalah **konfirmasi manual `[Y/n]` untuk semua aksi tulis/modifikasi file dan eksekusi shell**.
++3. **Path Traversal Guard:**
++   Semua path file wajib melewati `os.path.resolve()` dan divalidasi berada dalam root workspace yang diizinkan.
++4. **Shell Allowlist:**
++   Perintah shell dibatasi pada daftar aman yang terdaftar.
++
++---
++
++## 6. Voice Output (TTS) & Zero-Cost Mute
++
++*Voice Input (STT) telah resmi **DIBUANG PERMANEN**.*
++
++1. **Zero-Cost Mute:**
++   Status mute dicek sebelum pipeline audio dipanggil. Jika mute: **0 sintesis, 0 thread, 0 library audio**.
++2. **Evaluasi Suara Nyata Windows di Tahap 4:**
++   * Keputusan akhir suara **akan dimulai dari enumerasi daftar suara Indonesia yang benar-benar terdeteksi di Windows pengguna** (via Windows OneCore / SAPI5), tidak mengasumsikan nama suara.
++   * `edge-tts` disiapkan sebagai opsi online sekunder jika diinginkan suara neural cloud.
++3. **Pembatasan Beban CPU:**
++   Proses sintesis dibatasi ke **1–2 core CPU** (menggunakan setelan thread affinity / `OMP_NUM_THREADS=2`).
++4. **Interupsi Instan:**
++   Input baru dari user langsung memicu cancel flag dan mengosongkan antrean audio.
++
++---
++
++## 7. Roadmap Pelaksanaan
++
++### Tahap 1: Core CLI Shell & Context Budgeting
++* Setup folder di `D:\ENKI\ENKI`.
++* Implementasi `config.json` (termasuk status mute) dan console CLI transparan (hanya `[Tool call]`, `[Tool result]`, `[Jawaban]`).
++* Implementasi prompt assembler dengan prefix caching, pemotongan hard limit tool output (1000 token), dan batas total observasi (2000 token).
++* Ukur ulang baseline VRAM saat VS Code dan browser sedang terbuka aktif.
++
++### Tahap 2: Memory Engine (FTS5 + Recall Deterministik + Reflector Strict)
++* SQLite logging di `sessions.db`.
++* **Implementasi Recall Otomatis Deterministik:** Intersepsi keyword (*kemarin, pernah, ingat*, dll) langsung menarik top 2–3 cuplikan FTS5 ke prompt.
++* Implementasi fallback tool `search_memory(query)`.
++* Reflector daemon (hanya pesan user, verifikasi verbatim `source_quote`, key-based upsert, skema `format` Pydantic).
++* Proposal queue (`/memory pending`, `/memory approve <id>`).
++* Unit test assembler (tanpa LLM) & integration test token unik lintas sesi.
++
++### Tahap 3: ReAct Loop, Multi-Turn Benchmark & Model Switcher
++* Loop ReAct terkontrol (maks 5 iterasi, temperature 0.2, error feedback jika argumen salah).
++* **Multi-Turn Benchmark Set Kedua:**
++  * Menyiapkan 15–20 prompt BARU (termasuk 10–15 prompt dengan gaya bahasa santai/berantakan seperti orang ngetik sungguhan dengan singkatan & typo).
++  * Pengujian alur multi-turn: `User input -> Tool call -> Tool execution -> Observasi kembali ke LLM -> Respon akhir`.
++* Integrasi perintah switch model `/coder` (unload 3B chat, load 3B coder) dan catat waktu swap.
++* Sandbox keamanan: `path.resolve()` workspace lock, shell allowlist, konfirmasi manual `[Y/n]`.
++
++### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute
++* Implementasi zero-cost mute check.
++* Enumerasi daftar suara Indonesia riil dari Windows pengguna (OneCore/SAPI5).
++* Perdengarkan dan bandingkan sampel suara.
++* Sentence chunking, thread affinity 1–2 core, dan interupsi instan.
++
++### Tahap 5: Screen Reader (OCR Bounding Box)
++* Deteksi active window bounding box.
++* Komparasi langsung Windows Media OCR vs RapidOCR pada layar VS Code.
++* Integrasi tool `screen_inspect`.
++
++### Tahap 6: Web Tools (`open_url`, `web_fetch`) & Evaluasi Menyeluruh
++* Implementasi `web_fetch` (trafilatura + requests) dengan sanitasi tag injection.
++* Pengujian end-to-end seluruh kapabilitas ENKI.
 diff --git a/enki/cli/console.py b/enki/cli/console.py
 index d929d9a..31949fb 100644
 --- a/enki/cli/console.py
@@ -56,6 +899,161 @@ index d929d9a..31949fb 100644
  
              # 3. Assembler Prompt & Pre-flight check
              self.assembler.profile = self.profile_mgr.get_profile_text()
+diff --git a/enki/core/ollama_client.py b/enki/core/ollama_client.py
+index 66f25c0..a27bab1 100644
+--- a/enki/core/ollama_client.py
++++ b/enki/core/ollama_client.py
+@@ -1,11 +1,19 @@
+ import json
++import time
+ import urllib.request
+ import urllib.error
+ from typing import Dict, Any, List, Optional, Generator, Tuple
+ 
+ class OllamaClient:
+-    def __init__(self, base_url: str = "http://127.0.0.1:11434"):
++    def __init__(
++        self,
++        base_url: str = "http://127.0.0.1:11434",
++        default_timeout: float = 60.0,
++        default_num_predict: int = 1024
++    ):
+         self.base_url = base_url.rstrip("/")
++        self.default_timeout = default_timeout
++        self.default_num_predict = default_num_predict
+ 
+     def is_ready(self) -> bool:
+         """Memeriksa apakah server Ollama aktif dan merespon."""
+@@ -22,16 +30,22 @@ class OllamaClient:
+         messages: List[Dict[str, str]],
+         num_ctx: int = 8192,
+         temperature: float = 0.2,
+-        tools: Optional[List[Dict[str, Any]]] = None
++        tools: Optional[List[Dict[str, Any]]] = None,
++        num_predict: Optional[int] = None,
++        request_timeout: Optional[float] = None
+     ) -> Dict[str, Any]:
+         """Mengirim request chat non-streaming ke Ollama."""
++        timeout_val = request_timeout if request_timeout is not None else self.default_timeout
++        num_pred_val = num_predict if num_predict is not None else self.default_num_predict
++
+         payload: Dict[str, Any] = {
+             "model": model,
+             "messages": messages,
+             "stream": False,
+             "options": {
+                 "num_ctx": num_ctx,
+-                "temperature": temperature
++                "temperature": temperature,
++                "num_predict": num_pred_val
+             }
+         }
+         if tools:
+@@ -44,12 +58,14 @@ class OllamaClient:
+         )
+ 
+         try:
+-            with urllib.request.urlopen(req, timeout=120) as resp:
++            with urllib.request.urlopen(req, timeout=timeout_val) as resp:
+                 data = json.loads(resp.read().decode("utf-8"))
+         except urllib.error.HTTPError as e:
+             err_msg = e.read().decode("utf-8", errors="ignore")
+             raise RuntimeError(f"Ollama HTTP {e.code}: {err_msg}")
+         except Exception as e:
++            if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
++                raise TimeoutError(f"Ollama chat HTTP request timed out after {timeout_val}s: {e}")
+             raise RuntimeError(f"Gagal menghubungi Ollama di {self.base_url}: {e}")
+ 
+         msg = data.get("message", {})
+@@ -57,6 +73,7 @@ class OllamaClient:
+         prompt_eval_duration_sec = data.get("prompt_eval_duration", 0) / 1e9
+         eval_count = data.get("eval_count", 0)
+         eval_duration_sec = data.get("eval_duration", 0) / 1e9
++        load_duration_sec = data.get("load_duration", 0) / 1e9
+ 
+         prompt_tok_per_sec = (prompt_eval_count / prompt_eval_duration_sec) if prompt_eval_duration_sec > 0 else 0.0
+         eval_tok_per_sec = (eval_count / eval_duration_sec) if eval_duration_sec > 0 else 0.0
+@@ -66,6 +83,7 @@ class OllamaClient:
+             "role": msg.get("role", "assistant"),
+             "tool_calls": msg.get("tool_calls"),
+             "metrics": {
++                "load_duration_sec": round(load_duration_sec, 3),
+                 "prompt_eval_count": prompt_eval_count,
+                 "prompt_eval_duration_sec": round(prompt_eval_duration_sec, 3),
+                 "prompt_tok_per_sec": round(prompt_tok_per_sec, 1),
+@@ -82,18 +100,24 @@ class OllamaClient:
+         messages: List[Dict[str, str]],
+         num_ctx: int = 8192,
+         temperature: float = 0.2,
+-        tools: Optional[List[Dict[str, Any]]] = None
++        tools: Optional[List[Dict[str, Any]]] = None,
++        num_predict: Optional[int] = None,
++        request_timeout: Optional[float] = None
+     ) -> Generator[Tuple[str, Optional[Dict[str, Any]]], None, None]:
+         """Streaming chat completion dari Ollama.
+         Yields (token_text, final_metrics_dict). Pada token terakhir final_metrics_dict terisi.
+         """
++        timeout_val = request_timeout if request_timeout is not None else self.default_timeout
++        num_pred_val = num_predict if num_predict is not None else self.default_num_predict
++
+         payload: Dict[str, Any] = {
+             "model": model,
+             "messages": messages,
+             "stream": True,
+             "options": {
+                 "num_ctx": num_ctx,
+-                "temperature": temperature
++                "temperature": temperature,
++                "num_predict": num_pred_val
+             }
+         }
+         if tools:
+@@ -105,8 +129,11 @@ class OllamaClient:
+             headers={"Content-Type": "application/json"}
+         )
+ 
++        t_start = time.time()
++        time_to_first_token = None
++
+         try:
+-            with urllib.request.urlopen(req, timeout=120) as resp:
++            with urllib.request.urlopen(req, timeout=timeout_val) as resp:
+                 tool_calls = []
+                 for line in resp:
+                     line = line.strip()
+@@ -115,6 +142,10 @@ class OllamaClient:
+                     chunk = json.loads(line.decode("utf-8"))
+                     msg = chunk.get("message", {})
+                     token = msg.get("content", "")
++
++                    if time_to_first_token is None and (token or msg.get("tool_calls")):
++                        time_to_first_token = time.time() - t_start
++
+                     if msg.get("tool_calls"):
+                         tool_calls.extend(msg.get("tool_calls"))
+ 
+@@ -122,11 +153,14 @@ class OllamaClient:
+                         if token:
+                             yield token, None
+                     else:
++                        load_dur = chunk.get("load_duration", 0) / 1e9
+                         prompt_eval = chunk.get("prompt_eval_count", 0)
+                         prompt_eval_dur = chunk.get("prompt_eval_duration", 0) / 1e9
+                         eval_c = chunk.get("eval_count", 0)
+                         eval_dur = chunk.get("eval_duration", 0) / 1e9
+                         metrics = {
++                            "load_duration_sec": round(load_dur, 3),
++                            "time_to_first_token_sec": round(time_to_first_token, 3) if time_to_first_token is not None else None,
+                             "prompt_eval_count": prompt_eval,
+                             "prompt_eval_duration_sec": round(prompt_eval_dur, 3),
+                             "prompt_tok_per_sec": round(prompt_eval / prompt_eval_dur, 1) if prompt_eval_dur > 0 else 0.0,
+@@ -141,4 +175,6 @@ class OllamaClient:
+             err_msg = e.read().decode("utf-8", errors="ignore")
+             raise RuntimeError(f"Ollama HTTP {e.code}: {err_msg}")
+         except Exception as e:
++            if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
++                raise TimeoutError(f"Ollama chat_stream HTTP request timed out after {timeout_val}s: {e}")
+             raise RuntimeError(f"Gagal streaming dari Ollama di {self.base_url}: {e}")
 diff --git a/enki/core/prompt_assembler.py b/enki/core/prompt_assembler.py
 index f29f620..f1b27a3 100644
 --- a/enki/core/prompt_assembler.py
@@ -71,10 +1069,10 @@ index f29f620..f1b27a3 100644
  EMPTY_PROFILE = "[PROFIL PENGGUNA - ENKI]\n(Belum ada fakta profil yang tersimpan)"
  
 diff --git a/enki/core/react_loop.py b/enki/core/react_loop.py
-index 1504deb..a421cce 100644
+index 1504deb..1f56e94 100644
 --- a/enki/core/react_loop.py
 +++ b/enki/core/react_loop.py
-@@ -7,63 +7,138 @@ from enki.core.ollama_client import OllamaClient
+@@ -7,63 +7,139 @@ from enki.core.ollama_client import OllamaClient
  from enki.core.prompt_assembler import PromptAssembler, truncate_tool_output, estimate_tokens_local
  from enki.core.sanitizer import wrap_untrusted_content
  from enki.memory.database import MemoryDatabase
@@ -105,6 +1103,7 @@ index 1504deb..a421cce 100644
 +    execute_run_unittests,
 +    execute_list_dir
 +)
++from enki.tools.tool_types import ToolExecutionResult, ToolResultStatus
 +
 +import re
 +
@@ -264,7 +1263,7 @@ index 1504deb..a421cce 100644
  
  class ReActCoordinator:
      def __init__(
-@@ -73,6 +148,7 @@ class ReActCoordinator:
+@@ -73,6 +149,7 @@ class ReActCoordinator:
          workspace_root: Path,
          db: MemoryDatabase,
          confirm_func: Optional[Callable[[str], bool]] = None,
@@ -272,7 +1271,7 @@ index 1504deb..a421cce 100644
          max_iterations: int = 5,
          turn_timeout_sec: int = 120
      ):
-@@ -81,39 +157,75 @@ class ReActCoordinator:
+@@ -81,39 +158,70 @@ class ReActCoordinator:
          self.workspace_root = Path(workspace_root)
          self.db = db
          self.confirm_func = confirm_func
@@ -282,49 +1281,42 @@ index 1504deb..a421cce 100644
  
 -    def execute_tool(self, tool_name: str, args: Dict[str, Any], session_id: str) -> str:
 -        """Mengeksekusi tool dengan validasi argumen ketat."""
-+    def execute_tool(self, tool_name: str, args: Dict[str, Any], session_id: str) -> Tuple[bool, bool, str]:
++    def execute_tool(self, tool_name: str, args: Dict[str, Any], session_id: str) -> ToolExecutionResult:
 +        """Mengeksekusi tool dengan validasi argumen ketat.
-+        Returns: (is_success, is_policy_rejection, result_str)
++        Returns: ToolExecutionResult
 +        """
          if tool_name == "search_memory":
              query = args.get("query")
              if not query or not isinstance(query, str):
 -                return "[Validasi Argumen Gagal] Argumen 'query' (string) wajib disediakan untuk search_memory."
 -            snippets = self.db.search_fts(query.strip(), exclude_session_id=session_id, limit=3)
-+                return False, False, "[Validasi Argumen Gagal] Argumen 'query' (string) wajib disediakan untuk search_memory."
++                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'query' (string) wajib disediakan untuk search_memory.")
 +            fts_query = build_fts_query(query.strip()) or query.strip()
 +            snippets = self.db.search_fts(fts_query, exclude_session_id=session_id, limit=3)
              if not snippets:
 -                return "[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori."
-+                return True, False, "[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori."
++                return ToolExecutionResult(ToolResultStatus.OK, "[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori.")
              res = format_recall_block(snippets, max_tokens=1000)
 -            return res or "[Tool Result: search_memory] Hasil kosong."
-+            return True, False, res or "[Tool Result: search_memory] Hasil kosong."
++            return ToolExecutionResult(ToolResultStatus.OK, res or "[Tool Result: search_memory] Hasil kosong.")
  
          elif tool_name == "read_file":
              file_path = args.get("file_path")
              if not file_path or not isinstance(file_path, str):
 -                return "[Validasi Argumen Gagal] Argumen 'file_path' (string) wajib disediakan untuk read_file."
--            return execute_read_file(file_path.strip(), self.workspace_root)
--
++                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'file_path' (string) wajib disediakan untuk read_file.")
+             return execute_read_file(file_path.strip(), self.workspace_root)
+ 
 -        elif tool_name == "run_shell_command":
 -            cmd = args.get("command")
 -            if not cmd or not isinstance(cmd, str):
 -                return "[Validasi Argumen Gagal] Argumen 'command' (string) wajib disediakan untuk run_shell_command."
 -            return execute_shell_command(
 -                cmd.strip(),
-+                return False, False, "[Validasi Argumen Gagal] Argumen 'file_path' (string) wajib disediakan untuk read_file."
-+            res = execute_read_file(file_path.strip(), self.workspace_root)
-+            if "[Akses Ditolak]" in res:
-+                return False, True, res
-+            if "[Validasi Gagal]" in res:
-+                return False, False, res
-+            return True, False, res
-+
 +        elif tool_name == "git":
 +            action = args.get("action")
 +            if not action or not isinstance(action, str):
-+                return False, False, "[Validasi Argumen Gagal] Argumen 'action' (string enum: 'status', 'log', 'diff') wajib disediakan untuk git."
++                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'action' (string enum: 'status', 'log', 'diff') wajib disediakan untuk git.")
 +            return execute_git_command(
 +                action=action.strip(),
                  workspace_root=self.workspace_root,
@@ -353,18 +1345,18 @@ index 1504deb..a421cce 100644
 +        elif tool_name == "list_dir":
 +            path = args.get("path", ".")
 +            if path is not None and not isinstance(path, str):
-+                return False, False, "[Validasi Argumen Gagal] Argumen 'path' harus berupa string."
++                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'path' harus berupa string.")
 +            return execute_list_dir(
 +                rel_path=path,
 +                workspace_root=self.workspace_root,
 +                audit_log_path=self.audit_log_path
 +            )
 +
-+        return False, True, f"[Kebijakan Ditolak] Tool '{tool_name}' tidak terdaftar."
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Tool '{tool_name}' tidak terdaftar.")
  
      def compress_old_observations(self, messages: List[Dict[str, str]], keep_latest: int = 1) -> List[Dict[str, str]]:
          """Memadatkan observasi tool lama menjadi ringkasan satu baris jika anggaran context menipis."""
-@@ -147,7 +259,9 @@ class ReActCoordinator:
+@@ -147,7 +255,9 @@ class ReActCoordinator:
          trace_callback: Optional[Callable[[str, str], None]] = None
      ) -> Generator[Tuple[str, Optional[Dict[str, Any]]], None, None]:
          """Menjalankan siklus ReAct multi-step hingga balasan final streaming.
@@ -375,7 +1367,7 @@ index 1504deb..a421cce 100644
          """
          start_time = time.time()
  
-@@ -160,21 +274,28 @@ class ReActCoordinator:
+@@ -160,21 +270,28 @@ class ReActCoordinator:
          )
  
          last_call_signature = None
@@ -407,7 +1399,7 @@ index 1504deb..a421cce 100644
              )
  
              tool_calls = chat_res.get("tool_calls")
-@@ -185,8 +306,6 @@ class ReActCoordinator:
+@@ -185,8 +302,6 @@ class ReActCoordinator:
                  yield assistant_text, chat_res.get("metrics")
                  return
  
@@ -416,7 +1408,7 @@ index 1504deb..a421cce 100644
              asst_msg = {
                  "role": "assistant",
                  "content": chat_res.get("content") or "",
-@@ -197,17 +316,16 @@ class ReActCoordinator:
+@@ -197,17 +312,16 @@ class ReActCoordinator:
              for tc in tool_calls:
                  fn = tc.get("function", {})
                  name = fn.get("name", "")
@@ -437,7 +1429,7 @@ index 1504deb..a421cce 100644
                  call_sig = (name, json.dumps(args, sort_keys=True))
                  if call_sig == last_call_signature:
                      guard_msg = f"[Loop Guard] Tool '{name}' dengan argumen yang sama dipanggil 2 kali berturut-turut. Dibatalkan."
-@@ -215,6 +333,7 @@ class ReActCoordinator:
+@@ -215,6 +329,7 @@ class ReActCoordinator:
                          trace_callback("tool_call", f"{name}({json.dumps(args)})")
                          trace_callback("tool_result", guard_msg)
                      current_messages.append({"role": "tool", "content": guard_msg})
@@ -445,20 +1437,22 @@ index 1504deb..a421cce 100644
                      break
  
                  last_call_signature = call_sig
-@@ -223,22 +342,28 @@ class ReActCoordinator:
+@@ -223,22 +338,30 @@ class ReActCoordinator:
                      trace_callback("tool_call", f"{name}({json.dumps(args)})")
  
                  # Eksekusi tool
 -                tool_output = self.execute_tool(name, args, session_id=session_id)
-+                is_success, is_policy_rejection, tool_output = self.execute_tool(name, args, session_id=session_id)
++                tool_res = self.execute_tool(name, args, session_id=session_id)
 +
-+                if is_policy_rejection:
++                if tool_res.is_policy_rejection:
 +                    had_policy_rejection = True
-+                elif not is_success:
++                elif not tool_res.is_success:
 +                    # Validasi argumen gagal: maksimal 1 kali retry
 +                    arg_retry_count += 1
 +                    if arg_retry_count > 1:
 +                        had_policy_rejection = True
++
++                tool_output = tool_res.output
  
                  if trace_callback:
                      output_preview = tool_output[:120].replace("\n", " ")
@@ -478,8 +1472,31 @@ index 1504deb..a421cce 100644
          if trace_callback:
              trace_callback("max_iterations", f"Mencapai batas maksimal {self.max_iterations} iterasi. Menghasilkan jawaban penutup.")
  
+diff --git a/enki/memory/database.py b/enki/memory/database.py
+index 9c5feba..04fcad0 100644
+--- a/enki/memory/database.py
++++ b/enki/memory/database.py
+@@ -119,5 +119,18 @@ class MemoryDatabase:
+             # Jika query syntax invalid di FTS5, kembalikan list kosong
+             return []
+ 
++    def get_term_turn_frequency(self, term: str) -> float:
++        """Menghitung persentase Document Frequency (DF %) sebuah term dalam tabel turns_fts."""
++        try:
++            cur_total = self.conn.execute("SELECT count(*) as c FROM turns WHERE role in ('user', 'assistant')")
++            total = cur_total.fetchone()["c"]
++            if total == 0:
++                return 0.0
++            cur_match = self.conn.execute("SELECT count(*) as c FROM turns_fts WHERE turns_fts MATCH ?", (f'"{term}"',))
++            matches = cur_match.fetchone()["c"]
++            return (matches / total) * 100.0
++        except Exception:
++            return 0.0
++
+     def close(self):
+         self.conn.close()
 diff --git a/enki/memory/recall.py b/enki/memory/recall.py
-index b45cb52..3fd9570 100644
+index b45cb52..42c797e 100644
 --- a/enki/memory/recall.py
 +++ b/enki/memory/recall.py
 @@ -1,6 +1,7 @@
@@ -586,19 +1603,35 @@ index b45cb52..3fd9570 100644
      if estimate_tokens_local(formatted) > max_tokens:
          char_limit = int(max_tokens * 2.8)
          truncated_body = formatted[:char_limit].rstrip()
-@@ -75,3 +102,33 @@ def format_recall_block(snippets: List[Dict[str, Any]], max_tokens: int = 300) -
+@@ -75,3 +102,50 @@ def format_recall_block(snippets: List[Dict[str, Any]], max_tokens: int = 300) -
          return truncated_body
  
      return formatted
 +
-+def execute_passive_recall(user_text: str, db: Any, current_session_id: str, max_tokens: int = 300) -> Optional[str]:
-+    """Mengeksekusi recall pasif dengan ambang batas ketat deterministik:
-+    - Minimal 2 kata substantif berbeda cocok dalam turn yang sama, ATAU
-+    - 1 kata cocok jika kata itu adalah kata langka (panjang >= 7 karakter).
++PASSIVE_CONTEXT_MARKERS_REGEX = re.compile(
++    r'\b(kita|kami|kemarin|pernah|dulu|waktu\s+itu|tim\s+kita|proyek\s+kita|proyekku|task-?ku|repo-?ku)\b',
++    re.IGNORECASE
++)
++
++def execute_passive_recall(
++    user_text: str,
++    db: Any,
++    current_session_id: str,
++    max_tokens: int = 300,
++    df_threshold_pct: float = 5.0
++) -> Optional[str]:
++    """Mengeksekusi recall pasif dengan Aturan R3 terkalibrasi (Holdout Recall 100%, FP Rate 0%):
++    - Wajib memiliki penanda konteks percakapan lampau ('kita', 'kami', 'kemarin', 'pernah', 'dulu', 'waktu itu')
++      ATAU penanda kepemilikan pengguna ('proyekku', 'task-ku', 'repo-ku', 'tim kita', 'proyek kita').
++    - Menghilangkan klausul 1-token unik yang memicu 87.5% FP pada dev set lama.
++    - Kandidat turn wajib mencocokkan minimal 2 token substantif berbeda dalam turn yang sama.
 +    - Maksimal 3 cuplikan teratas, maksimal ~300 token.
 +    """
++    if not bool(PASSIVE_CONTEXT_MARKERS_REGEX.search(user_text)):
++        return None
++
 +    tokens = extract_substantive_tokens(user_text)
-+    if not tokens:
++    if len(tokens) < 2:
 +        return None
 +
 +    fts_query = " OR ".join(f'"{t}"' for t in tokens)
@@ -609,22 +1642,166 @@ index b45cb52..3fd9570 100644
 +    qualifying_snippets = []
 +    for snip in candidates:
 +        content_lower = snip.get("content", "").lower()
-+        matched = {t for t in tokens if re.search(r'\b' + re.escape(t), content_lower)}
-+        is_rare_word = any(len(t) >= 7 for t in matched)
++        matched = {t for t in tokens if re.search(r'\b' + re.escape(t) + r'\b', content_lower)}
++        if not matched:
++            continue
 +
-+        # Ambang batas evaluasi
-+        if len(matched) >= 2 or (len(matched) == 1 and is_rare_word):
++        # Ambang batas evaluasi R3: Minimal 2 token cocok
++        if len(matched) >= 2:
 +            qualifying_snippets.append(snip)
 +
 +    if not qualifying_snippets:
 +        return None
 +
 +    return format_passive_recall_block(qualifying_snippets[:3], max_tokens=max_tokens)
+diff --git a/enki/tools/file_tools.py b/enki/tools/file_tools.py
+index 0d118f7..2975b8b 100644
+--- a/enki/tools/file_tools.py
++++ b/enki/tools/file_tools.py
+@@ -24,20 +24,36 @@ BLOCKED_DIR_PARTS = [
+ 
+ MAX_FILE_BYTES = 500_000  # 500 KB
+ 
++from enki.tools.tool_types import ToolExecutionResult, ToolResultStatus
++
++class PathSafetyResult(tuple):
++    is_safe: bool
++    msg: str
++    target: Optional[Path]
++    status: ToolResultStatus
++
++    def __new__(cls, is_safe: bool, msg: str, target: Optional[Path], status: ToolResultStatus):
++        obj = super().__new__(cls, (is_safe, msg, target))
++        obj.is_safe = is_safe
++        obj.msg = msg
++        obj.target = target
++        obj.status = status
++        return obj
++
+ def is_path_safe_to_read(
+     file_path: str,
+     workspace_root: Path
+-) -> Tuple[bool, str, Optional[Path]]:
++) -> PathSafetyResult:
+     """Memeriksa apakah path file aman dibaca sesuai aturan sandbox keamanan."""
+     if not file_path or not str(file_path).strip():
+-        return False, "Argumen 'file_path' tidak boleh kosong.", None
++        return PathSafetyResult(False, "Argumen 'file_path' tidak boleh kosong.", None, ToolResultStatus.INVALID_ARG)
+ 
+     clean_str = str(file_path).strip()
+     root_resolved = Path(workspace_root).resolve()
+ 
+     # Cegah UNC path secara eksplisit (\\server\share)
+     if clean_str.startswith(r"\\") or clean_str.startswith("//"):
+-        return False, f"[Akses Ditolak] UNC path tidak diizinkan: {clean_str}", None
++        return PathSafetyResult(False, f"[Akses Ditolak] UNC path tidak diizinkan: {clean_str}", None, ToolResultStatus.POLICY_REJECTION)
+ 
+     # Resolve target path
+     p = Path(clean_str)
+@@ -50,62 +66,63 @@ def is_path_safe_to_read(
+     try:
+         real_target = Path(os.path.realpath(target))
+     except Exception as e:
+-        return False, f"[Akses Ditolak] Gagal memverifikasi path riil: {e}", None
++        return PathSafetyResult(False, f"[Akses Ditolak] Gagal memverifikasi path riil: {e}", None, ToolResultStatus.POLICY_REJECTION)
+ 
+     # 1. Wajib is_relative_to workspace root (baik logical maupun realpath)
+     try:
+         if not target.is_relative_to(root_resolved):
+-            return False, f"[Akses Ditolak] Path berada di luar workspace root: {target}", None
++            return PathSafetyResult(False, f"[Akses Ditolak] Path berada di luar workspace root: {target}", None, ToolResultStatus.POLICY_REJECTION)
+         if not real_target.is_relative_to(root_resolved):
+-            return False, f"[Akses Ditolak] Junction/symlink mengarah ke luar workspace: {real_target}", None
++            return PathSafetyResult(False, f"[Akses Ditolak] Junction/symlink mengarah ke luar workspace: {real_target}", None, ToolResultStatus.POLICY_REJECTION)
+     except AttributeError:
+         # Fallback Python < 3.9 (jika ada)
+         if not str(target).startswith(str(root_resolved)) or not str(real_target).startswith(str(root_resolved)):
+-            return False, f"[Akses Ditolak] Path berada di luar workspace root.", None
++            return PathSafetyResult(False, f"[Akses Ditolak] Path berada di luar workspace root.", None, ToolResultStatus.POLICY_REJECTION)
+ 
+     # 2. Blokir file sensitif berdasarkan nama dan pola
+     fname = target.name.lower()
+     for pattern in SENSITIVE_PATTERNS:
+         if fnmatch.fnmatch(fname, pattern.lower()):
+-            return False, f"[Akses Ditolak] File '{fname}' tergolong file sensitif yang dilarang dibaca.", None
++            return PathSafetyResult(False, f"[Akses Ditolak] File '{fname}' tergolong file sensitif yang dilarang dibaca.", None, ToolResultStatus.POLICY_REJECTION)
+ 
+     # 3. Blokir folder terlarang (.git, data/memory, logs)
+     rel_path_str = str(target.relative_to(root_resolved)).replace("\\", "/")
+     rel_parts = rel_path_str.split("/")
+     if ".git" in rel_parts or any(b in rel_path_str for b in ["data/memory", "logs"]):
+-        return False, f"[Akses Ditolak] Mengakses direktori terlindungi (.git, data/memory, logs) dilarang: {rel_path_str}", None
++        return PathSafetyResult(False, f"[Akses Ditolak] Mengakses direktori terlindungi (.git, data/memory, logs) dilarang: {rel_path_str}", None, ToolResultStatus.POLICY_REJECTION)
+ 
+     # 4. Keberadaan file
+     if not target.exists():
+-        return False, f"[File Tidak Ditemukan] File tidak ada di workspace: {clean_str}", None
++        return PathSafetyResult(False, f"[File Tidak Ditemukan] File tidak ada di workspace: {clean_str}", None, ToolResultStatus.INVALID_ARG)
+ 
+     if not target.is_file():
+-        return False, f"[Bukan File] Target adalah direktori, bukan file: {clean_str}", None
++        return PathSafetyResult(False, f"[Bukan File] Target adalah direktori, bukan file: {clean_str}", None, ToolResultStatus.INVALID_ARG)
+ 
+     # 5. Batas ukuran
+     try:
+         st_size = target.stat().st_size
+         if st_size > MAX_FILE_BYTES:
+-            return False, f"[Batas Ukuran] Ukuran file ({st_size} bytes) melebihi batas maksimal ({MAX_FILE_BYTES} bytes).", None
++            return PathSafetyResult(False, f"[Batas Ukuran] Ukuran file ({st_size} bytes) melebihi batas maksimal ({MAX_FILE_BYTES} bytes).", None, ToolResultStatus.INVALID_ARG)
+     except Exception as e:
+-        return False, f"[Error Akses] Gagal memeriksa ukuran file: {e}", None
++        return PathSafetyResult(False, f"[Error Akses] Gagal memeriksa ukuran file: {e}", None, ToolResultStatus.ERROR)
+ 
+-    return True, "Path valid dan aman.", target
++    return PathSafetyResult(True, "Path valid dan aman.", target, ToolResultStatus.OK)
+ 
+-def execute_read_file(file_path: str, workspace_root: Path) -> str:
++def execute_read_file(file_path: str, workspace_root: Path) -> ToolExecutionResult:
+     """Membaca isi file teks di workspace secara aman, membungkus dengan tag untrusted."""
+-    ok, msg, target = is_path_safe_to_read(file_path, workspace_root)
+-    if not ok:
+-        return f"[Tool Error: read_file] {msg}"
++    safety = is_path_safe_to_read(file_path, workspace_root)
++    if not safety.is_safe:
++        return ToolExecutionResult(status=safety.status, output=f"[Tool Error: read_file] {safety.msg}")
++    target = safety.target
+ 
+     try:
+         raw_bytes = target.read_bytes()
+     except Exception as e:
+-        return f"[Tool Error: read_file] Gagal membaca isi file: {e}"
++        return ToolExecutionResult(status=ToolResultStatus.ERROR, output=f"[Tool Error: read_file] Gagal membaca isi file: {e}")
+ 
+     # Cek binary / non-teks
+     if b"\x00" in raw_bytes:
+-        return f"[Tool Error: read_file] File terdeteksi sebagai binary / non-teks dan ditolak."
++        return ToolExecutionResult(status=ToolResultStatus.POLICY_REJECTION, output="[Tool Error: read_file] File terdeteksi sebagai binary / non-teks dan ditolak.")
+ 
+     try:
+         content_text = raw_bytes.decode("utf-8")
+@@ -113,14 +130,15 @@ def execute_read_file(file_path: str, workspace_root: Path) -> str:
+         try:
+             content_text = raw_bytes.decode("latin-1")
+         except Exception:
+-            return f"[Tool Error: read_file] File tidak dapat di-decode sebagai teks."
++            return ToolExecutionResult(status=ToolResultStatus.ERROR, output="[Tool Error: read_file] File tidak dapat di-decode sebagai teks.")
+ 
+     # Potong output tool jika terlalu panjang (~1000 token)
+     truncated = truncate_tool_output(content_text, max_tokens=1000)
+ 
+     # Bungkus hasil ke tag untrusted universal
+-    return wrap_untrusted_content(
++    wrapped = wrap_untrusted_content(
+         truncated,
+         tag_name="untrusted_external_content",
+         source=f"read_file:{target.name}"
+     )
++    return ToolExecutionResult(status=ToolResultStatus.OK, output=wrapped)
 diff --git a/enki/tools/shell_tools.py b/enki/tools/shell_tools.py
-index aa29806..f9071d1 100644
+index aa29806..7ce3ea2 100644
 --- a/enki/tools/shell_tools.py
 +++ b/enki/tools/shell_tools.py
-@@ -1,21 +1,21 @@
+@@ -1,21 +1,22 @@
 -import re
 -import shlex
 +import os
@@ -637,6 +1814,7 @@ index aa29806..f9071d1 100644
  from enki.config import get_data_dir
  from enki.core.sanitizer import wrap_untrusted_content
  from enki.core.prompt_assembler import truncate_tool_output
++from enki.tools.tool_types import ToolExecutionResult, ToolResultStatus
  
 -# Karakter rantai dan injeksi shell yang dilarang keras
 -CHAINING_CHARS_REGEX = re.compile(r'[\&\|\;\<\>\^\%\$\`\r\n]')
@@ -655,7 +1833,7 @@ index aa29806..f9071d1 100644
          now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
          entry = f"[{now_str}] {action.upper()} | status={status} | cmd='{command}' | {detail}\n"
          with open(audit_file, "a", encoding="utf-8") as f:
-@@ -23,60 +23,10 @@ def log_tool_audit(action: str, command: str, status: str, detail: str = ""):
+@@ -23,60 +24,10 @@ def log_tool_audit(action: str, command: str, status: str, detail: str = ""):
      except Exception:
          pass
  
@@ -717,7 +1895,7 @@ index aa29806..f9071d1 100644
      print(f"Perintah: {command_str}")
      print("!" * 60)
      try:
-@@ -85,55 +35,195 @@ def default_cli_confirm(command_str: str) -> bool:
+@@ -85,55 +36,195 @@ def default_cli_confirm(command_str: str) -> bool:
      except (KeyboardInterrupt, EOFError):
          return False
  
@@ -742,14 +1920,14 @@ index aa29806..f9071d1 100644
 -        return f"[Tool Error: run_shell_command] {msg}"
 -
 -    # Konfirmasi manual wajib (default [y/N])
-+) -> Tuple[bool, bool, str]:
++) -> ToolExecutionResult:
 +    """Mengeksekusi perintah git dengan argumen tetap.
-+    Returns: (is_success, is_policy_rejection, result_text)
++    Returns: ToolExecutionResult
 +    """
 +    clean_act = (action or "").strip().lower()
 +    if clean_act not in GIT_VALID_ACTIONS:
 +        log_tool_audit("git", f"git {action}", "BLOCKED", f"Aksi '{action}' di luar enum [status, log, diff]", audit_log_path=audit_log_path)
-+        return False, True, f"[Kebijakan Ditolak] Aksi git '{action}' tidak valid. Hanya diizinkan: 'status', 'log', 'diff'."
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Aksi git '{action}' tidak valid. Hanya diizinkan: 'status', 'log', 'diff'.")
 +
 +    exec_argv = GIT_VALID_ACTIONS[clean_act]
 +    cmd_display = " ".join(exec_argv)
@@ -757,7 +1935,7 @@ index aa29806..f9071d1 100644
 +    confirmer = confirm_func if confirm_func is not None else default_cli_confirm
 +    if not confirmer(cmd_display):
 +        log_tool_audit("git", cmd_display, "REJECTED_USER", "Dibatalkan oleh pengguna.", audit_log_path=audit_log_path)
-+        return False, True, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna."
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna.")
 +
 +    try:
 +        proc = subprocess.run(
@@ -776,13 +1954,13 @@ index aa29806..f9071d1 100644
 +
 +        log_tool_audit("git", cmd_display, "SUCCESS", f"ExitCode={proc.returncode}", audit_log_path=audit_log_path)
 +        truncated = truncate_tool_output(combined, max_tokens=1000)
-+        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display)
++        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display))
 +    except subprocess.TimeoutExpired:
 +        log_tool_audit("git", cmd_display, "TIMEOUT", f"Timeout={timeout_sec}s", audit_log_path=audit_log_path)
-+        return False, False, f"[Tool Error: git] Perintah '{cmd_display}' melebihi batas waktu ({timeout_sec}s)."
++        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: git] Perintah '{cmd_display}' melebihi batas waktu ({timeout_sec}s).")
 +    except Exception as e:
 +        log_tool_audit("git", cmd_display, "ERROR", str(e), audit_log_path=audit_log_path)
-+        return False, False, f"[Tool Error: git] Gagal mengeksekusi: {e}"
++        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: git] Gagal mengeksekusi: {e}")
 +
 +# -------------------------------------------------------------
 +# Tool 2: python_version()
@@ -792,9 +1970,9 @@ index aa29806..f9071d1 100644
 +    confirm_func: Optional[Callable[[str], bool]] = None,
 +    audit_log_path: Optional[Path] = None,
 +    timeout_sec: int = 15
-+) -> Tuple[bool, bool, str]:
++) -> ToolExecutionResult:
 +    """Mengeksekusi python --version dari daftar argumen tetap.
-+    Returns: (is_success, is_policy_rejection, result_text)
++    Returns: ToolExecutionResult
 +    """
 +    cmd_display = "python --version"
 +    exec_argv = ["python", "--version"]
@@ -806,7 +1984,7 @@ index aa29806..f9071d1 100644
 -        return "[Tool Result: run_shell_command] Eksekusi perintah dibatalkan oleh pengguna."
 +    if not confirmer(cmd_display):
 +        log_tool_audit("python_version", cmd_display, "REJECTED_USER", "Dibatalkan oleh pengguna.", audit_log_path=audit_log_path)
-+        return False, True, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna."
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna.")
  
 -    # Eksekusi dengan subprocess tanpa shell=True
      try:
@@ -838,10 +2016,10 @@ index aa29806..f9071d1 100644
 +        combined = (proc.stdout.strip() + " " + proc.stderr.strip()).strip()
 +        log_tool_audit("python_version", cmd_display, "SUCCESS", f"ExitCode={proc.returncode}", audit_log_path=audit_log_path)
 +        truncated = truncate_tool_output(combined, max_tokens=500)
-+        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display)
++        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display))
 +    except Exception as e:
 +        log_tool_audit("python_version", cmd_display, "ERROR", str(e), audit_log_path=audit_log_path)
-+        return False, False, f"[Tool Error: python_version] Gagal mengeksekusi: {e}"
++        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: python_version] Gagal mengeksekusi: {e}")
 +
 +# -------------------------------------------------------------
 +# Tool 3: run_unittests()
@@ -851,9 +2029,9 @@ index aa29806..f9071d1 100644
 +    confirm_func: Optional[Callable[[str], bool]] = None,
 +    audit_log_path: Optional[Path] = None,
 +    timeout_sec: int = 60
-+) -> Tuple[bool, bool, str]:
++) -> ToolExecutionResult:
 +    """Mengeksekusi python -m unittest dari daftar argumen tetap.
-+    Returns: (is_success, is_policy_rejection, result_text)
++    Returns: ToolExecutionResult
 +    """
 +    cmd_display = "python -m unittest"
 +    exec_argv = ["python", "-m", "unittest"]
@@ -861,7 +2039,7 @@ index aa29806..f9071d1 100644
 +    confirmer = confirm_func if confirm_func is not None else default_cli_confirm
 +    if not confirmer(cmd_display):
 +        log_tool_audit("run_unittests", cmd_display, "REJECTED_USER", "Dibatalkan oleh pengguna.", audit_log_path=audit_log_path)
-+        return False, True, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna."
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna.")
 +
 +    try:
 +        proc = subprocess.run(
@@ -877,15 +2055,15 @@ index aa29806..f9071d1 100644
 +            combined += f"\n[stderr]\n{proc.stderr.strip()}"
 +        log_tool_audit("run_unittests", cmd_display, "SUCCESS", f"ExitCode={proc.returncode}", audit_log_path=audit_log_path)
 +        truncated = truncate_tool_output(combined, max_tokens=1000)
-+        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display)
++        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display))
      except subprocess.TimeoutExpired:
 -        log_tool_audit("run_shell_command", command_str, "TIMEOUT", f"Timeout={timeout_sec}s")
 -        return f"[Tool Error: run_shell_command] Perintah melebihi batas waktu ({timeout_sec} detik)."
 +        log_tool_audit("run_unittests", cmd_display, "TIMEOUT", f"Timeout={timeout_sec}s", audit_log_path=audit_log_path)
-+        return False, False, f"[Tool Error: run_unittests] Perintah melebihi batas waktu ({timeout_sec}s)."
++        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: run_unittests] Perintah melebihi batas waktu ({timeout_sec}s).")
 +    except Exception as e:
 +        log_tool_audit("run_unittests", cmd_display, "ERROR", str(e), audit_log_path=audit_log_path)
-+        return False, False, f"[Tool Error: run_unittests] Gagal mengeksekusi: {e}"
++        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: run_unittests] Gagal mengeksekusi: {e}")
 +
 +# -------------------------------------------------------------
 +# Tool 4: list_dir(path: Optional[str])
@@ -894,9 +2072,9 @@ index aa29806..f9071d1 100644
 +    rel_path: Optional[str],
 +    workspace_root: Path,
 +    audit_log_path: Optional[Path] = None
-+) -> Tuple[bool, bool, str]:
++) -> ToolExecutionResult:
 +    """Melihat daftar file dan folder di dalam workspace tanpa subprocess.
-+    Returns: (is_success, is_policy_rejection, result_text)
++    Returns: ToolExecutionResult
 +    """
 +    clean_path = (rel_path or ".").strip()
 +    root_resolved = Path(workspace_root).resolve()
@@ -904,30 +2082,30 @@ index aa29806..f9071d1 100644
 +    # Cegah UNC path
 +    if clean_path.startswith(r"\\") or clean_path.startswith("//"):
 +        log_tool_audit("list_dir", clean_path, "BLOCKED", "UNC path dilarang", audit_log_path=audit_log_path)
-+        return False, True, f"[Kebijakan Ditolak] UNC path tidak diizinkan: {clean_path}"
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] UNC path tidak diizinkan: {clean_path}")
 +
 +    target = (root_resolved / clean_path).resolve()
 +    try:
 +        real_target = Path(os.path.realpath(target))
 +    except Exception as e:
 +        log_tool_audit("list_dir", clean_path, "ERROR", str(e), audit_log_path=audit_log_path)
-+        return False, True, f"[Kebijakan Ditolak] Gagal memverifikasi path: {e}"
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Gagal memverifikasi path: {e}")
 +
 +    # Validasi path traversal
 +    try:
 +        if not target.is_relative_to(root_resolved) or not real_target.is_relative_to(root_resolved):
 +            log_tool_audit("list_dir", clean_path, "BLOCKED", "Traversal di luar workspace", audit_log_path=audit_log_path)
-+            return False, True, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}"
++            return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}")
 +    except Exception:
-+        return False, True, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}"
++        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}")
 +
 +    if not target.exists():
 +        log_tool_audit("list_dir", clean_path, "NOT_FOUND", "Direktori tidak ditemukan", audit_log_path=audit_log_path)
-+        return False, False, f"[Validasi Gagal] Direktori '{clean_path}' tidak ditemukan."
++        return ToolExecutionResult(ToolResultStatus.INVALID_ARG, f"[Validasi Gagal] Direktori '{clean_path}' tidak ditemukan.")
 +
 +    if not target.is_dir():
 +        log_tool_audit("list_dir", clean_path, "NOT_DIR", "Bukan direktori", audit_log_path=audit_log_path)
-+        return False, False, f"[Validasi Gagal] Path '{clean_path}' adalah file, bukan direktori."
++        return ToolExecutionResult(ToolResultStatus.INVALID_ARG, f"[Validasi Gagal] Path '{clean_path}' adalah file, bukan direktori.")
 +
 +    try:
 +        entries = []
@@ -943,12 +2121,370 @@ index aa29806..f9071d1 100644
 +        listing_str = "\n".join(entries) if entries else "(Direktori kosong)"
 +        log_tool_audit("list_dir", clean_path, "SUCCESS", f"{len(entries)} item", audit_log_path=audit_log_path)
 +        truncated = truncate_tool_output(listing_str, max_tokens=1000)
-+        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=f"list_dir:{clean_path}")
++        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=f"list_dir:{clean_path}"))
      except Exception as e:
 -        log_tool_audit("run_shell_command", command_str, "ERROR", str(e))
 -        return f"[Tool Error: run_shell_command] Gagal mengeksekusi: {e}"
 +        log_tool_audit("list_dir", clean_path, "ERROR", str(e), audit_log_path=audit_log_path)
-+        return False, False, f"[Tool Error: list_dir] Gagal membaca direktori: {e}"
++        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: list_dir] Gagal membaca direktori: {e}")
+diff --git a/tests/calibrate_passive_recall.py b/tests/calibrate_passive_recall.py
+new file mode 100644
+index 0000000..eebde89
+--- /dev/null
++++ b/tests/calibrate_passive_recall.py
+@@ -0,0 +1,352 @@
++import os
++import re
++import json
++import sqlite3
++from pathlib import Path
++from typing import List, Dict, Any, Set, Tuple
++
++# Stopwords & Conversational Fillers
++STOPWORDS_AND_TRIGGERS = {
++    # Pemicu
++    "kemarin", "pernah", "ingat", "sebelumnya", "tadi", "waktu", "itu", "remember", "earlier",
++    # Stopword & Kata Tugas Bahasa Indonesia
++    "apa", "yang", "kita", "kamu", "aku", "saya", "dia", "mereka", "dong", "tolong",
++    "ya", "sih", "kan", "lah", "kah", "dan", "di", "ke", "dari", "ini", "ada",
++    "bisa", "mau", "pada", "untuk", "dengan", "apakah", "gimana", "bagaimana",
++    "kenapa", "mengapa", "soal", "tentang", "nggak", "tidak", "kok",
++    "siapa", "kapan", "mana", "dimana", "oleh", "dalam", "yg", "bantu", "cara",
++    "hari", "bikin", "buat", "buatkan", "kasih", "tahu", "cek", "pake", "coba",
++    "jelaskan", "seperti", "kira", "agak", "banget", "aja",
++    # Stopword Bahasa Inggris
++    "what", "the", "is", "are", "you", "we", "i", "a", "an", "in", "on", "at", "to",
++    "for", "of", "with", "about", "did", "do", "does", "have", "has", "had", "how", "why"
++}
++
++def extract_substantive_tokens(user_text: str) -> List[str]:
++    cleaned_chars = re.sub(r'[^\w\s]', ' ', user_text)
++    words = cleaned_chars.split()
++    substantive = []
++    seen = set()
++    for w in words:
++        w_lower = w.lower().strip()
++        if len(w_lower) >= 2 and w_lower not in STOPWORDS_AND_TRIGGERS and w_lower not in seen:
++            substantive.append(w_lower)
++            seen.add(w_lower)
++    return substantive
++
++def setup_calibration_database(db_path: Path) -> sqlite3.Connection:
++    if db_path.exists():
++        db_path.unlink()
++    conn = sqlite3.connect(str(db_path))
++    conn.row_factory = sqlite3.Row
++    with conn:
++        conn.execute("""
++            CREATE TABLE turns (
++                id INTEGER PRIMARY KEY AUTOINCREMENT,
++                session_id TEXT NOT NULL,
++                role TEXT NOT NULL,
++                content TEXT NOT NULL
++            )
++        """)
++        conn.execute("""
++            CREATE VIRTUAL TABLE turns_fts USING fts5(
++                turn_id UNINDEXED,
++                session_id UNINDEXED,
++                role UNINDEXED,
++                content
++            )
++        """)
++    return conn
++
++def insert_turn(conn: sqlite3.Connection, session_id: str, role: str, content: str):
++    with conn:
++        cursor = conn.execute(
++            "INSERT INTO turns (session_id, role, content) VALUES (?, ?, ?)",
++            (session_id, role, content)
++        )
++        turn_id = cursor.lastrowid
++        conn.execute(
++            "INSERT INTO turns_fts (turn_id, session_id, role, content) VALUES (?, ?, ?, ?)",
++            (turn_id, session_id, role, content)
++        )
++
++# 15 Fakta Positif dalam Memori Lama
++POSITIVE_MEMORIES = [
++    ("mem_01", "user", "kita putuskan database utama pakai apa?", "assistant", "Database utama proyek kita adalah SQLite dengan mode WAL dan FTS5 untuk pencarian teks."),
++    ("mem_02", "user", "layanan pembayaran kita tulis pakai bahasa dan framework apa?", "assistant", "Backend service pembayaran kita dibangun dengan Python FastAPI."),
++    ("mem_03", "user", "server staging kita jalan di port berapa?", "assistant", "Kita sepakati server staging berjalan di port 9042."),
++    ("mem_04", "user", "siapa yang jadi tech lead proyek enki?", "assistant", "Tech lead dan ketua tim proyek enki adalah Budi Santoso."),
++    ("mem_05", "user", "cache layer kita pakai apa ya?", "assistant", "Kita memakai Redis sebagai cache memory di port default 6379."),
++    ("mem_06", "user", "otomatisasi deploy server pakai tool apa?", "assistant", "Otomatisasi deployment menggunakan fabfile dengan Python Fabric."),
++    ("mem_07", "user", "framework frontend dashboard apa yang dipakai?", "assistant", "Frontend dashboard kita menggunakan Vue 3 dengan bundling Vite."),
++    ("mem_08", "user", "konfigurasi CI kita pakai apa?", "assistant", "Pipeline CI menggunakan GitHub Actions dengan runner lokal self-hosted."),
++    ("mem_09", "user", "koleksi log server dikumpulkan ke mana?", "assistant", "Log server diagregasi menggunakan Vector dan disimpan di Grafana Loki."),
++    ("mem_10", "user", "modul kompresi performa tinggi ditulis pakai apa?", "assistant", "Modul kompresi data ditulis ulang menggunakan bahasa Rust."),
++    ("mem_11", "user", "antrean message broker pakai apa?", "assistant", "Message broker sistem menggunakan cluster RabbitMQ."),
++    ("mem_12", "user", "terminal multiplexer standar tim apa?", "assistant", "Standar terminal multiplexer tim adalah tmux dengan tmux-resurrect."),
++    ("mem_13", "user", "text editor utama di server staging apa?", "assistant", "Editor default di staging server adalah Vim dengan lazy vim plugin."),
++    ("mem_14", "user", "penyimpanan backup database ditaruh di mana?", "assistant", "Backup database diunggah ke MinIO object storage S3-compatible."),
++    ("mem_15", "user", "reverse proxy dan sertifikat SSL diurus oleh apa?", "assistant", "Reverse proxy gateway menggunakan Caddy server dengan auto-SSL.")
++]
++
++# 15 Prompt Uji Positif
++POSITIVE_PROMPTS = [
++    {"id": "POS_01", "prompt": "apa database utama proyek kita ya?", "expected_key": "sqlite"},
++    {"id": "POS_02", "prompt": "bahasa apa yg kita pake buat backend service pembayaran?", "expected_key": "fastapi"},
++    {"id": "POS_03", "prompt": "port berapa yg kita sepakati buat running server staging?", "expected_key": "9042"},
++    {"id": "POS_04", "prompt": "siapa ketua tim atau lead engineer proyek enki waktu itu?", "expected_key": "budi"},
++    {"id": "POS_05", "prompt": "port dan tipe cache service kita apa kemarin?", "expected_key": "redis"},
++    {"id": "POS_06", "prompt": "alat otomatisasi deploy apa yang kita pilih?", "expected_key": "fabfile"},
++    {"id": "POS_07", "prompt": "frontend web dashboard kita dibangun pakai apa ya?", "expected_key": "vue"},
++    {"id": "POS_08", "prompt": "gimana setup CI pipeline pengujian kita?", "expected_key": "actions"},
++    {"id": "POS_09", "prompt": "service apa yang dipakai buat ngumpulin log sistem?", "expected_key": "loki"},
++    {"id": "POS_10", "prompt": "kita mau rewrite modul kompresi pakai bahasa apa?", "expected_key": "rust"},
++    {"id": "POS_11", "prompt": "message broker internal kita pakai apa ya?", "expected_key": "rabbitmq"},
++    {"id": "POS_12", "prompt": "multiplexer terminal standar tim kita apa?", "expected_key": "tmux"},
++    {"id": "POS_13", "prompt": "editor favorit di server staging apa?", "expected_key": "vim"},
++    {"id": "POS_14", "prompt": "object storage buat nyimpan backup database apa?", "expected_key": "minio"},
++    {"id": "POS_15", "prompt": "reverse proxy gateway web kita pakai apa?", "expected_key": "caddy"}
++]
++
++# 40 Prompt Uji Negatif
++NEGATIVE_PROMPTS = [
++    "halo selamat pagi, gimana kabarmu hari ini?",
++    "siapa pencipta bahasa pemrograman python dan kapan pertama kali dirilis?",
++    "buatkan resep singkat cara bikin nasi goreng kampung yang enak dan gurih",
++    "apa beda framework dan library dalam pemrograman web?",
++    "jelaskan konsep dasar object oriented programming untuk pemula",
++    "bagaimana cara kerja binary search algorithm?",
++    "buatkan fungsi python untuk membalik urutan string",
++    "apa fungsi dari tag html <head> dan perbedaannya dengan <body>?",
++    "gimana tips mengatasi insomnia dan pola tidur yg berantakan?",
++    "kapan bahasa pemrograman C pertama kali diciptakan dan oleh siapa?",
++    "bantu bikinin draf email izin sakit untuk bos kantor besok",
++    "jelaskan perbedaan antara process dan thread dalam sistem operasi",
++    "apa itu big O notation dan kenapa penting dalam analisis algoritma?",
++    "bagaimana cara menghitung luas lingkaran jika diketahui jari-jarinya?",
++    "apa fungsi indeks pada database relasional secara umum?",
++    "jelaskan konsep asynchronous programming dan event loop",
++    "bagaimana cara membuat commit git yang baik dan deskriptif?",
++    "apa perbedaan HTTP dan HTTPS dalam keamanan jaringan?",
++    "tolong buatkan contoh kode loop for dan while di javascript",
++    "apa itu REST API dan apa saja metode HTTP yang paling sering dipakai?",
++    "bagaimana tips produktif bekerja dari rumah secara efektif?",
++    "jelaskan apa itu recursion beserta contoh sederhana fungsi faktorial",
++    "apa perbedaan stack dan queue dalam struktur data?",
++    "bagaimana cara kerja garbage collection di runtime modern?",
++    "apa kegunaan docker container dibanding virtual machine konvensional?",
++    "buatkan template format surat lamaran kerja sederhana",
++    "bagaimana cara kerja DNS resolving di internet?",
++    "apa saja prinsip SOLID dalam perancangan perangkat lunak?",
++    "jelaskan cara kerja hashing function seperti SHA-256",
++    "apa perbedaan SQL dan NoSQL secara konseptual umum?",
++    "bagaimana cara kerja TCP handshake tiga arah?",
++    "apa beda compiler dan interpreter dalam eksekusi kode?",
++    "jelaskan apa yang dimaksud dengan dependency injection",
++    "bagaimana cara merawat laptop agar baterai lebih awet?",
++    "apa keuntungan menggunakan model arsitektur microservices?",
++    "jelaskan konsep closure dalam bahasa pemrograman fungsional",
++    "bagaimana cara mengatasi stres saat beban kerja menumpuk?",
++    "apa itu deadlock dan bagaimana kondisi terjadinya?",
++    "jelaskan apa itu version control system dan sejarah singkatnya",
++    "apa saja jenis join dalam query database SQL relasional?"
++]
++
++def load_real_transcripts_into_corpus(conn: sqlite3.Connection):
++    # 1. 15 Memori Positif
++    for sess, u_role, u_text, a_role, a_text in POSITIVE_MEMORIES:
++        insert_turn(conn, sess, u_role, u_text)
++        insert_turn(conn, sess, a_role, a_text)
++
++    # 2. Transkrip dari suite 26
++    from tests.test_reflector_new_suite import NEW_FIXTURES
++    for item in NEW_FIXTURES:
++        s_id = f"suite26_fix_{item['id']}"
++        for turn_text in item["turns"]:
++            insert_turn(conn, s_id, "user", turn_text)
++
++    # 3. Transkrip dari Set 2
++    set2_path = Path("tests/results/benchmark_set2_raw.jsonl")
++    if set2_path.exists():
++        with open(set2_path, "r", encoding="utf-8") as f:
++            for line in f:
++                d = json.loads(line)
++                s_id = f"set2_run_{d.get('run_idx', 1)}_{d.get('id', '')}"
++                insert_turn(conn, s_id, "user", d.get("prompt_input", ""))
++                if d.get("final_response"):
++                    insert_turn(conn, s_id, "assistant", d.get("final_response"))
++
++    # 4. Transkrip dari Set 3
++    set3_path = Path("tests/results/benchmark_set3_raw.jsonl")
++    if set3_path.exists():
++        with open(set3_path, "r", encoding="utf-8") as f:
++            for line in f:
++                d = json.loads(line)
++                s_id = f"set3_run_{d.get('run_idx', 1)}_{d.get('id', '')}"
++                insert_turn(conn, s_id, "user", d.get("prompt_input", ""))
++                if d.get("final_response"):
++                    insert_turn(conn, s_id, "assistant", d.get("final_response"))
++
++    # 5. Percakapan coding umum tambahan
++    dev_extra = [
++        ("ses_extra_1", "user", "gimana cara install package python pakai pip?"),
++        ("ses_extra_1", "assistant", "Gunakan pip install nama-package di terminal command line."),
++        ("ses_extra_2", "user", "apa kegunaan docker container untuk testing?"),
++        ("ses_extra_2", "assistant", "Memastikan environment test identik dan terisolasi dari host OS."),
++        ("ses_extra_3", "user", "cara mengatasi merge conflict di git bagaimana?"),
++        ("ses_extra_3", "assistant", "Buka editor, pilih perubahan yang benar, stage file lalu git commit."),
++        ("ses_extra_4", "user", "bagaimana struktur project python yang rapi?"),
++        ("ses_extra_4", "assistant", "Pisahkan source code di folder package, test di tests/, dan config di root."),
++        ("ses_extra_5", "user", "apa beda git pull dan git fetch?"),
++        ("ses_extra_5", "assistant", "Git fetch mengunduh commit baru tanpa merge, git pull langsung merge."),
++        ("ses_extra_6", "user", "kenapa virtual environment python penting?"),
++        ("ses_extra_6", "assistant", "Mencegah konflik versi dependency antar project yang berbeda."),
++        ("ses_extra_7", "user", "cara menulis docstring di python seperti apa?"),
++        ("ses_extra_7", "assistant", "Gunakan triple quote tepat di bawah nama fungsi atau class."),
++        ("ses_extra_8", "user", "apa itu linting kode dan kenapa perlu di CI?"),
++        ("ses_extra_8", "assistant", "Linter memeriksa format dan potensi error sebelum kode di-merge."),
++    ]
++    for s_id, r, c in dev_extra:
++        insert_turn(conn, s_id, r, c)
++
++    cursor = conn.execute("SELECT count(*) as c FROM turns")
++    total = cursor.fetchone()["c"]
++    print(f"Total turns di corpus realistis: {total}")
++
++def compute_document_frequencies(conn: sqlite3.Connection) -> Dict[str, float]:
++    cursor = conn.execute("SELECT count(*) as c FROM turns")
++    total_docs = cursor.fetchone()["c"]
++
++    cursor = conn.execute("SELECT content FROM turns")
++    df_counts: Dict[str, int] = {}
++
++    for row in cursor.fetchall():
++        words = set(extract_substantive_tokens(row["content"]))
++        for w in words:
++            df_counts[w] = df_counts.get(w, 0) + 1
++
++    df_pct: Dict[str, float] = {}
++    for w, count in df_counts.items():
++        df_pct[w] = (count / total_docs) * 100.0
++
++    return df_pct
++
++def test_passive_recall_rule(
++    conn: sqlite3.Connection,
++    prompt: str,
++    rule_type: str,
++    df_table: Dict[str, float],
++    df_threshold_pct: float = 10.0
++) -> bool:
++    tokens = extract_substantive_tokens(prompt)
++    if not tokens:
++        return False
++
++    fts_query = " OR ".join(f'"{t}"' for t in tokens)
++    sql = "SELECT content FROM turns_fts WHERE turns_fts MATCH ? LIMIT 5"
++    try:
++        cursor = conn.execute(sql, (fts_query,))
++        candidates = [row["content"] for row in cursor.fetchall()]
++    except Exception:
++        return False
++
++    if not candidates:
++        return False
++
++    for content in candidates:
++        content_lower = content.lower()
++        matched = {t for t in tokens if re.search(r'\b' + re.escape(t) + r'\b', content_lower)}
++        if not matched:
++            continue
++
++        if rule_type == "old_len7":
++            # Aturan lama: minimal 2 kata cocok, ATAU 1 kata jika panjang >= 7
++            is_rare_len = any(len(t) >= 7 for t in matched)
++            if len(matched) >= 2 or (len(matched) == 1 and is_rare_len):
++                return True
++
++        elif rule_type == "new_df_direct":
++            # Pengganti langsung len>=7: jika len(matched)>=2 OR (len(matched)==1 AND df <= X%)
++            # Di mana kata dengan DF > X% dianggap umum
++            specific_tokens = {t for t in matched if df_table.get(t, 0.0) <= df_threshold_pct}
++            if len(matched) >= 2 or (len(matched) == 1 and len(specific_tokens) >= 1):
++                return True
++
++        elif rule_type == "new_df_gated":
++            # Filter ganda: kata umum (DF > X%) tidak boleh memicu recall sendirian maupun berpasangan sesama kata umum.
++            # Wajib ada minimal 1 kata spesifik (DF <= X%), DAN (minimal 2 kata cocok ATAU kata itu sangat spesifik DF <= 1%)
++            specific_tokens = {t for t in matched if df_table.get(t, 0.0) <= df_threshold_pct}
++            very_specific = {t for t in matched if df_table.get(t, 0.0) <= min(df_threshold_pct, 1.5)}
++            if (len(matched) >= 2 and len(specific_tokens) >= 1) or len(very_specific) >= 1:
++                return True
++
++    return False
++
++def main():
++    db_file = Path("tests/calibration_corpus.db")
++    conn = setup_calibration_database(db_file)
++    load_real_transcripts_into_corpus(conn)
++
++    df_table = compute_document_frequencies(conn)
++    cursor = conn.execute("SELECT count(*) as c FROM turns")
++    total_turns = cursor.fetchone()["c"]
++
++    print("\nCONTOH DOCUMENT FREQUENCY (DF) KATA-KATA DALAM CORPUS (Total Turns: %d):" % total_turns)
++    sample_words = [
++        "python", "kode", "git", "file", "database", "sqlite", "fastapi", "vue", "rust",
++        "caddy", "vim", "tmux", "9042", "budi", "redis", "fabfile", "error", "framework",
++        "service", "pembayaran", "staging", "server"
++    ]
++    for w in sample_words:
++        pct = df_table.get(w, 0.0)
++        print(f"  - '{w:<12}': {pct:5.2f}% turn (len={len(w)})")
++
++    # Evaluasi Rules
++    rules_to_test = [
++        ("old_len7", 0.0, "Aturan Lama (Len >= 7)"),
++        ("new_df_direct", 5.0, "Direct DF <= 5%"),
++        ("new_df_direct", 10.0, "Direct DF <= 10%"),
++        ("new_df_direct", 15.0, "Direct DF <= 15%"),
++        ("new_df_direct", 20.0, "Direct DF <= 20%"),
++        ("new_df_gated", 5.0, "Gated DF <= 5%"),
++        ("new_df_gated", 10.0, "Gated DF <= 10%"),
++        ("new_df_gated", 15.0, "Gated DF <= 15%"),
++        ("new_df_gated", 20.0, "Gated DF <= 20%"),
++    ]
++
++    print("\n" + "=" * 90)
++    print("HASIL KALIBRASI RECALL PASIF (40 NEGATIF, 15 POSITIF):")
++    print(f"{'Metode / Threshold':<26} | {'FP Negatif (n=40)':<18} | {'TP Positif (n=15)':<18} | {'Presisi':<10} | {'Recall':<10}")
++    print("-" * 90)
++
++    for rule_code, th_val, label in rules_to_test:
++        fp_count = 0
++        for neg_prompt in NEGATIVE_PROMPTS:
++            triggered = test_passive_recall_rule(conn, neg_prompt, rule_code, df_table, df_threshold_pct=th_val)
++            if triggered:
++                fp_count += 1
++
++        tp_count = 0
++        for pos_item in POSITIVE_PROMPTS:
++            triggered = test_passive_recall_rule(conn, pos_item["prompt"], rule_code, df_table, df_threshold_pct=th_val)
++            if triggered:
++                tp_count += 1
++
++        fp_pct = (fp_count / len(NEGATIVE_PROMPTS)) * 100
++        tp_pct = (tp_count / len(POSITIVE_PROMPTS)) * 100
++
++        precision = (tp_count / (tp_count + fp_count)) * 100 if (tp_count + fp_count) > 0 else 0.0
++        recall = tp_pct
++
++        fp_str = f"{fp_count}/40 ({fp_pct:.1f}%)"
++        tp_str = f"{tp_count}/15 ({tp_pct:.1f}%)"
++        print(f"{label:<26} | {fp_str:<18} | {tp_str:<18} | {precision:5.1f}%    | {recall:5.1f}%")
++
++    print("=" * 90)
++
++    conn.close()
++    if db_file.exists():
++        db_file.unlink()
++
++if __name__ == "__main__":
++    main()
 diff --git a/tests/results/benchmark_set2_raw.jsonl b/tests/results/benchmark_set2_raw.jsonl
 new file mode 100644
 index 0000000..4edcf04
@@ -1051,12 +2587,81 @@ index 0000000..3821f82
 +{"benchmark_set": "set_3_exam", "run_idx": 3, "id": "S3_P22_NEG", "prompt_input": "ada teka-teki: sebuah kereta listrik bergerak ke utara, ke mana arah asapnya?", "tool_calls": [], "tool_observations": [], "final_response": "Teka-teki ini sebenarnya tidak memiliki jawaban yang pasti karena asap tidak memiliki arah. Asap akan bergerak mengejar udara yang lebih dingin, yang biasanya berarti arah asap adalah ke mana udara lebih dingin, bukan ke arah yang spesifik seperti utara. Namun, jika kita mengambil aspek literal dari pertanyaan, jawabannya adalah \"ke utara\" karena kereta listrik bergerak ke utara.", "evaluation": {"routing_ok": true, "valid_args": true, "fidelity_ok": true, "sandbox_status": "NONE", "is_false_call": false, "is_wrong_tool": false, "is_invalid_arg": false, "is_success": true, "is_timeout": false}, "metrics": {"prompt_eval_count": 490, "prompt_eval_duration_sec": 0.029, "prompt_tok_per_sec": 17118.5, "eval_count": 108, "eval_duration_sec": 1.458, "eval_tok_per_sec": 74.1, "total_duration_sec": 1.494}}
 +{"benchmark_set": "set_3_exam", "run_idx": 3, "id": "S3_P23_NEG", "prompt_input": "bantu bikinin draf email izin sakit untuk bos kantor besok", "tool_calls": ["run_shell_command({\"command\": \"echo 'Subject: Izin Sakit - Hari Ini\\n\\nHalo Bos,\\n\\nSaya memiliki keadaan yang tidak memungkinkan saya untuk datang ke kantor besok. Saya berharap Anda dapat memahami situasi ini dan memberikan izin untuk hari tersebut. Terima kasih atas pengertiannya.' | mailto:sekretaris@example.com\"})"], "tool_observations": ["[Shell Output] Command executed: echo 'Subject: Izin Sakit - Hari Ini  Halo Bos,  Saya memiliki keadaan yang tidak memun"], "final_response": "Berikut adalah draft email izin sakit untuk bos kantor besok:\n\n---\n\n**Subject:** Izin Sakit - Hari Ini\n\nHalo Bos,\n\nSaya memiliki keadaan yang tidak memungkinkan saya untuk datang ke kantor besok. Saya berharap Anda dapat memahami situasi ini dan memberikan izin untuk hari tersebut. Terima kasih atas pengertiannya.\n\n---\n\nMohon konfirmasi jika Anda membutuhkan tambahan informasi. Anda bisa menghubungi saya jika Anda membutuhkan lebih banyak detail.", "evaluation": {"routing_ok": false, "valid_args": true, "fidelity_ok": false, "sandbox_status": "ATTEMPTED", "is_false_call": true, "is_wrong_tool": false, "is_invalid_arg": false, "is_success": false, "is_timeout": false}, "metrics": {"prompt_eval_count": 686, "prompt_eval_duration_sec": 0.081, "prompt_tok_per_sec": 8462.4, "eval_count": 120, "eval_duration_sec": 1.62, "eval_tok_per_sec": 74.1, "total_duration_sec": 1.711}}
 +{"benchmark_set": "set_3_exam", "run_idx": 3, "id": "S3_P24_NEG", "prompt_input": "gimana tips mengatasi insomnia dan pola tidur yg berantakan?", "tool_calls": [], "tool_observations": [], "final_response": "", "evaluation": {"routing_ok": true, "valid_args": true, "fidelity_ok": true, "sandbox_status": "NONE", "is_false_call": false, "is_wrong_tool": false, "is_invalid_arg": false, "is_success": true, "is_timeout": true}, "metrics": {}}
+diff --git a/tests/set4_user_prompts.txt b/tests/set4_user_prompts.txt
+new file mode 100644
+index 0000000..94814a5
+--- /dev/null
++++ b/tests/set4_user_prompts.txt
+@@ -0,0 +1,41 @@
++# ==============================================================================
++# ENKI BENCHMARK SET 4A - USER PROMPTS TEMPLATE
++# ==============================================================================
++# Petunjuk Pengisian:
++# 1. Masukkan tepat 15 prompt dari pengguna (6 MEM, 4 WORKSPACE [FILE/GIT/TEST], 5 NEG).
++# 2. Format baris (satu prompt per baris, abaikan baris diawali '#'):
++#    - Untuk NON-MEMORI (NEG / FILE / GIT / TEST):
++#      TIPE | prompt
++#      Contoh:
++#      NEG | jelaskan binary search dan kompleksitas waktunya
++#      FILE | bisa tolong bacakan isi requirements.txt?
++#      GIT | cek status git kita sekarang dong ada perubahan apa
++#      TEST | coba jalankan unit test proyek kita
++#
++#    - Untuk MEMORI (MEM):
++#      MEM | prompt | kalimat memori lama yang diharapkan | nilai kunci
++#      Contoh:
++#      MEM | apa framework web frontend kita ya? | Frontend dashboard kita menggunakan Vue 3 dengan bundling Vite. | vue
++#
++# 3. DAFTAR FILE & FIXTURE YANG TERSEDIA DI WORKSPACE PENGUJIAN:
++#    - README.md (deskripsi proyek)
++#    - requirements.txt (daftar dependencies: fastapi, uvicorn, pydantic, pytest)
++#    - app/main.py (kode aplikasi)
++#    - tests/test_app.py (file unit test, memuat 2 tes)
++#    - Git repo aktif: branch 'feat/enki-core-v2', memiliki 1 uncommitted change di app/main.py
++#
++# PERINGATAN: Runner Set 4 akan GAGAL KERAS (exit non-zero) jika file ini
++# berisi kurang dari 15 baris prompt valid!
++# ==============================================================================
++
++# --- 6 PROMPT MEMORI (MEM) ---
++# Format: MEM | prompt | kalimat memori lama yang diharapkan | nilai kunci
++
++
++# --- 4 PROMPT WORKSPACE (FILE / GIT / TEST) ---
++# Format: TIPE | prompt
++
++
++# --- 5 PROMPT NEGATIF (NEG) ---
++# Format: NEG | prompt
++
+diff --git a/tests/test_file_tools.py b/tests/test_file_tools.py
+index b2dc492..575ee2a 100644
+--- a/tests/test_file_tools.py
++++ b/tests/test_file_tools.py
+@@ -107,5 +107,17 @@ class TestFileToolsSandbox(unittest.TestCase):
+         self.assertFalse(ok)
+         self.assertIn("melebihi batas maksimal", msg)
+ 
++    def test_file_containing_rejection_string_is_not_rejected(self):
++        """File yang isinya mengandung string '[Akses Ditolak]' tidak boleh dianggap sebagai policy rejection."""
++        from enki.tools.tool_types import ToolResultStatus
++        rejection_content_file = self.workspace / "guide.txt"
++        rejection_content_file.write_text("[Akses Ditolak] akan muncul jika token expired.", encoding="utf-8")
++
++        res = execute_read_file("guide.txt", self.workspace)
++        self.assertTrue(res.is_success)
++        self.assertFalse(res.is_policy_rejection)
++        self.assertEqual(res.status, ToolResultStatus.OK)
++        self.assertIn("[Akses Ditolak] akan muncul jika token expired.", res.output)
++
+ if __name__ == "__main__":
+     unittest.main()
 diff --git a/tests/test_isolation_integrity.py b/tests/test_isolation_integrity.py
 new file mode 100644
-index 0000000..dca1e6e
+index 0000000..3f7ad1b
 --- /dev/null
 +++ b/tests/test_isolation_integrity.py
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,93 @@
 +import os
 +import hashlib
 +import unittest
@@ -1096,7 +2701,8 @@ index 0000000..dca1e6e
 +            "tests.test_prompt_injection",
 +            "tests.test_memory_gating",
 +            "tests.test_policy_rejection",
-+            "tests.test_passive_recall"
++            "tests.test_passive_recall",
++            "tests.test_negative_isolation_failure"
 +        ]:
 +            suite.addTests(loader.loadTestsFromName(mod_name))
 +
@@ -1241,6 +2847,61 @@ index 0000000..7f8b723
 +
 +if __name__ == "__main__":
 +    unittest.main()
+diff --git a/tests/test_negative_isolation_failure.py b/tests/test_negative_isolation_failure.py
+new file mode 100644
+index 0000000..104c31d
+--- /dev/null
++++ b/tests/test_negative_isolation_failure.py
+@@ -0,0 +1,49 @@
++import unittest
++import hashlib
++from pathlib import Path
++
++ROOT_DIR = Path(__file__).resolve().parent.parent
++DATA_DIR = ROOT_DIR / "data"
++
++def get_dir_fingerprint(root_dir: Path) -> dict:
++    fingerprint = {}
++    if not root_dir.exists():
++        return fingerprint
++    for path in sorted(root_dir.rglob("*")):
++        if path.is_file():
++            rel = str(path.relative_to(root_dir)).replace("\\", "/")
++            h = hashlib.sha256(path.read_bytes()).hexdigest()
++            fingerprint[rel] = (path.stat().st_size, h)
++    return fingerprint
++
++class TestNegativeIsolationFailure(unittest.TestCase):
++    def test_deliberate_leak_triggers_isolation_failure(self):
++        """Membuktikan bahwa menulis ke data/ asli terdeteksi dan memicu AssertionError pada checker isolasi."""
++        before_data = get_dir_fingerprint(DATA_DIR)
++        leak_file = DATA_DIR / "deliberate_leak_probe.log"
++
++        try:
++            # 1. Sengaja menulis ke data/ asli
++            leak_file.write_text("kebocoran isolasi yang disengaja", encoding="utf-8")
++
++            # 2. Ambil fingerprint setelah kebocoran
++            after_data = get_dir_fingerprint(DATA_DIR)
++            diff_data_added = set(after_data.keys()) - set(before_data.keys())
++
++            # 3. Assert bahwa kebocoran terdeteksi
++            self.assertIn("deliberate_leak_probe.log", diff_data_added)
++
++            # 4. Buktikan bahwa checker isolasi pasti melempar AssertionError jika ada diff
++            with self.assertRaises(AssertionError):
++                self.assertEqual(diff_data_added, set(), f"Kebocoran isolasi terdeteksi di data/: {diff_data_added}")
++        finally:
++            # 5. Bersihkan seketika
++            if leak_file.exists():
++                leak_file.unlink()
++
++        # 6. Pastikan data/ kembali bersih sempurna
++        after_cleanup = get_dir_fingerprint(DATA_DIR)
++        self.assertEqual(before_data, after_cleanup, "Direktori data/ gagal kembali bersih setelah uji negatif.")
++
++if __name__ == "__main__":
++    unittest.main()
 diff --git a/tests/test_passive_recall.py b/tests/test_passive_recall.py
 new file mode 100644
 index 0000000..a923c56
@@ -1329,10 +2990,10 @@ index 0000000..a923c56
 +    unittest.main()
 diff --git a/tests/test_policy_rejection.py b/tests/test_policy_rejection.py
 new file mode 100644
-index 0000000..966581d
+index 0000000..09fb994
 --- /dev/null
 +++ b/tests/test_policy_rejection.py
-@@ -0,0 +1,182 @@
+@@ -0,0 +1,223 @@
 +import unittest
 +import tempfile
 +import shutil
@@ -1511,6 +3172,47 @@ index 0000000..966581d
 +        # Call 3: Retry habis -> WAJIB tanpa tools
 +        self.assertFalse(mock_client.call_history[2]["has_tools"])
 +        self.assertIsNone(mock_client.call_history[2]["tools"])
++
++    def test_reading_file_with_rejection_string_does_not_trigger_policy_rejection(self):
++        """Membaca file sah yang teksnya memuat '[Akses Ditolak]' TIDAK BOLEH memicu policy rejection di ReAct loop."""
++        test_file = self.workspace / "faq.txt"
++        test_file.write_text("[Akses Ditolak] terjadi saat permission 000.", encoding="utf-8")
++
++        step1_response = {
++            "content": "",
++            "tool_calls": [{
++                "function": {
++                    "name": "read_file",
++                    "arguments": json.dumps({"file_path": "faq.txt"})
++                }
++            }]
++        }
++        step2_response = {
++            "content": "Isi FAQ menjelaskan tentang [Akses Ditolak].",
++            "tool_calls": None
++        }
++
++        mock_client = MockOllamaClient([step1_response, step2_response])
++        coordinator = ReActCoordinator(
++            client=mock_client,
++            assembler=self.assembler,
++            workspace_root=self.workspace,
++            db=self.db,
++            max_iterations=5
++        )
++
++        chunks = []
++        for chunk, _ in coordinator.run_react_turn("baca faq.txt", self.session_id, history=[]):
++            if chunk:
++                chunks.append(chunk)
++
++        ans = "".join(chunks)
++        self.assertEqual(ans, "Isi FAQ menjelaskan tentang [Akses Ditolak].")
++        self.assertEqual(len(mock_client.call_history), 2)
++        # Call 1: Ada tools
++        self.assertTrue(mock_client.call_history[0]["has_tools"])
++        # Call 2: Karena pembacaan file berhasil (bukan policy rejection), tools TIDAK dicabut!
++        self.assertTrue(mock_client.call_history[1]["has_tools"])
 +
 +if __name__ == "__main__":
 +    import json
@@ -2593,6 +4295,685 @@ index 0000000..60bc51f
 +
 +if __name__ == "__main__":
 +    unittest.main()
+diff --git a/tests/test_react_benchmark_set4.py b/tests/test_react_benchmark_set4.py
+new file mode 100644
+index 0000000..d0340d8
+--- /dev/null
++++ b/tests/test_react_benchmark_set4.py
+@@ -0,0 +1,673 @@
++import os
++import sys
++import json
++import time
++import datetime
++import shutil
++import tempfile
++import unittest
++import subprocess
++from pathlib import Path
++from typing import Dict, Any, List, Optional, Tuple
++
++ROOT_DIR = Path(__file__).resolve().parent.parent
++sys.path.insert(0, str(ROOT_DIR))
++
++from enki.core.ollama_client import OllamaClient
++from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT
++from enki.core.react_loop import ReActCoordinator
++from enki.memory.database import MemoryDatabase
++from enki.memory.recall import execute_passive_recall
++
++LOCK_FILE = ROOT_DIR / "tests" / ".benchmark_lock"
++
++class BenchmarkLock:
++    """Kunci file agar dua benchmark tidak bisa dijalankan bersamaan."""
++    def __enter__(self):
++        if LOCK_FILE.exists():
++            try:
++                content = LOCK_FILE.read_text(encoding="utf-8").strip()
++                lock_data = json.loads(content)
++                pid = lock_data.get("pid")
++                t_str = lock_data.get("time_str", "waktu tidak diketahui")
++                raise RuntimeError(
++                    f"\n[BENCHMARK LOCK ERROR] Benchmark terkunci oleh proses PID={pid} pada {t_str}.\n"
++                    f"File lock: {LOCK_FILE}\n"
++                    f"Eksekusi dibatalkan untuk mencegah tabrakan/konkurensi."
++                )
++            except json.JSONDecodeError:
++                raise RuntimeError(f"\n[BENCHMARK LOCK ERROR] File lock {LOCK_FILE} ditemukan. Ada benchmark lain yang sedang berjalan.")
++
++        lock_info = {
++            "pid": os.getpid(),
++            "timestamp": time.time(),
++            "time_str": datetime.datetime.now().isoformat()
++        }
++        LOCK_FILE.write_text(json.dumps(lock_info, indent=2), encoding="utf-8")
++        return self
++
++    def __exit__(self, exc_type, exc_val, exc_tb):
++        if LOCK_FILE.exists():
++            try:
++                LOCK_FILE.unlink()
++            except Exception:
++                pass
++
++def check_ollama_idle(client: OllamaClient):
++    """Memeriksa kesiapan server Ollama dan status model aktif di VRAM."""
++    if not client.is_ready():
++        raise RuntimeError("Server Ollama tidak aktif di http://127.0.0.1:11434!")
++
++    try:
++        proc = subprocess.run(["ollama", "ps"], capture_output=True, text=True, timeout=5)
++        if proc.returncode == 0:
++            lines = [l.strip() for l in proc.stdout.strip().splitlines() if l.strip()]
++            print("\n[PREFLIGHT CHECK] Status 'ollama ps':")
++            if len(lines) <= 1:
++                print("  Ollama VRAM: Idle / Kosong (tidak ada model yang sedang berjalan).")
++            else:
++                for line in lines:
++                    print(f"  {line}")
++        else:
++            print("[PREFLIGHT CHECK] Gagal menjalankan 'ollama ps' (returncode non-zero).")
++    except Exception as e:
++        print(f"[PREFLIGHT CHECK] Tidak dapat menjalankan 'ollama ps': {e}")
++
++USER_PROMPTS_FILE = ROOT_DIR / "tests" / "set4_user_prompts.txt"
++
++# ----------------------------------------------------------------------
++# 15 Prompt Buatan Asisten untuk Melengkapi Set 4A (Total 30)
++# Gaya bahasa: variasi santai, typo, praktis, tanpa pemicu waktu untuk memori
++# ----------------------------------------------------------------------
++BUILTIN_PROMPTS_4A = [
++    # 6 MEM (Memori pasif - domain baru tanpa kontaminasi kalibrasi & Set 3)
++    {
++        "id": "S4A_P16_MEM",
++        "category": "MEM",
++        "prompt": "format serialisasi data sensor iot kemarin kita sepakati apa?",
++        "expected_tool": None,  # Melalui recall pasif
++        "expected_key": "protobuf",
++        "memory_inject": ("user", "format serialisasi data sensor iot kita pakai apa?", "assistant", "Kita sepakati memakai Protobuf binary untuk serialisasi payload sensor.")
++    },
++    {
++        "id": "S4A_P17_MEM",
++        "category": "MEM",
++        "prompt": "database analitik buat data gudang kemarin kita putusin pakai apa ya?",
++        "expected_tool": None,
++        "expected_key": "duckdb",
++        "memory_inject": ("user", "database analitik pemrosesan data gudang mau pakai apa?", "assistant", "Untuk analitik data gudang kita memutuskan memakai embedded DuckDB.")
++    },
++    {
++        "id": "S4A_P18_MEM",
++        "category": "MEM",
++        "prompt": "siapa nama qa engineer yg megang testing otomatis kemarin?",
++        "expected_tool": None,
++        "expected_key": "rian",
++        "memory_inject": ("user", "siapa qa engineer yang bertanggung jawab atas automated testing?", "assistant", "QA engineer yang memegang automasi testing adalah Rian Ardianto.")
++    },
++    {
++        "id": "S4A_P19_MEM",
++        "category": "MEM",
++        "prompt": "cloud storage buat arsip backup bulanan kemarin kita taruh di mana ya?",
++        "expected_tool": None,
++        "expected_key": "wasabi",
++        "memory_inject": ("user", "arsip backup bulanan sistem disimpan di vendor cloud mana?", "assistant", "Arsip cadangan data bulanan disimpan di Wasabi hot cloud storage.")
++    },
++    {
++        "id": "S4A_P20_MEM",
++        "category": "MEM",
++        "prompt": "port service search dokumen tim kemarin kita setel di berapa ya?",
++        "expected_tool": None,
++        "expected_key": "7700",
++        "memory_inject": ("user", "mesin pencari dokumen internal berjalan di port berapa?", "assistant", "Service pencarian dokumen internal menggunakan Meilisearch pada port 7700.")
++    },
++    {
++        "id": "S4A_P21_MEM",
++        "category": "MEM",
++        "prompt": "protokol komunikasi antar mikroservis internal kemarin kita sepakati apa?",
++        "expected_tool": None,
++        "expected_key": "grpc",
++        "memory_inject": ("user", "protokol komunikasi sinkron antar mikroservis kita mau pakai apa?", "assistant", "Komunikasi antar mikroservis backend disepakati menggunakan gRPC over HTTP/2.")
++    },
++
++    # 2 WORKSPACE (1 FILE / LIST, 1 GIT)
++    {
++        "id": "S4A_P22_WS",
++        "category": "FILE",
++        "prompt": "coba intip file README.md, apa judul proyeknya?",
++        "expected_tool": "read_file",
++        "expected_arg": "README.md",
++        "expected_key": "enki"
++    },
++    {
++        "id": "S4A_P23_WS",
++        "category": "GIT",
++        "prompt": "tolong cek git diff sebentar, ada baris apa yg berubah?",
++        "expected_tool": "git",
++        "expected_arg": "diff",
++        "expected_key": "uncommitted"
++    },
++
++    # 7 NEGATIF MURNI (Gaya santai, typo, koding umum, sapaan, resep)
++    {
++        "id": "S4A_P24_NEG",
++        "category": "NEG",
++        "prompt": "met pagi bro, gmn kabarnya hr ini?",
++        "expected_tool": None,
++        "expected_key": None
++    },
++    {
++        "id": "S4A_P25_NEG",
++        "category": "NEG",
++        "prompt": "bikinin fungsi python singkat buat ngitung faktorial rekursif dong",
++        "expected_tool": None,
++        "expected_key": None
++    },
++    {
++        "id": "S4A_P26_NEG",
++        "category": "NEG",
++        "prompt": "gimana cara bikin sambel terasi yg sedep dan pedes nendang?",
++        "expected_tool": None,
++        "expected_key": None
++    },
++    {
++        "id": "S4A_P27_NEG",
++        "category": "NEG",
++        "prompt": "apa bedanya list sama tuple di python? tolong jelasin singkat",
++        "expected_tool": None,
++        "expected_key": None
++    },
++    {
++        "id": "S4A_P28_NEG",
++        "category": "NEG",
++        "prompt": "hitungin dong 45 dikali 12 ditambah 180 brp hasilnya?",
++        "expected_tool": None,
++        "expected_key": None
++    },
++    {
++        "id": "S4A_P29_NEG",
++        "category": "NEG",
++        "prompt": "apa itu konsep garbage collection di runtime javascript?",
++        "expected_tool": None,
++        "expected_key": None
++    },
++    {
++        "id": "S4A_P30_NEG",
++        "category": "NEG",
++        "prompt": "kapan bhs C pertama kali dibikin sm dennis ritchie?",
++        "expected_tool": None,
++        "expected_key": None
++    }
++]
++
++# ----------------------------------------------------------------------
++# Set 4R: 10 Prompt Regresi dari Set 3 (TIDAK ikut gate)
++# ----------------------------------------------------------------------
++REGRESSION_PROMPTS_4R = [
++    {
++        "id": "S4R_P01_REG",
++        "origin_id": "S3_P17_NEG",
++        "prompt": "kapan bahasa pemrograman C pertama kali diciptakan dan oleh siapa?",
++        "expected_tool": None,
++        "notes": "Di Set 3 false call history | grep C"
++    },
++    {
++        "id": "S4R_P02_REG",
++        "origin_id": "S3_P18_NEG",
++        "prompt": "buatkan fungsi python buat balik urutan string (reverse string)",
++        "expected_tool": None,
++        "notes": "Di Set 3 false call python -c"
++    },
++    {
++        "id": "S4R_P03_REG",
++        "origin_id": "S3_P23_NEG",
++        "prompt": "bantu bikinin draf email izin sakit untuk bos kantor besok",
++        "expected_tool": None,
++        "notes": "Di Set 3 false call git status (sampai konfirmasi) dan mail"
++    },
++    {
++        "id": "S4R_P04_REG",
++        "origin_id": "S3_P24_NEG",
++        "prompt": "gimana tips mengatasi insomnia dan pola tidur yg berantakan?",
++        "expected_tool": None,
++        "notes": "Di Set 3 timeout HTTP 120s di Run 3"
++    },
++    {
++        "id": "S4R_P05_REG",
++        "origin_id": "S3_P01_MEM",
++        "prompt": "apa database utama proyek kita ya?",
++        "expected_tool": None,
++        "expected_key": "sqlite",
++        "memory_inject": ("user", "apa database utama proyek kita?", "assistant", "Database utama proyek kita adalah SQLite dengan mode WAL dan FTS5.")
++    },
++    {
++        "id": "S4R_P06_REG",
++        "origin_id": "S3_P02_MEM",
++        "prompt": "bahasa apa yg kita pake buat backend service pembayaran?",
++        "expected_tool": None,
++        "expected_key": "fastapi",
++        "memory_inject": ("user", "layanan pembayaran pakai apa?", "assistant", "Backend service pembayaran kita dibangun dengan Python FastAPI.")
++    },
++    {
++        "id": "S4R_P07_REG",
++        "origin_id": "S3_P06_READ",
++        "prompt": "isi file requirements.txt apa aja ya?",
++        "expected_tool": "read_file",
++        "expected_arg": "requirements.txt",
++        "expected_key": "fastapi"
++    },
++    {
++        "id": "S4R_P08_REG",
++        "origin_id": "S3_P09_GIT",
++        "prompt": "bisa tolong liat branch git kita yg aktif dan status commit terakhir?",
++        "expected_tool": "git",
++        "expected_arg": "status",
++        "expected_key": "feat/enki-core-v2"
++    },
++    {
++        "id": "S4R_P09_REG",
++        "origin_id": "S3_P11_TEST",
++        "prompt": "tolong jalanin unit test proyek kita dong",
++        "expected_tool": "run_unittests",
++        "expected_arg": None,
++        "expected_key": "ok"
++    },
++    {
++        "id": "S4R_P10_REG",
++        "origin_id": "S3_P14_NEG",
++        "prompt": "tolong jelaskan arsitektur Transformer dan mekanisme self-attention",
++        "expected_tool": None,
++        "notes": "Uji no-tool untuk topik ML teoritis"
++    }
++]
++
++def load_user_prompts(prompts_path: Path) -> List[Dict[str, Any]]:
++    """Membaca dan memvalidasi file prompt dari pengguna.
++    Wajib minimal 15 baris valid, atau melempar RuntimeError.
++    """
++    if not prompts_path.exists():
++        raise RuntimeError(f"File prompt user tidak ditemukan: {prompts_path}")
++
++    valid_prompts = []
++    lines = prompts_path.read_text(encoding="utf-8").splitlines()
++    user_idx = 1
++
++    for line in lines:
++        line_clean = line.strip()
++        if not line_clean or line_clean.startswith("#"):
++            continue
++
++        parts = [p.strip() for p in line_clean.split("|")]
++        p_type = parts[0].upper()
++
++        if p_type == "MEM":
++            if len(parts) < 4:
++                continue
++            prompt_text = parts[1]
++            mem_sentence = parts[2]
++            key_val = parts[3]
++            valid_prompts.append({
++                "id": f"S4A_U{user_idx:02d}_MEM",
++                "category": "MEM",
++                "prompt": prompt_text,
++                "expected_tool": None,
++                "expected_key": key_val,
++                "memory_inject": ("user", prompt_text, "assistant", mem_sentence)
++            })
++            user_idx += 1
++
++        elif p_type in ("FILE", "GIT", "TEST", "NEG"):
++            if len(parts) < 2:
++                continue
++            prompt_text = parts[1]
++            exp_tool = None
++            exp_arg = None
++            if p_type == "FILE":
++                exp_tool = "read_file"
++                exp_arg = "requirements.txt" if "requirements" in prompt_text.lower() else "README.md"
++            elif p_type == "GIT":
++                exp_tool = "git"
++                exp_arg = "diff" if "diff" in prompt_text.lower() else "status"
++            elif p_type == "TEST":
++                exp_tool = "run_unittests"
++
++            valid_prompts.append({
++                "id": f"S4A_U{user_idx:02d}_{p_type}",
++                "category": p_type,
++                "prompt": prompt_text,
++                "expected_tool": exp_tool,
++                "expected_arg": exp_arg,
++                "expected_key": None
++            })
++            user_idx += 1
++
++    if len(valid_prompts) < 15:
++        sys.stderr.write(
++            f"\n[FATAL RUNNER ERROR]: {prompts_path} hanya berisi {len(valid_prompts)} prompt valid "
++            f"(diperlukan minimal 15 baris: 6 MEM, 4 WS, 5 NEG).\n"
++            f"Runner Set 4 GAGAL KERAS dan MENOLAK BERJALAN.\n"
++        )
++        sys.exit(1)
++
++    return valid_prompts
++
++def setup_real_temporary_workspace(root_dir: Path):
++    """Membuat direktori kerja nyata dengan git repo aktif, commit, uncommitted change, dan unittest."""
++    root_dir.mkdir(parents=True, exist_ok=True)
++
++    # 1. README.md
++    (root_dir / "README.md").write_text("# ENKI Project\nAsisten AI lokal untuk developer pada GPU 4GB.", encoding="utf-8")
++
++    # 2. requirements.txt
++    (root_dir / "requirements.txt").write_text("fastapi==0.110.0\nuvicorn==0.28.0\npydantic==2.6.4\npytest==8.1.1\n", encoding="utf-8")
++
++    # 3. app/main.py
++    app_dir = root_dir / "app"
++    app_dir.mkdir(parents=True, exist_ok=True)
++    (app_dir / "main.py").write_text("def get_status():\n    return 'OK'\n", encoding="utf-8")
++
++    # 4. tests/test_app.py
++    test_dir = root_dir / "tests"
++    test_dir.mkdir(parents=True, exist_ok=True)
++    (test_dir / "test_app.py").write_text(
++        "import unittest\nfrom app.main import get_status\n\n"
++        "class TestApp(unittest.TestCase):\n"
++        "    def test_status(self):\n        self.assertEqual(get_status(), 'OK')\n"
++        "    def test_health(self):\n        self.assertTrue(True)\n\n"
++        "if __name__ == '__main__':\n    unittest.main()\n",
++        encoding="utf-8"
++    )
++
++    # 5. Inisialisasi Git nyata
++    subprocess.run(["git", "init"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
++    subprocess.run(["git", "config", "user.name", "ENKI Tester"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
++    subprocess.run(["git", "config", "user.email", "tester@enki.internal"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
++    subprocess.run(["git", "checkout", "-b", "feat/enki-core-v2"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
++    subprocess.run(["git", "add", "."], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
++    subprocess.run(["git", "commit", "-m", "feat: initial commit"], cwd=str(root_dir), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
++
++    # 6. Buat perubahan belum dicommit agar git diff dan git status nyata
++    (app_dir / "main.py").write_text("def get_status():\n    return 'OK'\n\n# uncommitted change for benchmark test\n", encoding="utf-8")
++
++def run_single_benchmark_turn(
++    prompt_item: Dict[str, Any],
++    coordinator: ReActCoordinator,
++    session_id: str,
++    db: MemoryDatabase,
++    confirmed_commands_log: List[str],
++    model: str = "qwen2.5:3b"
++) -> Dict[str, Any]:
++    """Menjalankan 1 prompt dalam benchmark Set 4 dengan pencatatan metrik detail."""
++    user_prompt = prompt_item["prompt"]
++    expected_tool = prompt_item.get("expected_tool")
++    expected_arg = prompt_item.get("expected_arg")
++    expected_key = prompt_item.get("expected_key")
++    category = prompt_item.get("category", "NEG")
++
++    tool_calls_recorded = []
++    tool_observations_recorded = []
++    timeout_reason = "none"
++
++    def trace_cb(evt: str, msg: str):
++        if evt == "tool_call":
++            tool_calls_recorded.append(msg)
++        elif evt == "tool_result":
++            tool_observations_recorded.append(msg)
++        elif evt == "timeout":
++            nonlocal timeout_reason
++            timeout_reason = "turn_timeout"
++
++    # Evaluasi passive recall deterministik di muka
++    recall_injected = False
++    recall_content = execute_passive_recall(user_prompt, db, session_id, max_tokens=300, df_threshold_pct=5.0)
++    if recall_content:
++        recall_injected = True
++
++    chunks = []
++    final_metrics = {}
++    is_timeout = False
++
++    try:
++        for chunk, metrics in coordinator.run_react_turn(
++            user_input=user_prompt,
++            session_id=session_id,
++            history=[],
++            model=model,
++            recall_content=recall_content,
++            trace_callback=trace_cb
++        ):
++            if chunk:
++                chunks.append(chunk)
++            if metrics:
++                final_metrics = metrics
++    except TimeoutError as te:
++        is_timeout = True
++        timeout_reason = "no_first_token" if len(chunks) == 0 else "http_request_timeout"
++    except Exception as e:
++        if "timeout" in str(e).lower() or "timed out" in str(e).lower():
++            is_timeout = True
++            timeout_reason = "no_first_token" if len(chunks) == 0 else "http_request_timeout"
++
++    if is_timeout and len(chunks) == 0:
++        timeout_reason = "no_first_token"
++    elif timeout_reason == "turn_timeout" and len(chunks) == 0:
++        is_timeout = True
++        timeout_reason = "no_first_token"
++
++    final_text = "".join(chunks).strip()
++
++    first_tool_call = None
++    first_tool_arg = None
++    if tool_calls_recorded:
++        raw_call = tool_calls_recorded[0]
++        paren_idx = raw_call.find("(")
++        if paren_idx != -1:
++            first_tool_call = raw_call[:paren_idx].strip()
++            first_tool_arg = raw_call[paren_idx + 1 : -1].strip()
++
++    # Evaluasi Kategori
++    is_false_call = False
++    is_wrong_tool = False
++    is_invalid_arg = False
++    is_fidelity_ok = False
++    is_success = False
++    sandbox_blocked = False
++    reached_confirmation = False
++
++    # Deteksi status konfirmasi & sandbox
++    obs_all = " ".join(tool_observations_recorded)
++    if "[Kebijakan Ditolak]" in obs_all or "[Akses Ditolak]" in obs_all:
++        sandbox_blocked = True
++    if len(confirmed_commands_log) > 0:
++        reached_confirmation = True
++
++    if expected_tool is None:
++        # Prompt Negatif atau Prompt Memori (yang diharapkan dijawab lewat recall pasif)
++        if first_tool_call is not None:
++            is_false_call = True
++        else:
++            is_success = True
++            # Jika ini MEM, periksa fidelity kata kunci
++            if category == "MEM" and expected_key:
++                if expected_key.lower() in final_text.lower():
++                    is_fidelity_ok = True
++            else:
++                is_fidelity_ok = True
++    else:
++        # Prompt Positif Workspace
++        if first_tool_call is None:
++            is_wrong_tool = True
++        elif first_tool_call != expected_tool:
++            is_wrong_tool = True
++        else:
++            # Periksa argumen jika ada
++            if expected_arg and expected_arg.lower() not in (first_tool_arg or "").lower():
++                is_invalid_arg = True
++            else:
++                is_success = True
++                # Periksa fidelity
++                if expected_key:
++                    if expected_key.lower() in final_text.lower():
++                        is_fidelity_ok = True
++                else:
++                    is_fidelity_ok = True
++
++    return {
++        "id": prompt_item["id"],
++        "category": category,
++        "prompt_input": user_prompt,
++        "expected_tool": expected_tool,
++        "expected_arg": expected_arg,
++        "expected_key": expected_key,
++        "called_tool": first_tool_call,
++        "called_arg": first_tool_arg,
++        "passive_recall_injected": recall_injected,
++        "passive_recall_content": recall_content,
++        "tool_calls": tool_calls_recorded,
++        "tool_observations": tool_observations_recorded,
++        "final_response": final_text,
++        "confirmed_commands": list(confirmed_commands_log),
++        "evaluation": {
++            "is_success": is_success,
++            "is_false_call": is_false_call,
++            "is_wrong_tool": is_wrong_tool,
++            "is_invalid_arg": is_invalid_arg,
++            "is_fidelity_ok": is_fidelity_ok,
++            "sandbox_blocked": sandbox_blocked,
++            "reached_confirmation": reached_confirmation,
++            "is_timeout": is_timeout,
++            "timeout_reason": timeout_reason
++        },
++        "metrics": final_metrics
++    }
++
++def run_benchmark_suite(
++    suite_name: str,
++    prompts: List[Dict[str, Any]],
++    num_runs: int = 3,
++    output_jsonl: Optional[Path] = None
++):
++    """Menjalankan suite benchmark Set 4A atau Set 4R secara terisolasi."""
++    temp_dir = tempfile.mkdtemp(prefix=f"enki_bench_{suite_name}_")
++    ws_path = Path(temp_dir) / "workspace"
++    data_path = Path(temp_dir) / "data"
++    log_path = Path(temp_dir) / "logs"
++
++    data_path.mkdir(parents=True, exist_ok=True)
++    log_path.mkdir(parents=True, exist_ok=True)
++
++    os.environ["ENKI_DATA_DIR"] = str(data_path)
++    os.environ["ENKI_LOG_DIR"] = str(log_path)
++
++    setup_real_temporary_workspace(ws_path)
++
++    db_path = log_path / "sessions.db"
++    db = MemoryDatabase(db_path=db_path)
++
++    # Inisialisasi memori masa lalu untuk prompt MEM
++    for p in prompts:
++        if p.get("memory_inject"):
++            u_role, u_msg, a_role, a_msg = p["memory_inject"]
++            sess = db.create_session()
++            db.add_turn(sess, u_role, u_msg)
++            db.add_turn(sess, a_role, a_msg)
++
++    client = OllamaClient()
++    if not client.is_ready():
++        raise RuntimeError("Server Ollama tidak aktif!")
++
++    assembler = PromptAssembler(system_prompt=DEFAULT_SYSTEM_PROMPT, profile="")
++
++    all_runs_results = []
++    print("\n" + "=" * 80)
++    print(f"MEMULAI {suite_name.upper()} ({len(prompts)} PROMPT x {num_runs} RUNS):")
++    print("=" * 80)
++
++    for run_idx in range(1, num_runs + 1):
++        print(f"\n--- Menjalankan Run {run_idx}/{num_runs} ---")
++        run_results = []
++
++        for p in prompts:
++            confirmed_commands = []
++            def confirm_tracker(cmd: str) -> bool:
++                confirmed_commands.append(cmd)
++                return True  # Auto-approve untuk harness
++
++            coordinator = ReActCoordinator(
++                client=client,
++                assembler=assembler,
++                workspace_root=ws_path,
++                db=db,
++                confirm_func=confirm_tracker,
++                audit_log_path=data_path / "tool_audit.log"
++            )
++
++            sess_id = db.create_session()
++            t0 = time.time()
++            res = run_single_benchmark_turn(
++                prompt_item=p,
++                coordinator=coordinator,
++                session_id=sess_id,
++                db=db,
++                confirmed_commands_log=confirmed_commands
++            )
++            elapsed = time.time() - t0
++
++            # Catat run_idx & suite_name
++            res["run_idx"] = run_idx
++            res["benchmark_set"] = suite_name
++            run_results.append(res)
++
++            status_str = "PASS" if res["evaluation"]["is_success"] else "FAIL"
++            print(f"  [{res['id']:<14}] {status_str} ({elapsed:.2f}s) | Tool: {res['called_tool']} | Recall Inj: {res['passive_recall_injected']}")
++
++            if output_jsonl:
++                with open(output_jsonl, "a", encoding="utf-8") as f:
++                    f.write(json.dumps(res, ensure_ascii=False) + "\n")
++
++        all_runs_results.append(run_results)
++
++    # Bersihkan temp
++    db.close()
++    shutil.rmtree(temp_dir, ignore_errors=True)
++    if "ENKI_DATA_DIR" in os.environ:
++        del os.environ["ENKI_DATA_DIR"]
++    if "ENKI_LOG_DIR" in os.environ:
++        del os.environ["ENKI_LOG_DIR"]
++
++class TestReActBenchmarkSet4(unittest.TestCase):
++    @unittest.skip("Benchmark suite - run explicitly via python tests/test_react_benchmark_set4.py")
++    def test_run_set4_benchmark(self):
++        """Metode dummy agar terdaftar di discovery tetapi dilewati saat test suite otomatis berjalan."""
++        pass
++
++if __name__ == "__main__":
++    client = OllamaClient()
++    check_ollama_idle(client)
++
++    print("=" * 80)
++    print("VERIFIKASI AWAL FILE USER PROMPTS:")
++    user_prompts = load_user_prompts(USER_PROMPTS_FILE)
++    print(f"Berhasil memuat {len(user_prompts)} prompt valid dari {USER_PROMPTS_FILE.name}.")
++    print("=" * 80)
++
++    # Gabungkan 15 prompt user + 15 prompt buatan = 30 prompt Set 4A
++    set_4a_prompts = user_prompts + BUILTIN_PROMPTS_4A
++    print(f"Total prompt Set 4A (Ujian): {len(set_4a_prompts)}")
++    print(f"Total prompt Set 4R (Regresi): {len(REGRESSION_PROMPTS_4R)}")
++
++    results_dir = ROOT_DIR / "tests" / "results"
++    results_dir.mkdir(parents=True, exist_ok=True)
++    out_file = results_dir / "benchmark_set4_raw.jsonl"
++    if out_file.exists():
++        out_file.unlink()
++
++    with BenchmarkLock():
++        # Jalankan Set 4A
++        res_4a = run_benchmark_suite("set_4a_exam", set_4a_prompts, num_runs=3, output_jsonl=out_file)
++
++        # Jalankan Set 4R
++        res_4r = run_benchmark_suite("set_4r_regression", REGRESSION_PROMPTS_4R, num_runs=3, output_jsonl=out_file)
++
++        print("\nBENCHMARK SET 4 SELESAI. Raw JSONL tersimpan di:", out_file)
++
 diff --git a/tests/test_shell_tools.py b/tests/test_shell_tools.py
 index 72fd6d7..e9e3346 100644
 --- a/tests/test_shell_tools.py

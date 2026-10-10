@@ -7,6 +7,7 @@ from typing import Tuple, List, Optional, Callable, Dict, Any
 from enki.config import get_data_dir
 from enki.core.sanitizer import wrap_untrusted_content
 from enki.core.prompt_assembler import truncate_tool_output
+from enki.tools.tool_types import ToolExecutionResult, ToolResultStatus
 
 def log_tool_audit(action: str, command: str, status: str, detail: str = "", audit_log_path: Optional[Path] = None):
     """Mencatat aksi tool ke file audit log (mendukung injeksi path atau ENKI_DATA_DIR)."""
@@ -46,14 +47,14 @@ def execute_git_command(
     confirm_func: Optional[Callable[[str], bool]] = None,
     audit_log_path: Optional[Path] = None,
     timeout_sec: int = 30
-) -> Tuple[bool, bool, str]:
+) -> ToolExecutionResult:
     """Mengeksekusi perintah git dengan argumen tetap.
-    Returns: (is_success, is_policy_rejection, result_text)
+    Returns: ToolExecutionResult
     """
     clean_act = (action or "").strip().lower()
     if clean_act not in GIT_VALID_ACTIONS:
         log_tool_audit("git", f"git {action}", "BLOCKED", f"Aksi '{action}' di luar enum [status, log, diff]", audit_log_path=audit_log_path)
-        return False, True, f"[Kebijakan Ditolak] Aksi git '{action}' tidak valid. Hanya diizinkan: 'status', 'log', 'diff'."
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Aksi git '{action}' tidak valid. Hanya diizinkan: 'status', 'log', 'diff'.")
 
     exec_argv = GIT_VALID_ACTIONS[clean_act]
     cmd_display = " ".join(exec_argv)
@@ -61,7 +62,7 @@ def execute_git_command(
     confirmer = confirm_func if confirm_func is not None else default_cli_confirm
     if not confirmer(cmd_display):
         log_tool_audit("git", cmd_display, "REJECTED_USER", "Dibatalkan oleh pengguna.", audit_log_path=audit_log_path)
-        return False, True, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna."
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna.")
 
     try:
         proc = subprocess.run(
@@ -80,13 +81,13 @@ def execute_git_command(
 
         log_tool_audit("git", cmd_display, "SUCCESS", f"ExitCode={proc.returncode}", audit_log_path=audit_log_path)
         truncated = truncate_tool_output(combined, max_tokens=1000)
-        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display)
+        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display))
     except subprocess.TimeoutExpired:
         log_tool_audit("git", cmd_display, "TIMEOUT", f"Timeout={timeout_sec}s", audit_log_path=audit_log_path)
-        return False, False, f"[Tool Error: git] Perintah '{cmd_display}' melebihi batas waktu ({timeout_sec}s)."
+        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: git] Perintah '{cmd_display}' melebihi batas waktu ({timeout_sec}s).")
     except Exception as e:
         log_tool_audit("git", cmd_display, "ERROR", str(e), audit_log_path=audit_log_path)
-        return False, False, f"[Tool Error: git] Gagal mengeksekusi: {e}"
+        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: git] Gagal mengeksekusi: {e}")
 
 # -------------------------------------------------------------
 # Tool 2: python_version()
@@ -96,9 +97,9 @@ def execute_python_version(
     confirm_func: Optional[Callable[[str], bool]] = None,
     audit_log_path: Optional[Path] = None,
     timeout_sec: int = 15
-) -> Tuple[bool, bool, str]:
+) -> ToolExecutionResult:
     """Mengeksekusi python --version dari daftar argumen tetap.
-    Returns: (is_success, is_policy_rejection, result_text)
+    Returns: ToolExecutionResult
     """
     cmd_display = "python --version"
     exec_argv = ["python", "--version"]
@@ -106,7 +107,7 @@ def execute_python_version(
     confirmer = confirm_func if confirm_func is not None else default_cli_confirm
     if not confirmer(cmd_display):
         log_tool_audit("python_version", cmd_display, "REJECTED_USER", "Dibatalkan oleh pengguna.", audit_log_path=audit_log_path)
-        return False, True, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna."
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna.")
 
     try:
         proc = subprocess.run(
@@ -120,10 +121,10 @@ def execute_python_version(
         combined = (proc.stdout.strip() + " " + proc.stderr.strip()).strip()
         log_tool_audit("python_version", cmd_display, "SUCCESS", f"ExitCode={proc.returncode}", audit_log_path=audit_log_path)
         truncated = truncate_tool_output(combined, max_tokens=500)
-        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display)
+        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display))
     except Exception as e:
         log_tool_audit("python_version", cmd_display, "ERROR", str(e), audit_log_path=audit_log_path)
-        return False, False, f"[Tool Error: python_version] Gagal mengeksekusi: {e}"
+        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: python_version] Gagal mengeksekusi: {e}")
 
 # -------------------------------------------------------------
 # Tool 3: run_unittests()
@@ -133,9 +134,9 @@ def execute_run_unittests(
     confirm_func: Optional[Callable[[str], bool]] = None,
     audit_log_path: Optional[Path] = None,
     timeout_sec: int = 60
-) -> Tuple[bool, bool, str]:
+) -> ToolExecutionResult:
     """Mengeksekusi python -m unittest dari daftar argumen tetap.
-    Returns: (is_success, is_policy_rejection, result_text)
+    Returns: ToolExecutionResult
     """
     cmd_display = "python -m unittest"
     exec_argv = ["python", "-m", "unittest"]
@@ -143,7 +144,7 @@ def execute_run_unittests(
     confirmer = confirm_func if confirm_func is not None else default_cli_confirm
     if not confirmer(cmd_display):
         log_tool_audit("run_unittests", cmd_display, "REJECTED_USER", "Dibatalkan oleh pengguna.", audit_log_path=audit_log_path)
-        return False, True, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna."
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Eksekusi '{cmd_display}' dibatalkan oleh pengguna.")
 
     try:
         proc = subprocess.run(
@@ -159,13 +160,13 @@ def execute_run_unittests(
             combined += f"\n[stderr]\n{proc.stderr.strip()}"
         log_tool_audit("run_unittests", cmd_display, "SUCCESS", f"ExitCode={proc.returncode}", audit_log_path=audit_log_path)
         truncated = truncate_tool_output(combined, max_tokens=1000)
-        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display)
+        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=cmd_display))
     except subprocess.TimeoutExpired:
         log_tool_audit("run_unittests", cmd_display, "TIMEOUT", f"Timeout={timeout_sec}s", audit_log_path=audit_log_path)
-        return False, False, f"[Tool Error: run_unittests] Perintah melebihi batas waktu ({timeout_sec}s)."
+        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: run_unittests] Perintah melebihi batas waktu ({timeout_sec}s).")
     except Exception as e:
         log_tool_audit("run_unittests", cmd_display, "ERROR", str(e), audit_log_path=audit_log_path)
-        return False, False, f"[Tool Error: run_unittests] Gagal mengeksekusi: {e}"
+        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: run_unittests] Gagal mengeksekusi: {e}")
 
 # -------------------------------------------------------------
 # Tool 4: list_dir(path: Optional[str])
@@ -174,9 +175,9 @@ def execute_list_dir(
     rel_path: Optional[str],
     workspace_root: Path,
     audit_log_path: Optional[Path] = None
-) -> Tuple[bool, bool, str]:
+) -> ToolExecutionResult:
     """Melihat daftar file dan folder di dalam workspace tanpa subprocess.
-    Returns: (is_success, is_policy_rejection, result_text)
+    Returns: ToolExecutionResult
     """
     clean_path = (rel_path or ".").strip()
     root_resolved = Path(workspace_root).resolve()
@@ -184,30 +185,30 @@ def execute_list_dir(
     # Cegah UNC path
     if clean_path.startswith(r"\\") or clean_path.startswith("//"):
         log_tool_audit("list_dir", clean_path, "BLOCKED", "UNC path dilarang", audit_log_path=audit_log_path)
-        return False, True, f"[Kebijakan Ditolak] UNC path tidak diizinkan: {clean_path}"
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] UNC path tidak diizinkan: {clean_path}")
 
     target = (root_resolved / clean_path).resolve()
     try:
         real_target = Path(os.path.realpath(target))
     except Exception as e:
         log_tool_audit("list_dir", clean_path, "ERROR", str(e), audit_log_path=audit_log_path)
-        return False, True, f"[Kebijakan Ditolak] Gagal memverifikasi path: {e}"
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Gagal memverifikasi path: {e}")
 
     # Validasi path traversal
     try:
         if not target.is_relative_to(root_resolved) or not real_target.is_relative_to(root_resolved):
             log_tool_audit("list_dir", clean_path, "BLOCKED", "Traversal di luar workspace", audit_log_path=audit_log_path)
-            return False, True, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}"
+            return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}")
     except Exception:
-        return False, True, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}"
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Path berada di luar direktori kerja: {clean_path}")
 
     if not target.exists():
         log_tool_audit("list_dir", clean_path, "NOT_FOUND", "Direktori tidak ditemukan", audit_log_path=audit_log_path)
-        return False, False, f"[Validasi Gagal] Direktori '{clean_path}' tidak ditemukan."
+        return ToolExecutionResult(ToolResultStatus.INVALID_ARG, f"[Validasi Gagal] Direktori '{clean_path}' tidak ditemukan.")
 
     if not target.is_dir():
         log_tool_audit("list_dir", clean_path, "NOT_DIR", "Bukan direktori", audit_log_path=audit_log_path)
-        return False, False, f"[Validasi Gagal] Path '{clean_path}' adalah file, bukan direktori."
+        return ToolExecutionResult(ToolResultStatus.INVALID_ARG, f"[Validasi Gagal] Path '{clean_path}' adalah file, bukan direktori.")
 
     try:
         entries = []
@@ -223,7 +224,7 @@ def execute_list_dir(
         listing_str = "\n".join(entries) if entries else "(Direktori kosong)"
         log_tool_audit("list_dir", clean_path, "SUCCESS", f"{len(entries)} item", audit_log_path=audit_log_path)
         truncated = truncate_tool_output(listing_str, max_tokens=1000)
-        return True, False, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=f"list_dir:{clean_path}")
+        return ToolExecutionResult(ToolResultStatus.OK, wrap_untrusted_content(truncated, tag_name="untrusted_external_content", source=f"list_dir:{clean_path}"))
     except Exception as e:
         log_tool_audit("list_dir", clean_path, "ERROR", str(e), audit_log_path=audit_log_path)
-        return False, False, f"[Tool Error: list_dir] Gagal membaca direktori: {e}"
+        return ToolExecutionResult(ToolResultStatus.ERROR, f"[Tool Error: list_dir] Gagal membaca direktori: {e}")

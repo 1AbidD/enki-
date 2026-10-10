@@ -107,5 +107,17 @@ class TestFileToolsSandbox(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("melebihi batas maksimal", msg)
 
+    def test_file_containing_rejection_string_is_not_rejected(self):
+        """File yang isinya mengandung string '[Akses Ditolak]' tidak boleh dianggap sebagai policy rejection."""
+        from enki.tools.tool_types import ToolResultStatus
+        rejection_content_file = self.workspace / "guide.txt"
+        rejection_content_file.write_text("[Akses Ditolak] akan muncul jika token expired.", encoding="utf-8")
+
+        res = execute_read_file("guide.txt", self.workspace)
+        self.assertTrue(res.is_success)
+        self.assertFalse(res.is_policy_rejection)
+        self.assertEqual(res.status, ToolResultStatus.OK)
+        self.assertIn("[Akses Ditolak] akan muncul jika token expired.", res.output)
+
 if __name__ == "__main__":
     unittest.main()

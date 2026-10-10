@@ -103,6 +103,11 @@ def format_passive_recall_block(snippets: List[Dict[str, Any]], max_tokens: int 
 
     return formatted
 
+PASSIVE_CONTEXT_MARKERS_REGEX = re.compile(
+    r'\b(kita|kami|kemarin|pernah|dulu|waktu\s+itu|tim\s+kita|proyek\s+kita|proyekku|task-?ku|repo-?ku)\b',
+    re.IGNORECASE
+)
+
 def execute_passive_recall(
     user_text: str,
     db: Any,
@@ -110,16 +115,18 @@ def execute_passive_recall(
     max_tokens: int = 300,
     df_threshold_pct: float = 5.0
 ) -> Optional[str]:
-    """Mengeksekusi recall pasif dengan ambang batas Document Frequency (DF) yang telah terkalibrasi dan dibekukan:
-    - Kata dengan Document Frequency (DF) > df_threshold_pct % (default 5.0%) dianggap umum dan tidak boleh memicu recall sendirian.
-    - Kata dengan DF <= df_threshold_pct % dianggap spesifik/domain token dan boleh memicu recall.
-    - Turn kandidat lolos jika:
-      * Minimal 2 kata substantif berbeda cocok dalam turn yang sama, ATAU
-      * 1 kata cocok jika kata itu adalah kata spesifik (DF <= 5.0%).
+    """Mengeksekusi recall pasif dengan Aturan R3 terkalibrasi (Holdout Recall 100%, FP Rate 0%):
+    - Wajib memiliki penanda konteks percakapan lampau ('kita', 'kami', 'kemarin', 'pernah', 'dulu', 'waktu itu')
+      ATAU penanda kepemilikan pengguna ('proyekku', 'task-ku', 'repo-ku', 'tim kita', 'proyek kita').
+    - Menghilangkan klausul 1-token unik yang memicu 87.5% FP pada dev set lama.
+    - Kandidat turn wajib mencocokkan minimal 2 token substantif berbeda dalam turn yang sama.
     - Maksimal 3 cuplikan teratas, maksimal ~300 token.
     """
+    if not bool(PASSIVE_CONTEXT_MARKERS_REGEX.search(user_text)):
+        return None
+
     tokens = extract_substantive_tokens(user_text)
-    if not tokens:
+    if len(tokens) < 2:
         return None
 
     fts_query = " OR ".join(f'"{t}"' for t in tokens)
@@ -130,17 +137,12 @@ def execute_passive_recall(
     qualifying_snippets = []
     for snip in candidates:
         content_lower = snip.get("content", "").lower()
-        matched = {t for t in tokens if re.search(r'\b' + re.escape(t), content_lower)}
+        matched = {t for t in tokens if re.search(r'\b' + re.escape(t) + r'\b', content_lower)}
         if not matched:
             continue
 
-        if hasattr(db, "get_term_turn_frequency"):
-            is_rare_word = any(db.get_term_turn_frequency(t) <= df_threshold_pct for t in matched)
-        else:
-            is_rare_word = any(len(t) >= 7 for t in matched)
-
-        # Ambang batas evaluasi
-        if len(matched) >= 2 or (len(matched) == 1 and is_rare_word):
+        # Ambang batas evaluasi R3: Minimal 2 token cocok
+        if len(matched) >= 2:
             qualifying_snippets.append(snip)
 
     if not qualifying_snippets:

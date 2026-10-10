@@ -1,4 +1,5 @@
 import json
+import time
 import urllib.request
 import urllib.error
 from typing import Dict, Any, List, Optional, Generator, Tuple
@@ -72,6 +73,7 @@ class OllamaClient:
         prompt_eval_duration_sec = data.get("prompt_eval_duration", 0) / 1e9
         eval_count = data.get("eval_count", 0)
         eval_duration_sec = data.get("eval_duration", 0) / 1e9
+        load_duration_sec = data.get("load_duration", 0) / 1e9
 
         prompt_tok_per_sec = (prompt_eval_count / prompt_eval_duration_sec) if prompt_eval_duration_sec > 0 else 0.0
         eval_tok_per_sec = (eval_count / eval_duration_sec) if eval_duration_sec > 0 else 0.0
@@ -81,6 +83,7 @@ class OllamaClient:
             "role": msg.get("role", "assistant"),
             "tool_calls": msg.get("tool_calls"),
             "metrics": {
+                "load_duration_sec": round(load_duration_sec, 3),
                 "prompt_eval_count": prompt_eval_count,
                 "prompt_eval_duration_sec": round(prompt_eval_duration_sec, 3),
                 "prompt_tok_per_sec": round(prompt_tok_per_sec, 1),
@@ -126,6 +129,9 @@ class OllamaClient:
             headers={"Content-Type": "application/json"}
         )
 
+        t_start = time.time()
+        time_to_first_token = None
+
         try:
             with urllib.request.urlopen(req, timeout=timeout_val) as resp:
                 tool_calls = []
@@ -136,6 +142,10 @@ class OllamaClient:
                     chunk = json.loads(line.decode("utf-8"))
                     msg = chunk.get("message", {})
                     token = msg.get("content", "")
+
+                    if time_to_first_token is None and (token or msg.get("tool_calls")):
+                        time_to_first_token = time.time() - t_start
+
                     if msg.get("tool_calls"):
                         tool_calls.extend(msg.get("tool_calls"))
 
@@ -143,11 +153,14 @@ class OllamaClient:
                         if token:
                             yield token, None
                     else:
+                        load_dur = chunk.get("load_duration", 0) / 1e9
                         prompt_eval = chunk.get("prompt_eval_count", 0)
                         prompt_eval_dur = chunk.get("prompt_eval_duration", 0) / 1e9
                         eval_c = chunk.get("eval_count", 0)
                         eval_dur = chunk.get("eval_duration", 0) / 1e9
                         metrics = {
+                            "load_duration_sec": round(load_dur, 3),
+                            "time_to_first_token_sec": round(time_to_first_token, 3) if time_to_first_token is not None else None,
                             "prompt_eval_count": prompt_eval,
                             "prompt_eval_duration_sec": round(prompt_eval_dur, 3),
                             "prompt_tok_per_sec": round(prompt_eval / prompt_eval_dur, 1) if prompt_eval_dur > 0 else 0.0,

@@ -15,6 +15,7 @@ from enki.tools.shell_tools import (
     execute_run_unittests,
     execute_list_dir
 )
+from enki.tools.tool_types import ToolExecutionResult, ToolResultStatus
 
 import re
 
@@ -161,36 +162,31 @@ class ReActCoordinator:
         self.max_iterations = max_iterations
         self.turn_timeout_sec = turn_timeout_sec
 
-    def execute_tool(self, tool_name: str, args: Dict[str, Any], session_id: str) -> Tuple[bool, bool, str]:
+    def execute_tool(self, tool_name: str, args: Dict[str, Any], session_id: str) -> ToolExecutionResult:
         """Mengeksekusi tool dengan validasi argumen ketat.
-        Returns: (is_success, is_policy_rejection, result_str)
+        Returns: ToolExecutionResult
         """
         if tool_name == "search_memory":
             query = args.get("query")
             if not query or not isinstance(query, str):
-                return False, False, "[Validasi Argumen Gagal] Argumen 'query' (string) wajib disediakan untuk search_memory."
+                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'query' (string) wajib disediakan untuk search_memory.")
             fts_query = build_fts_query(query.strip()) or query.strip()
             snippets = self.db.search_fts(fts_query, exclude_session_id=session_id, limit=3)
             if not snippets:
-                return True, False, "[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori."
+                return ToolExecutionResult(ToolResultStatus.OK, "[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori.")
             res = format_recall_block(snippets, max_tokens=1000)
-            return True, False, res or "[Tool Result: search_memory] Hasil kosong."
+            return ToolExecutionResult(ToolResultStatus.OK, res or "[Tool Result: search_memory] Hasil kosong.")
 
         elif tool_name == "read_file":
             file_path = args.get("file_path")
             if not file_path or not isinstance(file_path, str):
-                return False, False, "[Validasi Argumen Gagal] Argumen 'file_path' (string) wajib disediakan untuk read_file."
-            res = execute_read_file(file_path.strip(), self.workspace_root)
-            if "[Akses Ditolak]" in res:
-                return False, True, res
-            if "[Validasi Gagal]" in res:
-                return False, False, res
-            return True, False, res
+                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'file_path' (string) wajib disediakan untuk read_file.")
+            return execute_read_file(file_path.strip(), self.workspace_root)
 
         elif tool_name == "git":
             action = args.get("action")
             if not action or not isinstance(action, str):
-                return False, False, "[Validasi Argumen Gagal] Argumen 'action' (string enum: 'status', 'log', 'diff') wajib disediakan untuk git."
+                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'action' (string enum: 'status', 'log', 'diff') wajib disediakan untuk git.")
             return execute_git_command(
                 action=action.strip(),
                 workspace_root=self.workspace_root,
@@ -218,14 +214,14 @@ class ReActCoordinator:
         elif tool_name == "list_dir":
             path = args.get("path", ".")
             if path is not None and not isinstance(path, str):
-                return False, False, "[Validasi Argumen Gagal] Argumen 'path' harus berupa string."
+                return ToolExecutionResult(ToolResultStatus.INVALID_ARG, "[Validasi Argumen Gagal] Argumen 'path' harus berupa string.")
             return execute_list_dir(
                 rel_path=path,
                 workspace_root=self.workspace_root,
                 audit_log_path=self.audit_log_path
             )
 
-        return False, True, f"[Kebijakan Ditolak] Tool '{tool_name}' tidak terdaftar."
+        return ToolExecutionResult(ToolResultStatus.POLICY_REJECTION, f"[Kebijakan Ditolak] Tool '{tool_name}' tidak terdaftar.")
 
     def compress_old_observations(self, messages: List[Dict[str, str]], keep_latest: int = 1) -> List[Dict[str, str]]:
         """Memadatkan observasi tool lama menjadi ringkasan satu baris jika anggaran context menipis."""
@@ -342,15 +338,17 @@ class ReActCoordinator:
                     trace_callback("tool_call", f"{name}({json.dumps(args)})")
 
                 # Eksekusi tool
-                is_success, is_policy_rejection, tool_output = self.execute_tool(name, args, session_id=session_id)
+                tool_res = self.execute_tool(name, args, session_id=session_id)
 
-                if is_policy_rejection:
+                if tool_res.is_policy_rejection:
                     had_policy_rejection = True
-                elif not is_success:
+                elif not tool_res.is_success:
                     # Validasi argumen gagal: maksimal 1 kali retry
                     arg_retry_count += 1
                     if arg_retry_count > 1:
                         had_policy_rejection = True
+
+                tool_output = tool_res.output
 
                 if trace_callback:
                     output_preview = tool_output[:120].replace("\n", " ")

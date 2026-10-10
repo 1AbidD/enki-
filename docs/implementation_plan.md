@@ -42,7 +42,7 @@ $$\text{Sisa Token} = \text{num\_ctx} - (\text{System Base} + \text{Profile} + \
   * Observasi tool per aksi: Maksimal 1000 token (dipotong tegas dengan penanda `... [Output dipotong: sisa N baris]`).
   * Pemangkasan observasi ReAct: Observasi langkah terdahulu dipadatkan otomatis menjadi ringkasan satu baris jika ReAct loop berlanjut.
   * Batas generasi respon per request: `num_predict = 1024`, dengan per-request HTTP timeout = 60 detik.
-* **Perangkuman History:** Dijalankan saat sistem berstatus **IDLE**, bukan di tengah giliran percakapan aktif.
+* **Perangkuman History Saat Idle:** [BELUM DIIMPLEMENTASI] (Belum ada kode implementasi peringkasan saat status idle; saat ini riwayat dipangkas FIFO berbasis batas token konteks).
 
 ---
 
@@ -57,14 +57,15 @@ $$\text{Sisa Token} = \text{num\_ctx} - (\text{System Base} + \text{Profile} + \
   [Instruksi Wajib]: Jawab berdasarkan hasil pencarian di atas. Jika hasil memuat jawabannya, sampaikan isinya. Jangan menambah saran umum.
   ```
 
-### B. Recall Pasif Deterministik (Terkalibrasi DF & Dibekukan)
-Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?"*), FTS5 dijalankan secara pasif dengan **ambang batas Document Frequency (DF)**:
+### B. Recall Pasif Deterministik (Dalam Kalibrasi Ulang)
+Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?"*), FTS5 dijalankan secara pasif dengan **ambang batas Document Frequency (DF)**.
+> **Status Kalibrasi:** Label "DIBEKUKAN" dicabut. Pada kalibrasi awal dev set, aturan DF $\le 5.0\%$ menghasilkan False Positive (FP) 35/40 (87.5%) pada query negatif dan gagal memenuhi gate kriteria 6 (FP rate $\le 10\%$). Recall pasif dibuka kembali untuk kalibrasi ulang multi-kondisi (Korpus Kecil A vs Korpus Realistis B) dan multi-aturan (R1, R2, R3, R4) sebelum benchmark Set 4.
+
 1. **Definisi Token Spesifik vs Umum:**
    * Token dianggap **Umum** jika Document Frequency di corpus turn lampau $\text{DF} > 5.0\%$. Kata umum tidak boleh memicu recall sendirian.
    * Token dianggap **Spesifik / Domain** jika $\text{DF} \le 5.0\%$.
-2. **Kondisi Lolos Injeksi (DIBEKUKAN pada DF $\le 5.0\%$):**
-   * Turn kandidat mencocokkan **minimal 2 kata substantif berbeda** dalam turn yang sama, ATAU
-   * Mencocokkan **minimal 1 kata spesifik** yang memiliki $\text{DF} \le 5.0\%$.
+2. **Kondisi Lolos Injeksi (Evaluasi Ulang):**
+   * Diuji pada split 50/50 Dev & Holdout dengan perbandingan aturan R1, R2, R3, dan estimasi R4.
 3. **Format Blok Konteks Latar (Tanpa Grounding Keras):**
    ```text
    <untrusted_memory_content source="sqlite_fts5_passive_recall">
@@ -81,8 +82,17 @@ Untuk pertanyaan tanpa pemicu waktu (misal: *"apa database utama proyek kita ya?
 * **Filter Hipotesis Deterministik:** Usulan yang mengandung kata pengandaian (*seandainya, andaikan, kalau aku jadi, if I were*) ditolak otomatis di kode, sedangkan preferensi legal (*kalau kasih kode, tolong sertakan...*) tetap lolos.
 * **Filter Rahasia Deterministik:** Pola credential (API key, token, private key, password) dibuang otomatis di level kode.
 * **Proposal Queue & CLI `/memory`:**
-  * Usulan tersimpan di `pending_proposals.json` hingga disetujui via `/memory approve <id>`.
-  * Perintah tersedia: `/memory pending`, `/memory approve <id>`, `/memory reject <id>`, `/memory list`, `/memory stats`.
+  * Usulan tersimpan di `pending_facts.json` (di bawah folder data/memory) hingga disetujui via `/memory approve <id>`.
+  * Daftar perintah CLI lengkap (persis output `/memory help`):
+    - `/memory view`              : Lihat seluruh fakta profil aktif
+    - `/memory pending`           : Lihat antrean usulan fakta baru
+    - `/memory approve <id>`      : Setujui usulan fakta dan simpan ke profil
+    - `/memory reject <id>`       : Tolak usulan fakta
+    - `/memory edit <id> <val>`   : Koreksi nilai usulan fakta sebelum disetujui
+    - `/memory delete <key>`      : Hapus fakta dari profil
+    - `/memory log`               : Lihat riwayat audit perubahan profil
+    - `/memory stats`             : Lihat metrik usulan (diterima, ditolak, diedit, dibuang filter)
+    - `/reflect`                  : Jalankan refleksi manual atas sesi yang belum direfleksi
 
 ---
 
@@ -177,7 +187,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests`, `list_dir`, `read_file`, `search_memory`.
 * Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya.
 * Kalibrasi Document Frequency (DF $\le 5.0\%$) untuk recall pasif pada corpus realistis (>250 turns).
-* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection (50 unit test lulus).
+* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection (57 unit test terdaftar: 54 lulus, 3 benchmark dilewati saat discovery).
 * Persiapan pengujian Set 4A dan Set 4R.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
