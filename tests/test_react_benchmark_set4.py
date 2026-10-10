@@ -27,6 +27,7 @@ from tests.benchmark_common import (
     evaluate_benchmark_turn,
     BenchmarkLock,
     classify_mem_prompt,
+    create_benchmark_jsonl_header,
 )
 
 def check_ollama_idle(client: OllamaClient):
@@ -132,38 +133,45 @@ BUILTIN_PROMPTS_4A = [
         "expected_key": "uncommitted"
     },
 
-    # 7 NEGATIF MURNI (Gaya santai, typo, koding umum, sapaan, resep)
+    # 7 NEGATIF MURNI (4 Berpemicu Aktif Tanpa Topik Memori, 3 Tanpa Pemicu)
+    # 4 Negatif Berpemicu Aktif (topik di luar memori: astronomi, geografi/sejarah, kuliner, zoologi):
     {
         "id": "S4A_P24_NEG",
         "category": "NEG",
-        "prompt": "met pagi bro, gmn kabarnya hr ini?",
+        "has_trigger": True,
+        "prompt": "kemarin teleskop james webb nemu galaksi tertua apa ya namanya?",
         "expected_tool": None,
         "expected_key": None
     },
     {
         "id": "S4A_P25_NEG",
         "category": "NEG",
-        "prompt": "gimana cara parse format tanggal ISO 8601 ke epoch timestamp di bash?",
+        "has_trigger": True,
+        "prompt": "kamu ingat siapa pelaut eropa pertama yang berhasil mengitari tanjung harapan afrika?",
         "expected_tool": None,
         "expected_key": None
     },
     {
         "id": "S4A_P26_NEG",
         "category": "NEG",
-        "prompt": "gimana cara bikin sambel terasi yg sedep dan pedes nendang?",
+        "has_trigger": True,
+        "prompt": "tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?",
         "expected_tool": None,
         "expected_key": None
     },
     {
         "id": "S4A_P27_NEG",
         "category": "NEG",
-        "prompt": "apa bedanya list sama tuple di python? tolong jelasin singkat",
+        "has_trigger": True,
+        "prompt": "kamu ingat berapa rekor kedalaman menyelam maksimal seekor paus sperma di samudra?",
         "expected_tool": None,
         "expected_key": None
     },
+    # 3 Negatif Murni Tanpa Pemicu (aritmatika, runtime js, fisika):
     {
         "id": "S4A_P28_NEG",
         "category": "NEG",
+        "has_trigger": False,
         "prompt": "hitungin dong 45 dikali 12 ditambah 180 brp hasilnya?",
         "expected_tool": None,
         "expected_key": None
@@ -171,6 +179,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P29_NEG",
         "category": "NEG",
+        "has_trigger": False,
         "prompt": "apa itu konsep garbage collection di runtime javascript?",
         "expected_tool": None,
         "expected_key": None
@@ -178,6 +187,7 @@ BUILTIN_PROMPTS_4A = [
     {
         "id": "S4A_P30_NEG",
         "category": "NEG",
+        "has_trigger": False,
         "prompt": "berapa suhu titik leleh logam tembaga murni dalam derajat celsius?",
         "expected_tool": None,
         "expected_key": None
@@ -344,6 +354,55 @@ def load_user_prompts(prompts_path: Path) -> List[Dict[str, Any]]:
         sys.exit(1)
 
     return valid_prompts
+
+def validate_mem_prompts_preflight(mem_prompts: List[Dict[str, Any]]) -> None:
+    """Preflight check keras untuk prompt MEM Set 4:
+    1. expected_key wajib muncul dalam fakta memori (memory_inject / profile fact).
+    2. expected_key TIDAK BOLEH muncul dalam teks prompt itu sendiri.
+    3. Teks prompt wajib memuat kata kunci topik yang ada di kalimat memori.
+    Jika melanggar salah satu aturan, benchmark menolak jalan (hard fail).
+    """
+    for p in mem_prompts:
+        pid = p.get("id", "UNKNOWN")
+        prompt = p.get("prompt", "")
+        key = (p.get("expected_key") or "").strip()
+        if not key:
+            sys.stderr.write(f"\n[PREFLIGHT VIOLATION]: Prompt MEM '{pid}' tidak memiliki 'expected_key'!\n")
+            sys.exit(1)
+
+        mem_sentence = ""
+        if p.get("memory_inject"):
+            inj = p["memory_inject"]
+            mem_sentence = inj[3] if len(inj) > 3 else inj[1]
+        elif p.get("memory_fact"):
+            mem_sentence = p["memory_fact"]
+
+        # 1. Key wajib muncul di fakta memori
+        if key.lower() not in mem_sentence.lower():
+            sys.stderr.write(
+                f"\n[PREFLIGHT VIOLATION]: Prompt MEM '{pid}': Nilai kunci '{key}' "
+                f"TIDAK ditemukan dalam fakta memori: \"{mem_sentence}\"!\n"
+            )
+            sys.exit(1)
+
+        # 2. Key TIDAK BOLEH muncul di teks prompt
+        if re.search(r'\b' + re.escape(key.lower()) + r'\b', prompt.lower()):
+            sys.stderr.write(
+                f"\n[PREFLIGHT VIOLATION]: Prompt MEM '{pid}': Nilai kunci '{key}' "
+                f"BOCOR di dalam teks prompt: \"{prompt}\"!\n"
+            )
+            sys.exit(1)
+
+        # 3. Kata kunci substantif prompt wajib beririsan dengan kalimat memori
+        prompt_words = {w for w in re.findall(r'\b\w+\b', prompt.lower()) if len(w) > 3}
+        mem_words = {w for w in re.findall(r'\b\w+\b', mem_sentence.lower()) if len(w) > 3}
+        shared_keywords = prompt_words.intersection(mem_words)
+        if not shared_keywords:
+            sys.stderr.write(
+                f"\n[PREFLIGHT VIOLATION]: Prompt MEM '{pid}': Tidak ada kata kunci topik yang beririsan "
+                f"antara prompt (\"{prompt}\") dan kalimat memori (\"{mem_sentence}\")!\n"
+            )
+            sys.exit(1)
 
 def setup_real_temporary_workspace(root_dir: Path):
     """Membuat direktori kerja nyata dengan git repo aktif, commit, uncommitted change, dan unittest."""
@@ -616,12 +675,30 @@ def run_benchmark_suite(
             print(f"  Nilai Kunci Muncul      : {n_key_found}/{n_tot} ({n_key_found/n_tot*100:.1f}%)")
             print(f"  Success (Kunci & NoTool): {n_succ}/{n_tot} ({n_succ/n_tot*100:.1f}%)")
 
-        # Kriteria 6: 0 recall block pada NEG tanpa pemicu
+        # Kriteria 6: Evaluasi Negatif Murni & Berpemicu Aktif
         neg_records = [r for run in all_runs_results for r in run if r.get("category") == "NEG"]
         if neg_records:
             neg_leaks = sum(1 for r in neg_records if r.get("passive_recall_injected"))
-            print(f"\nKRITERIA 6: 0 Recall Block pada Negatif Tanpa Pemicu:")
-            print(f"  Recall Block Terinjeksi di NEG: {neg_leaks}/{len(neg_records)} (Status: {'LULUS' if neg_leaks == 0 else 'GAGAL'})")
+            neg_false_calls = sum(1 for r in neg_records if r.get("called_tool") is not None)
+            
+            # Deteksi kebocoran nilai kunci memori pada jawaban prompt NEG
+            all_mem_keys = [
+                p.get("expected_key", "").lower()
+                for p in prompts
+                if p.get("category") == "MEM" and p.get("expected_key")
+            ]
+            key_leaks_in_neg = 0
+            for r in neg_records:
+                resp = r.get("final_response", "").lower()
+                for k in all_mem_keys:
+                    if len(k) >= 3 and re.search(r'\b' + re.escape(k) + r'\b', resp):
+                        key_leaks_in_neg += 1
+                        break
+
+            print(f"\nKRITERIA 6: Negatif Murni & Berpemicu Aktif:")
+            print(f"  Recall Block Terinjeksi di NEG       : {neg_leaks}/{len(neg_records)} (Status: {'LULUS' if neg_leaks == 0 else 'GAGAL'})")
+            print(f"  False Tool Call di NEG               : {neg_false_calls}/{len(neg_records)} (Status: {'LULUS' if neg_false_calls == 0 else 'GAGAL'})")
+            print(f"  Kebocoran Nilai Kunci Memori di NEG  : {key_leaks_in_neg}/{len(neg_records)} (Status: {'LULUS' if key_leaks_in_neg == 0 else 'GAGAL'})")
 
     # Bersihkan temp
     db.close()
@@ -663,11 +740,18 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
+    print("\n[PREFLIGHT CHECK]: Memvalidasi seluruh prompt MEM terhadap aturan grounding dan anti-kebocoran...")
+    validate_mem_prompts_preflight(mem_4a)
+    print("Preflight check MEM 100% LULUS.")
+
     results_dir = ROOT_DIR / "tests" / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
     out_file = results_dir / "benchmark_set4_raw.jsonl"
     if out_file.exists():
         out_file.unlink()
+    header = create_benchmark_jsonl_header(USER_PROMPTS_FILE)
+    with open(out_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps(header, ensure_ascii=False) + "\n")
 
     with BenchmarkLock():
         # Jalankan Set 4A

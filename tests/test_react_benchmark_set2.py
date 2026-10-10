@@ -16,7 +16,7 @@ from enki.core.ollama_client import OllamaClient
 from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT
 from enki.core.react_loop import ReActCoordinator
 from enki.memory.database import MemoryDatabase
-from tests.benchmark_common import evaluate_benchmark_turn
+from tests.benchmark_common import evaluate_benchmark_turn, create_benchmark_jsonl_header
 
 # Definisi 20 Prompt Uji Baru (Set Kedua - DEV SET)
 BENCHMARK_PROMPTS_SET2 = [
@@ -347,9 +347,12 @@ class TestReActBenchmarkSet2(unittest.TestCase):
         results_dir = ROOT_DIR / "tests" / "results"
         results_dir.mkdir(parents=True, exist_ok=True)
         jsonl_path = results_dir / "benchmark_set2_raw.jsonl"
-        # Reset file JSONL
+        # Reset file JSONL dan tulis metadata header
         if jsonl_path.exists():
             jsonl_path.unlink()
+        header = create_benchmark_jsonl_header()
+        with open(jsonl_path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(header, ensure_ascii=False) + "\n")
 
         print("\n" + "=" * 70)
         print("MEMULAI BENCHMARK SET KEDUA (DEV SET: 20 PROMPT x 3 RUNS - MULTI-TURN REACT)")

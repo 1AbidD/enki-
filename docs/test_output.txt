@@ -39,11 +39,7 @@ Membaca file valid di dalam workspace berhasil dan dibungkus tag untrusted. ... 
 test_negative_proof_detects_deliberate_leak (test_isolation_integrity.TestDirectoryIsolationIntegrity.test_negative_proof_detects_deliberate_leak)
 Uji negatif: Membuktikan bahwa verifikator hash PASTI mendeteksi file bocor jika ada file ditulis ke data/ asli. ... ok
 test_suites_isolation_runner (test_isolation_integrity.TestDirectoryIsolationIntegrity.test_suites_isolation_runner)
-Menjalankan seluruh 7 suite unit test dan memverifikasi data/ dan logs/ asli 100% tidak tersentuh. ... ----------------------------------------------------------------------
-Ran 56 tests in 3.436s
-
-OK
-ok
+Menjalankan seluruh 7 suite unit test dan memverifikasi data/ dan logs/ asli 100% tidak tersentuh. ... ok
 test_explicit_memory_keywords (test_memory_gating.TestMemoryGating.test_explicit_memory_keywords)
 Memastikan kata kunci eksplisit memori mengaktifkan tool search_memory. ... ok
 test_get_active_tools_for_turn_schemas (test_memory_gating.TestMemoryGating.test_get_active_tools_for_turn_schemas)
@@ -148,7 +144,7 @@ test_run_unittests_execution_and_confirmation (test_shell_tools.TestFixedArgumen
 Memastikan run_unittests mengeksekusi python -m unittest. ... ok
 
 ----------------------------------------------------------------------
-Ran 78 tests in 6.104s
+Ran 78 tests in 7.762s
 
 OK (skipped=3)
 

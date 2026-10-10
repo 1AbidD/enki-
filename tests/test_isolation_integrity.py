@@ -1,4 +1,5 @@
 import os
+import io
 import hashlib
 import unittest
 from pathlib import Path
@@ -42,7 +43,7 @@ class TestDirectoryIsolationIntegrity(unittest.TestCase):
         ]:
             suite.addTests(loader.loadTestsFromName(mod_name))
 
-        runner = unittest.TextTestRunner(verbosity=0)
+        runner = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0)
         result = runner.run(suite)
         self.assertTrue(result.wasSuccessful(), f"Unit test suites mengalami kegagalan: {result.errors + result.failures}")
 

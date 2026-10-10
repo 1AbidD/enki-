@@ -36,6 +36,12 @@ class TestPassiveRecall(unittest.TestCase):
             "assistant",
             "Untuk service pembayaran, backend kita menggunakan Python FastAPI."
         )
+        # Tambahkan 25 background session (50 turns) agar korpus realistis (>20 turn)
+        # sehingga DF term spesifik seperti 'utama'/'database' <= 5% secara alami.
+        for i in range(1, 26):
+            s_bg = self.db.create_session()
+            self.db.add_turn(s_bg, "user", f"bagaimana update status modul {i} hari ini?")
+            self.db.add_turn(s_bg, "assistant", f"modul {i} berjalan normal tanpa kendala log.")
 
     def tearDown(self):
         self.db.close()

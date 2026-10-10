@@ -12,8 +12,7 @@ def handle_memory_command(
     client: OllamaClient,
     model: str
 ) -> None:
-    """Menangani sub-perintah /memory."""
-    if not args:
+    if not args or args[0].lower() in ["help", "-h", "--help"]:
         print("\n--- Panduan Perintah /memory ---")
         print("  /memory view              : Lihat seluruh fakta profil aktif")
         print("  /memory pending           : Lihat antrean usulan fakta baru")

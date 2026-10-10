@@ -10,6 +10,9 @@ import json
 import time
 import datetime
 import re
+import subprocess
+import hashlib
+import winreg
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import psutil
@@ -187,3 +190,89 @@ def classify_mem_prompt(prompt: str) -> str:
         return "has_marker"
     else:
         return "none"
+
+def get_ollama_registry_env() -> Dict[str, str]:
+    """Mengambil konfigurasi OLLAMA_* dari Windows Registry (HKCU:\\Environment)."""
+    env_vars = {}
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Environment") as key:
+            idx = 0
+            while True:
+                try:
+                    name, val, _ = winreg.EnumValue(key, idx)
+                    if name.upper().startswith("OLLAMA_"):
+                        env_vars[name] = str(val)
+                    idx += 1
+                except OSError:
+                    break
+    except Exception as e:
+        env_vars["error"] = str(e)
+    return env_vars
+
+def create_benchmark_jsonl_header(user_prompts_file: Optional[Path] = None) -> Dict[str, Any]:
+    """Menghasilkan metadata header untuk baris pertama file output JSONL benchmark:
+    - ollama --version
+    - output ollama ps
+    - nilai OLLAMA_* dari registry
+    - git HEAD commit hash
+    - hash sha256 tests/set4_user_prompts.txt
+    """
+    ollama_ver = "unknown"
+    try:
+        res = subprocess.run(["ollama", "--version"], capture_output=True, text=True, timeout=5)
+        ollama_ver = res.stdout.strip() or res.stderr.strip()
+    except Exception as e:
+        ollama_ver = f"error: {e}"
+
+    ollama_ps_out = "unknown"
+    try:
+        res = subprocess.run(["ollama", "ps"], capture_output=True, text=True, timeout=5)
+        ollama_ps_out = res.stdout.strip()
+    except Exception as e:
+        ollama_ps_out = f"error: {e}"
+
+    git_head = "unknown"
+    try:
+        res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5)
+        git_head = res.stdout.strip()
+    except Exception as e:
+        git_head = f"error: {e}"
+
+    prompts_sha256 = None
+    target_prompts_file = user_prompts_file or (Path(__file__).resolve().parent / "set4_user_prompts.txt")
+    if target_prompts_file.exists():
+        try:
+            content = target_prompts_file.read_bytes()
+            prompts_sha256 = hashlib.sha256(content).hexdigest()
+        except Exception as e:
+            prompts_sha256 = f"error: {e}"
+
+    return {
+        "record_type": "benchmark_header",
+        "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "ollama_version": ollama_ver,
+        "ollama_ps": ollama_ps_out,
+        "ollama_registry_env": get_ollama_registry_env(),
+        "git_head": git_head,
+        "set4_user_prompts_sha256": prompts_sha256
+    }
+
+def check_ollama_idle(client: Any) -> None:
+    """Memeriksa kesiapan server Ollama dan status model aktif di VRAM."""
+    if hasattr(client, "is_ready") and not client.is_ready():
+        raise RuntimeError("Server Ollama tidak aktif di http://127.0.0.1:11434!")
+    try:
+        proc = subprocess.run(["ollama", "ps"], capture_output=True, text=True, timeout=5)
+        if proc.returncode == 0:
+            lines = [l.strip() for l in proc.stdout.strip().splitlines() if l.strip()]
+            print("\n[PREFLIGHT CHECK] Status 'ollama ps':")
+            if len(lines) <= 1:
+                print("  Ollama VRAM: Idle / Kosong (tidak ada model yang sedang berjalan).")
+            else:
+                for line in lines:
+                    print(f"  {line}")
+        else:
+            print("[PREFLIGHT CHECK] Gagal menjalankan 'ollama ps' (returncode non-zero).")
+    except Exception as e:
+        print(f"[PREFLIGHT CHECK] Tidak dapat menjalankan 'ollama ps': {e}")
+

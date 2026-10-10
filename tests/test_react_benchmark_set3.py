@@ -16,7 +16,7 @@ from enki.core.ollama_client import OllamaClient
 from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT
 from enki.core.react_loop import ReActCoordinator
 from enki.memory.database import MemoryDatabase
-from tests.benchmark_common import evaluate_benchmark_turn
+from tests.benchmark_common import evaluate_benchmark_turn, create_benchmark_jsonl_header
 
 # Definisi 24 Prompt Uji Baru (Set Ketiga - UJIAN)
 BENCHMARK_PROMPTS_SET3 = [
@@ -382,6 +382,9 @@ class TestReActBenchmarkSet3(unittest.TestCase):
         jsonl_path = results_dir / "benchmark_set3_raw.jsonl"
         if jsonl_path.exists():
             jsonl_path.unlink()
+        header = create_benchmark_jsonl_header()
+        with open(jsonl_path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(header, ensure_ascii=False) + "\n")
 
         print("\n" + "=" * 75)
         print("KRITERIA KELULUSAN BENCHMARK SET 3 (UJIAN):")

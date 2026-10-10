@@ -128,9 +128,6 @@ class MemoryDatabase:
                 return 0.0
             cur_match = self.conn.execute("SELECT count(*) as c FROM turns_fts WHERE turns_fts MATCH ?", (f'"{term}"',))
             matches = cur_match.fetchone()["c"]
-            if total < 20:
-                # Pada korpus kecil (<20 turn), kemunculan pada 1 sesi (<=2 turn) adalah frekuensi terendah (DF <= 5%)
-                return 0.0 if matches <= 2 else (matches / total) * 100.0
             return (matches / total) * 100.0
         except Exception:
             return 0.0

@@ -9,11 +9,13 @@ Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbat
 
 ### Hasil Pengukuran Riil & Status GPU
 * **Versi Ollama:** `v0.33.0`
-* **Model Terpasang & Verifikasi `ollama ps`:**
+* **Kebijakan Runtime:** `OLLAMA_MAX_LOADED_MODELS=1` (kebijakan resmi produksi & benchmark).
   * Terbukti hanya **1 model tunggal** yang dimuat di VRAM pada satu waktu:
-    * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2774 MiB**, Free: **1189 MiB**).
-    * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2773 MiB**, Free: **1190 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
-  * Saat beralih model via `/coder`, model chat 3B langsung dieviktasi otomatis dari VRAM berkat kebijakan `OLLAMA_MAX_LOADED_MODELS=1`.
+    * `qwen2.5:3b` : **100% GPU** (Ukuran: 2.3 GB, Context: 8192, VRAM Used: **2534 MiB**).
+    * `qwen2.5-coder:3b` : **100% GPU** (Ukuran: 2.2 GB, Context: 4096, VRAM Used: **2386 MiB**). Mode coder berstatus **Chat-Only** (tool support tidak stabil pada 3B coder di Ollama).
+    * `nomic-embed-text:latest` : **100% GPU** (Ukuran: 323 MB, VRAM Used: **636 MiB**).
+  * Saat beralih model via `/coder` atau saat embedding dimuat di bawah kebijakan `=1`, model sebelumnya langsung dieviktasi otomatis dari VRAM.
+  * *Catatan Pengukuran `=3`:* Eksperimen `=3` terbukti memungkinkan koeksistensi model di VRAM (chat, coder, embedding), namun statusnya adalah **terukur, tidak dipakai; embedding butuh >=2**. Kebijakan produksi dan benchmark tetap mengunci strictly `=1`.
 * **Reflector Model Safety:** `reflect_session` dan perintah `/reflect` mengunci pemanggilan model ke `qwen2.5:3b`, menjamin refleksi memori tidak pernah berjalan pada model coder.
 * **Pengakuan Batas Model 3B:** Model 3B tidak dapat diandalkan untuk menyaring serangan jailbreak atau memvalidasi string shell bebas secara otonom. Oleh karena itu, string perintah bebas dihapus total, dan seluruh aksi sistem wajib dikonfirmasi manusia `[y/N]`.
 
@@ -78,8 +80,13 @@ Mekanisme heuristik recall pasif berbasis aturan R3_strict (penanda konteks + Do
 * **Latensi GPU (Ollama default):** Dingin 26,156.34 ms (diukur), Panas 43.51 ms (diukur).
 * **Konsumsi Memori Host:** RAM sistem sebelum 12,078.7 MB, sesudah 12,367.4 MB (delta: +288.8 MB) (diukur).
 * **Verifikasi Eviction VRAM (`ollama ps`):**
-  * `qwen2.5:3b` : **2.2 GB, 100% GPU** (TETAP berada di VRAM, tidak didepak/evicted) (diukur).
-  * `nomic-embed-text:latest` : **376 MB, 100% CPU** (berjalan paralel tanpa mengganggu alokasi VRAM Qwen) (diukur).
+  * Di bawah konfigurasi CPU (`num_gpu=0`), RAM host bertambah tanpa menyentuh VRAM GPU.
+  * Di bawah konfigurasi default GPU dengan `OLLAMA_MAX_LOADED_MODELS=1`, memuat embedding ke VRAM secara deterministik mendepak (evict) model LLM chat/coder. Koeksistensi dual-model di VRAM terukur membutuhkan `OLLAMA_MAX_LOADED_MODELS >= 2` (diukur pada `=3`, namun tidak diadopsi demi kebijakan produksi `=1`).
+
+#### Known Issues (Keterbatasan Teknis Passive Recall):
+1. **Token Absen Ber-DF 0%:** Token yang sama sekali tidak pernah muncul di corpus memiliki Document Frequency (DF) = 0.0%, sehingga secara matematis lolos ambang batas kelangkaan $\text{DF} \le 5.0\%$.
+2. **Aturan $\ge 2$ Token:** Aturan pencocokan $\ge 2$ token tetap dapat terpicu jika terdapat 1 token generik + 1 token langka/absen di dalam turn yang sama.
+3. **Pembersihan Hack Korpus Sintetis:** Hack `if total < 20` di `enki/memory/database.py` telah dihapus permanen. Penghitungan DF kini murni matematis $(\text{matches} / \text{total}) \times 100\%$, dan pengujian unit menggunakan korpus realistis ($\ge 25$ turn).
 
 3. **Format Blok Konteks Latar (Tanpa Grounding Keras):**
    ```text
@@ -215,7 +222,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests`, `list_dir`, `read_file`, `search_memory`.
 * Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya.
 * Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4.
-* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, dan benchmark lock (63 unit test terdaftar: 60 lulus, 3 benchmark dilewati saat discovery).
+* Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, dan benchmark lock (78 unit test terdaftar secara resmi di docs/test_ids.txt: 75 lulus, 3 benchmark dilewati saat discovery via skipTest).
 * Persiapan pengujian Set 4A dan Set 4R.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
