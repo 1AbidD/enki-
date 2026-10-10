@@ -1,0 +1,16 @@
+# Data dan logs
+data/
+logs/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Konfigurasi lokal
+config.json
+
+# Environment
+.env
+venv/
+.venv/

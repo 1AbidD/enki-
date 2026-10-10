@@ -1,0 +1,853 @@
+{
+  "total_calls": 90,
+  "total_success": 82,
+  "overall_accuracy_percent": 91.11,
+  "total_false_positive": 0,
+  "false_positive_percent": 0.0,
+  "total_invalid_args": 0,
+  "invalid_args_percent": 0.0,
+  "total_wrong_or_missed": 8,
+  "wrong_or_missed_percent": 8.89,
+  "results_by_prompt": [
+    {
+      "id": 1,
+      "type": "negative",
+      "prompt": "Halo ENKI, selamat pagi! Gimana kabarmu hari ini?",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 1.36
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.62
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.58
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "negative",
+      "prompt": "Jelaskan perbedaan mendasar antara concurrency dan parallelism dalam komputasi.",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 3.47
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 3.6
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 4.04
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "negative",
+      "prompt": "Menurutmu, apa kelebihan kuantisasi model Q4 dibanding FP16 pada kartu grafis dengan VRAM terbatas?",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 5.13
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 4.93
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 4.92
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "negative",
+      "prompt": "Bisa buatkan analogi sederhana untuk menjelaskan konsep Object-Oriented Programming (OOP) kepada mahasiswa baru?",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 4.03
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 5.79
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 4.5
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "negative",
+      "prompt": "Siapa nama kamu dan apa peran utamamu sebagai asisten pribadi lokal?",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 1.57
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 1.22
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 1.5
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "negative",
+      "prompt": "Terima kasih banyak atas penjelasannya tadi, sangat membantu dan mudah dipahami!",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.54
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.52
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.54
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "negative",
+      "prompt": "Tuliskan sebuah puisi pendek 4 baris tentang programmer yang sedang melakukan debugging di malam hari.",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.81
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.64
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 0.59
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "negative",
+      "prompt": "Bagaimana cara kerja dasar dari mekanisme self-attention pada model Transformer?",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 5.92
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 2.84
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 5.78
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "negative",
+      "prompt": "Menurut analisismu, apa keunggulan bahasa Rust dibandingkan Go untuk pembuatan tool sistem CLI?",
+      "expected_tool": null,
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 3.87
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 3.84
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Correctly responded with text, no tool called",
+          "duration_sec": 3.69
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "search_memory",
+      "prompt": "Kemarin kita sempat membahas solusi error waktu kompilasi torch di Windows, kamu ingat solusinya apa?",
+      "expected_tool": "search_memory",
+      "accuracy": "0/3",
+      "success_rate": 0.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "MISSED_TOOL",
+          "detail": "Expected search_memory, but returned text without tool call",
+          "duration_sec": 0.05
+        },
+        {
+          "run": 2,
+          "status": "MISSED_TOOL",
+          "detail": "Expected search_memory, but returned text without tool call",
+          "duration_sec": 0.03
+        },
+        {
+          "run": 3,
+          "status": "MISSED_TOOL",
+          "detail": "Expected search_memory, but returned text without tool call",
+          "duration_sec": 0.03
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "search_memory",
+      "prompt": "Coba cari di catatan obrolan lama kita, apa nama framework web Python yang pernah saya sebutkan?",
+      "expected_tool": "search_memory",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called search_memory with valid args: {'query': 'Python web framework'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called search_memory with valid args: {'query': 'Python web framework'}",
+          "duration_sec": 0.32
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called search_memory with valid args: {'query': 'Python web framework'}",
+          "duration_sec": 0.32
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "search_memory",
+      "prompt": "Pernah nggak saya menyebutkan deadline untuk proyek analisis data saham saya di riwayat chat sebelumnya?",
+      "expected_tool": "search_memory",
+      "accuracy": "0/3",
+      "success_rate": 0.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "MISSED_TOOL",
+          "detail": "Expected search_memory, but returned text without tool call",
+          "duration_sec": 1.11
+        },
+        {
+          "run": 2,
+          "status": "MISSED_TOOL",
+          "detail": "Expected search_memory, but returned text without tool call",
+          "duration_sec": 0.47
+        },
+        {
+          "run": 3,
+          "status": "MISSED_TOOL",
+          "detail": "Expected search_memory, but returned text without tool call",
+          "duration_sec": 0.75
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "search_memory",
+      "prompt": "Please search our previous conversation logs for the SQLite database configuration settings.",
+      "expected_tool": "search_memory",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called search_memory with valid args: {'query': 'SQLite database configuration settings'}",
+          "duration_sec": 0.35
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called search_memory with valid args: {'query': 'SQLite database configuration settings'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called search_memory with valid args: {'query': 'SQLite database configuration settings'}",
+          "duration_sec": 0.34
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "screen_inspect",
+      "prompt": "Tolong lihat layar saya sekarang, apa pesan error merah yang muncul di terminal?",
+      "expected_tool": "screen_inspect",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.32
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.32
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "screen_inspect",
+      "prompt": "Bisa tolong periksa apa yang sedang terbuka di window aktif komputer saya saat ini?",
+      "expected_tool": "screen_inspect",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.32
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.32
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "screen_inspect",
+      "prompt": "Cek terminal VS Code saya di layar, apakah proses build tadi sudah selesai atau masih jalan?",
+      "expected_tool": "screen_inspect",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.33
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.34
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "screen_inspect",
+      "prompt": "Inspect what is currently displayed on my active desktop window right now.",
+      "expected_tool": "screen_inspect",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.37
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called screen_inspect with valid args: {'target': 'active_window'}",
+          "duration_sec": 0.33
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "web_fetch",
+      "prompt": "Tolong ambil dan rangkum isi artikel dokumentasi di https://fastapi.tiangolo.com/tutorial/first-steps/",
+      "expected_tool": "web_fetch",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://fastapi.tiangolo.com/tutorial/first-steps/'}",
+          "duration_sec": 0.51
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://fastapi.tiangolo.com/tutorial/first-steps/'}",
+          "duration_sec": 0.5
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://fastapi.tiangolo.com/tutorial/first-steps/'}",
+          "duration_sec": 0.49
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "web_fetch",
+      "prompt": "Ekstrak teks utama dari artikel berita teknologi di link https://news.ycombinator.com/item?id=38000000",
+      "expected_tool": "web_fetch",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://news.ycombinator.com/item?id=38000000'}",
+          "duration_sec": 0.58
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://news.ycombinator.com/item?id=38000000'}",
+          "duration_sec": 0.56
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://news.ycombinator.com/item?id=38000000'}",
+          "duration_sec": 0.57
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "web_fetch",
+      "prompt": "Ambilkan konten teks dari dokumentasi Python di https://docs.python.org/3/library/sqlite3.html",
+      "expected_tool": "web_fetch",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://docs.python.org/3/library/sqlite3.html'}",
+          "duration_sec": 0.48
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://docs.python.org/3/library/sqlite3.html'}",
+          "duration_sec": 0.49
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://docs.python.org/3/library/sqlite3.html'}",
+          "duration_sec": 0.49
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "web_fetch",
+      "prompt": "Please fetch the content of this webpage: https://en.wikipedia.org/wiki/Artificial_intelligence",
+      "expected_tool": "web_fetch",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}",
+          "duration_sec": 0.48
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}",
+          "duration_sec": 0.45
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called web_fetch with valid args: {'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}",
+          "duration_sec": 0.45
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "open_url",
+      "prompt": "Buka Google di web browser saya dong.",
+      "expected_tool": "open_url",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://www.google.com'}",
+          "duration_sec": 0.37
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://www.google.com'}",
+          "duration_sec": 0.35
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://www.google.com'}",
+          "duration_sec": 0.35
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "open_url",
+      "prompt": "Tolong bukakan link repository https://github.com/ollama/ollama di browser default komputer.",
+      "expected_tool": "open_url",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://github.com/ollama/ollama'}",
+          "duration_sec": 0.44
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://github.com/ollama/ollama'}",
+          "duration_sec": 0.42
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://github.com/ollama/ollama'}",
+          "duration_sec": 0.42
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "open_url",
+      "prompt": "Buka situs YouTube di browser.",
+      "expected_tool": "open_url",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://www.youtube.com'}",
+          "duration_sec": 0.36
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://www.youtube.com'}",
+          "duration_sec": 0.35
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called open_url with valid args: {'url': 'https://www.youtube.com'}",
+          "duration_sec": 0.35
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "read_file",
+      "prompt": "Tolong baca isi file config.json yang ada di folder proyek.",
+      "expected_tool": "read_file",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called read_file with valid args: {'file_path': 'proyek/config.json'}",
+          "duration_sec": 0.38
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called read_file with valid args: {'file_path': 'proyek/config.json'}",
+          "duration_sec": 0.37
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called read_file with valid args: {'file_path': 'proyek/config.json'}",
+          "duration_sec": 0.36
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "read_file",
+      "prompt": "Bisa periksa apa saja dependency yang tertulis di dalam file requirements.txt?",
+      "expected_tool": "read_file",
+      "accuracy": "1/3",
+      "success_rate": 33.3,
+      "runs": [
+        {
+          "run": 1,
+          "status": "MISSED_TOOL",
+          "detail": "Expected read_file, but returned text without tool call",
+          "duration_sec": 1.14
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called read_file with valid args: {'file_path': 'requirements.txt'}",
+          "duration_sec": 1.26
+        },
+        {
+          "run": 3,
+          "status": "WRONG_TOOL",
+          "detail": "Expected read_file, but called run_shell_command",
+          "duration_sec": 0.5
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "read_file",
+      "prompt": "Read the contents of the file notes.md in my workspace.",
+      "expected_tool": "read_file",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called read_file with valid args: {'file_path': 'notes.md'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called read_file with valid args: {'file_path': 'notes.md'}",
+          "duration_sec": 0.33
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called read_file with valid args: {'file_path': 'notes.md'}",
+          "duration_sec": 0.33
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "run_shell_command",
+      "prompt": "Jalankan perintah git status di terminal untuk melihat status perubahan file.",
+      "expected_tool": "run_shell_command",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'git status'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'git status'}",
+          "duration_sec": 0.33
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'git status'}",
+          "duration_sec": 0.32
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "run_shell_command",
+      "prompt": "Cek versi Python yang sedang aktif dengan menjalankan command python --version.",
+      "expected_tool": "run_shell_command",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'python --version'}",
+          "duration_sec": 0.36
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'python --version'}",
+          "duration_sec": 0.34
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'python --version'}",
+          "duration_sec": 0.33
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "run_shell_command",
+      "prompt": "Jalankan perintah dir untuk melihat daftar file dan folder di direktori saat ini.",
+      "expected_tool": "run_shell_command",
+      "accuracy": "3/3",
+      "success_rate": 100.0,
+      "runs": [
+        {
+          "run": 1,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'dir'}",
+          "duration_sec": 0.33
+        },
+        {
+          "run": 2,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'dir'}",
+          "duration_sec": 0.31
+        },
+        {
+          "run": 3,
+          "status": "SUCCESS",
+          "detail": "Called run_shell_command with valid args: {'command': 'dir'}",
+          "duration_sec": 0.3
+        }
+      ]
+    }
+  ]
+}
