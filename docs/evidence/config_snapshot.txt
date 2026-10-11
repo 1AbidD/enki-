@@ -1,0 +1,61 @@
+================================================================================
+SNAPSHOT KONFIGURASI SISTEM DAN PARAMETER RUNNER BENCHMARK
+================================================================================
+Waktu Pengambilan : 2026-10-11T14:26:00+07:00
+Lingkup           : Di luar freeze scope (docs/evidence/config_snapshot.txt)
+
+1. BERKAS CONFIG.JSON
+--------------------------------------------------------------------------------
+Path: config.json
+Isi:
+{
+  "model": "qwen2.5:3b",
+  "num_ctx": 8192,
+  "temperature": 0.2,
+  "ollama_url": "http://127.0.0.1:11434",
+  "is_muted": false,
+  "passive_recall": false
+}
+
+SHA256:
+01acf5eec6688f7c847ba047a74599b884f68c96bf4167438a6b851ed53a5c25
+
+2. STATUS TRACKING GIT (CONFIG.JSON)
+--------------------------------------------------------------------------------
+Command: git ls-files config.json
+Output : (kosong / tidak ter-track)
+
+Command: git check-ignore -v config.json
+Output : .gitignore:12:config.json	config.json
+
+Kesimpulan: config.json TIDAK ter-track di repositori Git karena secara eksplisit
+diabaikan oleh aturan pada berkas .gitignore baris ke-12.
+
+3. VERSI RUNTIME SISTEM
+--------------------------------------------------------------------------------
+Python : 3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]
+Ollama : ollama version is 0.33.0
+
+4. DAFTAR NILAI PARAMETER RUNNER & SUMBER KODE
+--------------------------------------------------------------------------------
+Parameter       Nilai               Sumber File & Baris Kode
+--------------------------------------------------------------------------------
+model           qwen2.5:3b          enki/core/react_loop.py:L369 (default argumen run_react_turn)
+                                    tests/test_react_benchmark_set4.py:L763 (default argumen run_single_benchmark_turn)
+                                    config.json:L2 ("model": "qwen2.5:3b")
+
+temperature     0.2                 enki/core/ollama_client.py:L32 (default chat()) & L102 (default chat_stream())
+                                    enki/core/react_loop.py:L372 (default run_react_turn())
+                                    config.json:L4 ("temperature": 0.2)
+
+num_ctx         8192                enki/core/ollama_client.py:L31 (default chat()) & L101 (default chat_stream())
+                                    enki/core/react_loop.py:L371 (default run_react_turn())
+                                    config.json:L3 ("num_ctx": 8192)
+
+num_predict     1024                enki/core/ollama_client.py:L12 (default_num_predict = 1024)
+                                    enki/core/ollama_client.py:L39 & L111 (fallback jika num_predict=None)
+
+seed            42, 43, 44          scripts/validate_instrument.py:L160 (loop eksplisit 3 seed validasi)
+                None (default)      enki/core/ollama_client.py:L45 (tidak dikirim ke Ollama options jika None)
+                                    tests/test_react_benchmark_set4.py:L812 (mengikuti default non-seed Ollama)
+================================================================================
