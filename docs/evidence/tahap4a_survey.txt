@@ -1,0 +1,38 @@
+================================================================================
+SURVEI SUARA WINDOWS DAN SUBSISTEM TTS (TAHAP 4A)
+================================================================================
+Waktu UTC        : 2026-10-12T08:20:34.726986+00:00
+Sistem Operasi   : win32
+Versi Python     : 3.14.4
+================================================================================
+
+--- (a) Paket TTS Terpasang ---
+  - pyttsx3        : Tidak terpasang
+  - comtypes       : Tidak terpasang
+  - pywin32        : Tidak terpasang
+  - edge-tts       : Tidak terpasang
+  - winrt          : Tidak terpasang
+  - sounddevice    : Tidak terpasang
+  - pyaudio        : Tidak terpasang
+
+--- (b) Daftar Suara SAPI5 (System.Speech) ---
+  - Name: Microsoft David Desktop | Culture: en-US | Gender: Male | Enabled: True | Age: Adult
+  - Name: Microsoft Zira Desktop | Culture: en-US | Gender: Female | Enabled: True | Age: Adult
+
+--- (b) Daftar Suara OneCore (Registry HKLM) ---
+  - Name: Microsoft David | Language LCID: 409 | Gender: Male | Token: MSTTS_V110_enUS_DavidM
+  - Name: Microsoft Mark | Language LCID: 409 | Gender: Male | Token: MSTTS_V110_enUS_MarkM
+  - Name: Microsoft Zira | Language LCID: 409 | Gender: Female | Token: MSTTS_V110_enUS_ZiraM
+
+--- (c) Sintesis & Evaluasi Suara Bahasa Indonesia (id-ID / LCID 421) ---
+Direktori sampel WAV sementara: C:\Users\aabid\AppData\Local\Temp\enki_tts_samples
+[Status Suara Indonesia]: TIDAK ADA suara dengan culture 'id-ID' (LCID 421) yang terpasang di sistem Windows saat ini.
+Catatan: Hanya terdeteksi suara bahasa Inggris (en-US): David, Mark, dan Zira.
+Untuk menggunakan suara lokal Indonesia, paket bahasa suara Indonesia (Indonesian Speech Recognition & TTS) perlu diinstal di Windows Settings -> Time & Language -> Speech.
+
+================================================================================
+KESIMPULAN SURVEI TAHAP 4A:
+1. Paket Python TTS lokal: Belum ada paket TTS pihak ketiga terpasang (pyttsx3/comtypes/edge-tts = Tidak terpasang).
+2. Mesin Suara Windows Bawaan: SAPI5 dan OneCore aktif dengan suara bawaan en-US.
+3. Ketersediaan Suara Indonesia: Tidak ada suara Indonesia di OS saat ini; opsi: pasang paket suara Windows OneCore Indonesia atau gunakan edge-tts daring sebagai fallback sekunder.
+================================================================================
