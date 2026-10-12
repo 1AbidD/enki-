@@ -432,7 +432,7 @@ Berdasarkan penelusuran kode riil pada subsistem memori (`enki/cli/console.py`, 
 4. Menyebut nama atau fakta di obrolan (misal: "Namaku Budi") tidak otomatis menghasilkan usulan fakta di `pending_facts.json` dan tidak otomatis tersimpan ke `profile.json`. Fakta obrolan hanya tersimpan sebagai transkrip mentah di SQLite `sessions.db`. Untuk masuk ke profil permanen, sesi harus direfleksi, diekstrak LLM, masuk `pending_facts.json`, dan di-approve manual oleh user via `/memory approve <id>`.
 5. Jalur eksplisit `/simpan` disediakan di Tahap 3B; jalur reflect/approve tidak berubah.
 
-### Tahap 3B-1: Petunjuk Perintah (DIRENCANAKAN)
+### Tahap 3B-1: Petunjuk Perintah (LULUS)
 
 #### Alasan (Fakta):
 Pada evaluasi smoke Tahap 3B, saat diminta *"Tolong baca file README.md untuk saya"*, model menjawab tidak bisa membaca atau mengakses file lokal di obrolan (`docs/evidence/tahap3b_smoke.txt`), padahal perintah eksplisit `/baca` tersedia dan siap dipakai pengguna.
@@ -461,7 +461,14 @@ Pada evaluasi smoke Tahap 3B, saat diminta *"Tolong baca file README.md untuk sa
 - **H2:** System prompt dasar yang dirakit memuat ketujuh nama perintah (`/baca`, `/dir`, `/git`, `/test`, `/versi`, `/ingat`, `/simpan`); tambahan token estimasi $\le 100$ dibanding sebelum perubahan (diukur dari commit `c4fae3e`: 196 token assembled baseline, batas atas $\le 296$ token; konstanta ditulis di test).
 - **H3:** Seluruh suite unit test lulus (test lama tidak diubah sama sekali); `docs/test_ids.txt` diperbarui sama persis dengan hasil discovery.
 
-### Tahap 4A: Survei Suara Windows (DIRENCANAKAN)
+#### Hasil Evaluasi Tahap 3B-1:
+Status Tahap 3B-1 resmi: **LULUS** (seluruh kriteria H1–H3 mencapai 100%).
+- **H1 (Deteksi & Supresi Petunjuk):** **100% LULUS** (24 kalimat fixture di `tests/fixtures/tahap3b1_hint_sentences.txt`: 12 CMD memicu petunjuk yang tepat pada pemakaian pertama, 12 NONE menghasilkan 0 petunjuk, kalimat CMD diulang menghasilkan 0 petunjuk kedua, tools=None dan 0 eksekusi tool).
+- **H2 (System Prompt & Token Overhead):** **100% LULUS** (system prompt memuat seluruh 7 nama perintah: `/baca`, `/dir`, `/git`, `/test`, `/versi`, `/ingat`, `/simpan`; estimasi token assembled prompt adalah 241 token, penambahan 45 token dari baseline 196 token commit `c4fae3e`, memenuhi batas $\le 100$).
+- **H3 (Suite Unit Test Penuh):** **100% LULUS** (109 unit test unik lulus, 0 failures, 0 errors, 3 skipped suite benchmark; `docs/test_ids.txt` cocok 100% dengan discovery).
+- *Smoke Model Asli (`qwen2.5:3b`):* 5 pesan diuji di `docs/evidence/tahap3b1_smoke.txt`: 3 pesan CMD menampilkan petunjuk, pesan obrolan biasa 0 petunjuk, pengulangan pesan #5 menghasilkan 0 petunjuk kedua (supresi berhasil), 0 timeout, 0 crash.
+
+### Tahap 4A: Survei Suara Windows (SELESAI)
 - Hanya membaca dan mengukur, tanpa instal paket baru.
 - Keluarannya:
   1. Daftar paket TTS terpasang yang relevan (`pyttsx3`, `comtypes`, `pywin32`, `edge-tts`, `winrt*`, dan TTS lain bila ada).
@@ -470,14 +477,36 @@ Pada evaluasi smoke Tahap 3B, saat diminta *"Tolong baca file README.md untuk sa
   4. Jika tidak ada suara Indonesia, tuliskan fakta tersebut apa adanya.
 - Pengguna memilih suara dengan mendengarkan hasil WAV.
 
+#### Hasil Temuan Survei Tahap 4A (`docs/evidence/tahap4a_survey.txt`):
+Status: **SELESAI**.
+1. **Paket TTS Terpasang:** Seluruh paket pihak ketiga (`pyttsx3`, `comtypes`, `pywin32`, `edge-tts`, `winrt`, `sounddevice`, `pyaudio`) berstatus **Tidak terpasang**.
+2. **Daftar Suara SAPI5 (System.Speech):**
+   - Microsoft David Desktop (en-US, Male, Adult)
+   - Microsoft Zira Desktop (en-US, Female, Adult)
+3. **Daftar Suara OneCore (Registry HKLM):**
+   - Microsoft David (LCID 409, Male, Token: `MSTTS_V110_enUS_DavidM`)
+   - Microsoft Mark (LCID 409, Male, Token: `MSTTS_V110_enUS_MarkM`)
+   - Microsoft Zira (LCID 409, Female, Token: `MSTTS_V110_enUS_ZiraM`)
+4. **Suara Bahasa Indonesia (id-ID / LCID 421):**
+   - **TIDAK ADA suara dengan culture 'id-ID' (LCID 421) yang terpasang di sistem Windows saat ini.**
+   - Lokasi direktori sampel WAV: `C:\Users\aabid\AppData\Local\Temp\enki_tts_samples\` (0 berkas WAV karena tidak ada suara lokal Indonesia).
+
 #### Langkah Selanjutnya:
-Tahap 3B-1 (pembuatan kode dan uji), lalu Tahap 4A (survei suara Windows).
+Pengguna memilih suara dengan mendengarkan WAV, lalu Tahap 4B implementasi.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
 * Implementasi zero-cost mute check sebelum audio pipeline.
 * Enumerasi daftar suara Indonesia nyata dari sistem Windows pengguna (OneCore / SAPI5).
 * Komparasi sampel suara langsung di perangkat pengguna.
 * Sentence chunking, thread affinity 1–2 core CPU, dan interupsi instan.
+
+#### Kriteria Kelulusan Tahap 4 (DRAFT, dikonfirmasi setelah pengguna memilih suara; ditulis sebelum kode):
+- **T1 (Zero-Cost Mute):** Saat `is_muted == True`, fungsi `speak()` menghasilkan 0 panggilan sintesis, 0 thread baru, 0 modul audio ter-import (diverifikasi dengan mock dan pemeriksaan `sys.modules`).
+- **T2 (Pemotongan Kalimat / Chunking):** Tabel tetap minimal 15 teks (angka, singkatan, URL, bullet, blok kode) menghasilkan daftar chunk yang diharapkan, blok kode dilewati.
+- **T3 (Interupsi Instan):** Setelah cancel flag aktif, tidak ada chunk baru yang disintesis atau diputar dan antrean pemutaran seketika kosong (diuji dengan engine palsu).
+- **T4 (Batas CPU):** Worker sintesis memakai `OMP_NUM_THREADS=2` dan batas thread affinity $\le 2$ core bila memungkinkan (diuji konfigurasi diterapkan).
+- **T5 (Integritas Suite & CLI):** Seluruh suite unit test lulus dan alur percakapan/perintah eksplisit tidak berubah.
+- **T6 (Smoke Suara Pilihan Pengguna):** 3 kalimat natural disintesis tanpa crash, mengukur latensi, beban CPU, dan RAM (tidak ikut gate).
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
