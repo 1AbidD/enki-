@@ -14,6 +14,7 @@ from enki.memory.recall import is_recall_triggered, build_fts_query, format_reca
 from enki.core.react_loop import ReActCoordinator
 from enki.cli.memory_commands import handle_memory_command, handle_reflect_command
 from enki.cli.explicit_commands import handle_explicit_command, EXPLICIT_COMMANDS
+from enki.cli.command_hints import get_command_hints
 
 def get_vram_info() -> str:
     """Mengambil status VRAM saat ini via nvidia-smi."""
@@ -43,6 +44,7 @@ class EnkiConsole:
             db=self.db
         )
         self.history: List[Dict[str, str]] = []
+        self.seen_hint_commands: set = set()
 
     def check_startup_reflection(self):
         """Memeriksa apakah ada sesi lampau yang belum direfleksi dan menampilkan status usulan pending."""
@@ -292,6 +294,13 @@ class EnkiConsole:
 
             # 5. Catat turn assistant ke DB secara deterministik
             self.db.add_turn(self.session_id, "assistant", content)
+
+            # 5b. Cetak Petunjuk Perintah Eksplisit (Tahap 3B-1) SETELAH balasan model
+            hints = get_command_hints(user_input, seen_commands=self.seen_hint_commands, max_hints=2)
+            if hints:
+                for cmd_key, hint_line in hints:
+                    print(hint_line)
+                    self.seen_hint_commands.add(cmd_key)
 
             # 6. Telemetri Eksekusi & Anggaran Context Riil
             prompt_eval = final_metrics.get("prompt_eval_count", 0)

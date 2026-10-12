@@ -1,0 +1,24 @@
+/baca | Tolong baca file README.md untuk saya
+/baca | Coba buka dan baca berkas config.json
+/dir | Tunjukkan seluruh isi dalam folder utama
+/dir | Coba lihat direktori proyek saat ini
+/git | Cek status git repositori kita dong
+/git | Tampilkan log commit git terakhir
+/test | Tolong jalankan unit test proyek ini
+/test | Coba run unit test semua kode kita
+/versi | Coba periksa versi python yang terpasang di sistem
+/versi | Apakah versi python saat ini sudah 3.14?
+/ingat | Apakah kamu ingat apa yang kita bicarakan kemarin?
+/ingat | Coba cari percakapan lama di memori tentang konfigurasi
+NONE | jelasin singkat apa itu overfitting di machine learning
+NONE | kasih tips biar nggak ngantuk pas belajar malam
+NONE | gimana cara kerja DNS secara sederhana?
+NONE | hitungin dong 45 dikali 12 ditambah 180 brp hasilnya?
+NONE | apa itu konsep garbage collection di runtime javascript?
+NONE | berapa suhu titik leleh logam tembaga murni dalam derajat celsius?
+NONE | halo selamat pagi, apa kabar hari ini?
+NONE | buatkan puisi singkat tentang keindahan alam pegunungan
+NONE | bagaimana tips menjaga kesehatan mata saat menatap layar monitor?
+NONE | apa perbedaan antara asteroid, komet, dan meteor?
+NONE | resep cara membuat telur dadar yang tebal dan gurih
+NONE | jelaskan prinsip hukum kekekalan energi secara sederhana
