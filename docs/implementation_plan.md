@@ -1,4 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.4
+# Rencana Implementasi: ENKI (Local AI Assistant) - v2.5
+
+*Ringkasan Perubahan v2.5: Pembaruan hasil eksekusi resmi benchmark Set 4A dan Set 4R pada 2026-10-12, pencatatan insiden casing hash lock, evaluasi kriteria gate 1-9, dan penentuan status Tahap 3.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -177,8 +179,9 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
     - Routing OK: **49/72 (68.1%)** (angka lama: 50/72, 69.4%)
     - Fidelity OK: **47/72 (65.3%)** (angka lama: 48/72, 66.7%)
   * *Catatan Waktu Proses:* Sekuensialitas eksekusi Set 2 dan Set 3 berstatus **tidak terbukti** karena timestamp interaksi antarmuka tidak mencerminkan lifecycle proses OS.
-* **Set 4R (Regresi Tahap 3, 10 Prompt x 3 Runs):** Status **REGRESSION SET (TIDAK IKUT GATE)**. Menguji 10 prompt bermasalah dari Set 3 (false call shell lama, timeout) untuk membuktikan tidak adanya regresi.
-* **Set 4A (Ujian Akhir, 30 Prompt x 3 Runs):** Status **UJIAN AKHIR (MENENTUKAN GATE)**.
+* **Set 4R (Regresi Tahap 3, 11 Prompt x 3 Runs):** Status **SELESAI (TIDAK IKUT GATE)** (Waktu Run UTC: 2026-10-12T02:51:35Z). Menguji 11 prompt regresi dari Set 3. Hasil: **24/33 turn lulus (72.7%)**, 8/11 prompt unik lulus. Giliran gagal: 9 turn (S4R_P05_REG 3 run, S4R_P06_REG 3 run, S4R_P07_REG 3 run).
+* **Set 4A (Ujian Akhir, 30 Prompt x 3 Runs = 90 Turns):** Status **SELESAI (GAGAL GATE)** (Waktu Run UTC: 2026-10-12T02:51:35Z). Tingkat keberhasilan total: **78/90 turn (86.7%)**, 26/30 prompt unik lulus. Giliran gagal: 12 turn (S4A_U08_FILE 3 run, S4A_P18_MEM 3 run, S4A_P21_MEM 3 run, S4A_P26_NEG 3 run).
+* **Catatan Insiden Hash Casing (2026-10-12):** Percobaan eksekusi pertama Set 4 mengalami crash di runner sebelum memproses satu prompt pun karena kunci SHA256 di `docs/set4_lock.txt` ditulis dalam huruf kapital sedangkan `hashlib.sha256().hexdigest()` menghasilkan huruf kecil. Masalah diselesaikan di commit `set4 lock lowercase hash` (`6a3008f`) dengan mengubah nilai kunci di lock menjadi huruf kecil tanpa memodifikasi kode runner. Tidak ada prompt yang diproses pada percobaan pertama tersebut.
 
 ### Perbaikan Harness & Evaluator Benchmark (Aturan Mutlak):
 1. **Timeout = Gagal:** Di seluruh evaluator benchmark (Set 2, Set 3, Set 4), jika `is_timeout == True`, maka `is_success`, `routing_ok`, dan `fidelity_ok` wajib `False`.
@@ -307,12 +310,29 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Proposal queue dan perintah CLI `/memory`.
 * Suite unit test memori terisolasi (14 unit test lulus).
 
-### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (BELUM LULUS GATE - Set 3 gagal gate 2026-10-10, redesign harness & isolasi, menunggu Set 4)
+### Tahap 3: ReAct Loop, Fixed Argument Tools & Sandbox (BELUM LULUS GATE - Set 4A gagal kriteria 1, 6, 7 pada 2026-10-12)
 * Desain ulang tools ke format tetap: `git`, `python_version`, `run_unittests` (`python -m unittest discover [tests|.]`), `list_dir`, `read_file`, `search_memory`.
 * Kebijakan ReAct loop: Penolakan kebijakan langsung memaksa `tools=None` pada langkah berikutnya. Gating leksikal deterministik ketat untuk seluruh alat.
 * Aturan resmi recall pasif R3_strict dan pengukuran latensi/RAM embedding CPU R4 (status: EKSPERIMENTAL, GAGAL GATE, DEFAULT OFF).
 * Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, benchmark lock, gating deterministik, check_freeze repositori riil terisolasi, dan integritas SHA256 (93 unit test terdaftar secara resmi di docs/test_ids.txt: 90 lulus, 3 benchmark dilewati saat discovery via skipTest).
-* Persiapan pengujian Set 4A dan Set 4R.
+* Lock hash user ter-commit di `docs/set4_lock.txt` (commit `645b13a`, diperbaiki di `6a3008f`).
+* File prompt user ter-commit di `tests/set4_user_prompts.txt` (commit `f59b735`).
+* Eksekusi Benchmark Set 4 (Waktu Run UTC: 2026-10-12T02:51:35Z):
+  - Set 4R (Regresi): 24/33 turn lulus (72.7%), 8/11 prompt unik lulus (tidak ikut gate).
+  - Set 4A (Ujian Akhir, 30 prompt x 3 run = 90 turn): 78/90 turn lulus (86.7%), 26/30 prompt unik lulus.
+* Hasil Evaluasi Gate Kriteria 1-9:
+  - Kriteria 1 (Routing Positif): 15/18 run (83.3%), 5/6 prompt unik (Target >= 90.0%) -> **GAGAL**
+  - Kriteria 2 (False Call Negatif): 3/36 run (8.3%), 1/12 prompt unik (Target <= 10.0%) -> **LULUS**
+  - Kriteria 3 (Fidelity pada Tool Benar): 15/15 run (100.0%) (Target >= 85.0%) -> **LULUS**
+  - Kriteria 4 (Total Timeout): 0/90 run (Target = 0) -> **LULUS**
+  - Kriteria 5 (Argumen Invalid): 0/90 run (Target = 0) -> **LULUS**
+  - Kriteria 6 (Negatif Murni & Berpemicu): False tool call pada negatif berpemicu = 3/36 run pada S4A_P26_NEG (Target False Call = 0) -> **GAGAL**
+  - Kriteria 7 (Sukses MEM): 30/36 run (83.3%), 10/12 prompt unik (Target 100% No Tool + Kunci Muncul) -> **GAGAL**
+  - Kriteria 8 (Komposisi Mode Recall MEM): 4/12 prompt Mode Recall (Target >= 4) -> **LULUS**
+  - Kriteria 9 (Kebijakan Gate): Kriteria 1, 6, dan 7 GAGAL -> **GAGAL**
+
+#### Langkah Selanjutnya (Tahap 3):
+Karena Kriteria 1 (83.3% < 90.0%), Kriteria 6 (3 false tool call pada prompt berpemicu S4A_P26_NEG), dan Kriteria 7 (83.3% < 100.0% akibat kunci profil tidak muncul pada S4A_P18_MEM dan S4A_P21_MEM) berstatus Gagal, maka sesuai Kriteria 9 tidak ada tuning tambahan terhadap model. Keputusan kelanjutan arah proyek / jalur penyederhanaan (misalnya beralih ke moda chat-only tanpa ReAct, atau simplifikasi lainnya sebagaimana tertulis di Kriteria 9) menunggu pengguna. Status Tahap 3 tetap **BELUM LULUS**.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
 * Implementasi zero-cost mute check sebelum audio pipeline.
