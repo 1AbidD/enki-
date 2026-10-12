@@ -211,7 +211,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
      - **Total Keseluruhan:** **0/39 (0.0%) false tool call**.
      Meskipun skema tool terbuka akibat kecocokan leksikal kata kunci ('file', 'folder', 'commit', 'branch', 'dir', 'tadi'), pemanggilan alat palsu (false tool call) **tidak ditemukan dalam 13 kalimat yang diuji (batas atas Wilson 95% ≈ 23%)**.
      *Catatan Statistik Wilson:* Pada 0/13 prompt unik, batas atas Wilson 95% adalah 22.81% (≈ 23%). Pada 0/39 runs, batas atas Wilson 95% adalah 8.97% (≈ 9.0%), dengan catatan penting bahwa 39 run tersebut BUKAN 39 sampel independen melainkan replikasi seed dari 13 kalimat.
-     *Catatan Validitas Pengujian:* Seluruh prompt built-in dibuat setelah regex dirancang sehingga berisiko overfitting struktural terhadap aturan leksikal. Oleh karena itu, hanya prompt independen pengguna yang benar-benar menguji cakupan dan generalisasi gating secara objektif ($n$ kecil).
+     *Catatan Validitas Pengujian:* Seluruh prompt built-in dibuat setelah regex dirancang sehingga berisiko overfitting struktural terhadap aturan leksikal. Selain itu, 15 prompt "user" di Set 4A (S4A_U01 s.d. S4A_U15) ditulis oleh asisten AI (Claude) berdasarkan plan ini setelah membaca aturan gating, sehingga TIDAK independen dari desain regex (mengoreksi klaim awal bahwa prompt user independen secara murni). Parameter seed pada runner tidak dicatat sehingga 3 run per prompt bukan sampel independen ($n_{\text{efektif}}$ = jumlah prompt unik: 6 positif, 12 negatif, 12 MEM). Pada Kriteria 1 (Routing Positif, $n_{\text{efektif}} = 6$ prompt unik), realisasi adalah 5/6 prompt unik (83.3%) dengan interval kepercayaan Wilson 95% sebesar [43.6%, 97.0%]; pada 18 run adalah 15/18 run (83.3%) dengan Wilson 95% sebesar [60.8%, 94.2%].
      *Pembekuan Pola Gating:* Pola gating deterministik leksikal terakhir diubah pada commit `36ede30` dan dibekukan secara resmi pada commit freeze (`tahap 3 gating freeze`) dengan tag git beranotasi `gating-freeze` (lingkup freeze: seluruh `enki/`, `tests/benchmark_common.py`, dan `tests/test_react_benchmark_set4.py`). Runner menolak berjalan jika `git rev-parse gating-freeze` != `FREEZE_COMMIT` di `docs/set4_lock.txt` atau jika `git diff FREEZE_COMMIT -- enki/ tests/benchmark_common.py tests/test_react_benchmark_set4.py` menghasilkan output apa pun.
      *Tabel Frasa Sah yang Tidak Lolos Gating (Limitasi Terdokumentasi dari Uji 30 Frasa):*
      - `read_file`: *"bisa bantu baca skrip implementasi utama kita?"* (intensi sah membaca skrip, namun tidak memuat ekstensi file, path, atau kata 'file'/'berkas').
@@ -330,6 +330,48 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
   - Kriteria 7 (Sukses MEM): 30/36 run (83.3%), 10/12 prompt unik (Target 100% No Tool + Kunci Muncul) -> **GAGAL**
   - Kriteria 8 (Komposisi Mode Recall MEM): 4/12 prompt Mode Recall (Target >= 4) -> **LULUS**
   - Kriteria 9 (Kebijakan Gate): Kriteria 1, 6, dan 7 GAGAL -> **GAGAL**
+
+#### Data Pendukung Keputusan (Verifikasi Independen Set 4):
+1. **Rincian 4 Prompt Gagal di Set 4A (Total 12 Giliran Gagal, Konsisten 3/3 Run):**
+   * **`S4A_U08_FILE` (Kategori FILE, 3/3 Gagal):**
+     - Teks: `"di app/main.py ada fungsi apa saja?"`
+     - Tool Diharapkan: `read_file` (arg: `app/main.py`) | Kunci: `zephyr-9082-alpha|get_status|SERVICE_BUILD_REVISION`
+     - Tool Dipanggil: `None` (Gating terbuka normal, namun model tidak memanggil tool, meminta file diberikan lewat teks)
+     - Kegagalan: Routing Gagal (menyebabkan Kriteria 1 Gagal: 5/6 prompt unik / 15/18 run = 83.3%).
+   * **`S4A_P18_MEM` (Kategori MEM - Mode Profile, 3/3 Gagal):**
+     - Teks: `"sast tool scanner keamanan kode sumber yang dipakai tim apa?"`
+     - Tool Diharapkan: `None` | Kunci Diharapkan: `semgrep`
+     - Tool Dipanggil: `None` (Tanpa tool, routing benar)
+     - Respon Model: Menjawab daftar generik (SonarQube, Fortify, Coverity, Checkmarx, Snyk, Kali), tidak menyebutkan kunci `semgrep`.
+     - Kegagalan: Fidelity Gagal (menyebabkan Kriteria 7 Gagal).
+   * **`S4A_P21_MEM` (Kategori MEM - Mode Profile, 3/3 Gagal):**
+     - Teks: `"ingress controller routing trafik klaster kubernetes apa?"`
+     - Tool Diharapkan: `None` | Kunci Diharapkan: `emissary`
+     - Tool Dipanggil: `None` (Tanpa tool, routing benar)
+     - Respon Model: Menjelaskan fungsi ingress controller secara umum tanpa menyebutkan kunci profil `emissary`.
+     - Kegagalan: Fidelity Gagal (menyebabkan Kriteria 7 Gagal).
+   * **`S4A_P26_NEG` (Kategori NEG - Berpemicu Kata 'tadi', 3/3 Gagal):**
+     - Teks: `"tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?"`
+     - Tool Diharapkan: `None` | Kunci Diharapkan: `None`
+     - Tool Dipanggil: `search_memory` (arg: `{"query": "sejarah rendang minangkabau abad"}`)
+     - Eksekusi: Tool benar-benar dieksekusi oleh coordinator secara read-only terhadap database FTS5 (bukan diblokir sandbox, sandbox_status: `ATTEMPTED`, confirmed_commands: `[]`), mengembalikan hasil tidak ditemukan.
+     - Kegagalan: False Tool Call pada Negatif Berpemicu (menyebabkan Kriteria 6 Gagal).
+2. **Ringkasan Pass Rate per Asal Prompt & Kategori (Wilson 95% Confidence Interval):**
+   * Prompt User (`S4A_U*`, n=15 prompt unik): **14/15 lulus (93.3%)** | Wilson 95%: [70.2%, 98.8%].
+   * Prompt Built-in (`S4A_P*`, n=15 prompt unik): **12/15 lulus (80.0%)** | Wilson 95%: [54.8%, 93.0%].
+   * Kategori MEM (n=12 prompt unik): 10/12 lulus (83.3%) | Wilson 95%: [55.2%, 95.3%].
+     - Mode Recall (n=4): 4/4 lulus (100.0%) | Wilson 95%: [51.0%, 100.0%].
+     - Mode Profile (n=8): 6/8 lulus (75.0%) | Wilson 95%: [40.9%, 92.9%].
+   * Kategori FILE (n=3 prompt unik): 2/3 lulus (66.7%) | Wilson 95%: [20.8%, 93.9%].
+   * Kategori GIT (n=2 prompt unik): 2/2 lulus (100.0%) | Wilson 95%: [34.2%, 100.0%].
+   * Kategori TEST (n=1 prompt unik): 1/1 lulus (100.0%) | Wilson 95%: [20.7%, 100.0%].
+   * Kategori NEG (n=12 prompt unik): 11/12 lulus (91.7%) | Wilson 95%: [64.6%, 98.5%].
+     - Negatif Berpemicu (n=6 prompt: S4A_U11, U12, P24, P25, P26, P27): 5/6 lulus (83.3%), 1 false call (S4A_P26_NEG).
+     - Negatif Tanpa Pemicu (n=6 prompt: S4A_U13, U14, U15, P28, P29, P30): 6/6 lulus (100.0%), 0 recall injection.
+   * Total Positif (n=6 prompt unik): 5/6 lulus (83.3%) | Wilson 95%: [43.6%, 97.0%].
+   * Total Keseluruhan Set 4A (n=30 prompt unik): 26/30 lulus (86.7%) | Wilson 95%: [70.3%, 94.7%].
+3. **Korelasi dengan Kegagalan Set 4R:**
+   * Di Set 4R, 2 prompt Mode Profile juga gagal konsisten 3/3 run (`S4R_P05_REG` kunci `sqlite` dan `S4R_P06_REG` kunci `fastapi`). Ini mengonfirmasi keterbatasan inheren model 3B dalam menyematkan fakta profil dari system prompt pada topik pengetahuan umum teknis tanpa alat.
 
 #### Langkah Selanjutnya (Tahap 3):
 Karena Kriteria 1 (83.3% < 90.0%), Kriteria 6 (3 false tool call pada prompt berpemicu S4A_P26_NEG), dan Kriteria 7 (83.3% < 100.0% akibat kunci profil tidak muncul pada S4A_P18_MEM dan S4A_P21_MEM) berstatus Gagal, maka sesuai Kriteria 9 tidak ada tuning tambahan terhadap model. Keputusan kelanjutan arah proyek / jalur penyederhanaan (misalnya beralih ke moda chat-only tanpa ReAct, atau simplifikasi lainnya sebagaimana tertulis di Kriteria 9) menunggu pengguna. Status Tahap 3 tetap **BELUM LULUS**.
