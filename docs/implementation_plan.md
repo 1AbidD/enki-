@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.6
+# Rencana Implementasi: ENKI (Local AI Assistant) - v2.7
 
-*Ringkasan Perubahan v2.6: koreksi bukti Set 4, keputusan Tahap 3B, kriteria Tahap 3B.*
+*Ringkasan Perubahan v2.7: rancangan dan kriteria Tahap 3B-1 (petunjuk perintah) serta rancangan Tahap 4A (survei suara Windows).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -432,8 +432,46 @@ Berdasarkan penelusuran kode riil pada subsistem memori (`enki/cli/console.py`, 
 4. Menyebut nama atau fakta di obrolan (misal: "Namaku Budi") tidak otomatis menghasilkan usulan fakta di `pending_facts.json` dan tidak otomatis tersimpan ke `profile.json`. Fakta obrolan hanya tersimpan sebagai transkrip mentah di SQLite `sessions.db`. Untuk masuk ke profil permanen, sesi harus direfleksi, diekstrak LLM, masuk `pending_facts.json`, dan di-approve manual oleh user via `/memory approve <id>`.
 5. Jalur eksplisit `/simpan` disediakan di Tahap 3B; jalur reflect/approve tidak berubah.
 
+### Tahap 3B-1: Petunjuk Perintah (DIRENCANAKAN)
+
+#### Alasan (Fakta):
+Pada evaluasi smoke Tahap 3B, saat diminta *"Tolong baca file README.md untuk saya"*, model menjawab tidak bisa membaca atau mengakses file lokal di obrolan (`docs/evidence/tahap3b_smoke.txt`), padahal perintah eksplisit `/baca` tersedia dan siap dipakai pengguna.
+
+#### Rancangan:
+1. **Fungsi Murni Petunjuk (`enki/cli/command_hints.py`):**
+   Memakai predikat gating leksikal yang sudah ada di `enki/core/react_loop.py` (diimpor tanpa mengubah kode gating) untuk memetakan pesan pengguna ke petunjuk perintah yang sesuai:
+   - `read_file` -> `"/baca <path>"`
+   - `list_dir` -> `"/dir [path]"`
+   - `git` -> `"/git status|log|diff"`
+   - `run_unittests` -> `"/test"`
+   - `python_version` -> `"/versi"`
+   - `search_memory` -> `"/ingat <kata kunci>"`
+2. **Pencetakan di Console:**
+   Console mencetak maksimal 2 baris `[Petunjuk] ...` SETELAH balasan model selesai ditampilkan, paling banyak sekali per perintah per sesi (state disimpan per sesi konsol). Petunjuk tidak mengubah panggilan model (tetap dipanggil dengan `tools=None`) dan tidak mengeksekusi alat apa pun.
+3. **Penyempurnaan System Prompt Dasar:**
+   System prompt dasar (`DEFAULT_SYSTEM_PROMPT` di `enki/core/prompt_assembler.py`) ditambah satu kalimat:
+   *"Dalam obrolan ENKI tidak punya akses alat/file, pengguna dapat memakai /baca, /dir, /git, /test, /versi, /ingat, /simpan."*
+
+#### Kriteria Kelulusan Tahap 3B-1 (Ditulis di Muka Sebelum Kode; Semuanya Deterministik, Tanpa LLM, Wajib 100%):
+- **H1:** `tests/fixtures/tahap3b1_hint_sentences.txt` (format `CMD | kalimat` atau `NONE | kalimat`) berisi minimal 12 kalimat bertanda CMD (minimal 2 per perintah, kalimat natural yang membuka predikat gating terkait) dan minimal 12 kalimat NONE (termasuk S4A_U13, U14, U15, P28, P29, P30 dan 6 kalimat obrolan umum tanpa kata kunci):
+  - CMD -> tepat petunjuk perintah yang benar muncul (pada pemakaian pertama di sesi);
+  - NONE -> 0 petunjuk;
+  - Kalimat CMD yang sama diulang di sesi yang sama -> 0 petunjuk kedua;
+  - Petunjuk tidak pernah menyebabkan eksekusi tool dan model tetap dipanggil dengan `tools=None`.
+- **H2:** System prompt dasar yang dirakit memuat ketujuh nama perintah (`/baca`, `/dir`, `/git`, `/test`, `/versi`, `/ingat`, `/simpan`); tambahan token estimasi $\le 100$ dibanding sebelum perubahan (diukur dari commit `c4fae3e`: 196 token assembled baseline, batas atas $\le 296$ token; konstanta ditulis di test).
+- **H3:** Seluruh suite unit test lulus (test lama tidak diubah sama sekali); `docs/test_ids.txt` diperbarui sama persis dengan hasil discovery.
+
+### Tahap 4A: Survei Suara Windows (DIRENCANAKAN)
+- Hanya membaca dan mengukur, tanpa instal paket baru.
+- Keluarannya:
+  1. Daftar paket TTS terpasang yang relevan (`pyttsx3`, `comtypes`, `pywin32`, `edge-tts`, `winrt*`, dan TTS lain bila ada).
+  2. Daftar suara SAPI5 lewat PowerShell `System.Speech` (`GetInstalledVoices`: nama, culture, gender) dan suara OneCore dari registry `HKLM\SOFTWARE\Microsoft\Speech_OneCore\Voices\Tokens`.
+  3. Untuk setiap suara berculture `id-ID`, sintesis kalimat *"Halo, saya ENKI. Ini contoh suara untuk asisten pribadimu."* ke file WAV di folder `%TEMP%\enki_tts_samples\` (sampel WAV TIDAK di-commit ke git), ukur latensi (ms) dan puncak RAM, serta catat path lengkap tiap berkas WAV.
+  4. Jika tidak ada suara Indonesia, tuliskan fakta tersebut apa adanya.
+- Pengguna memilih suara dengan mendengarkan hasil WAV.
+
 #### Langkah Selanjutnya:
-Tahap 4.
+Tahap 3B-1 (pembuatan kode dan uji), lalu Tahap 4A (survei suara Windows).
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
 * Implementasi zero-cost mute check sebelum audio pipeline.
