@@ -1,0 +1,457 @@
+================================================================================
+LAPORAN RESMI HASIL BENCHMARK SET 4 (SET 4A & SET 4R)
+================================================================================
+Waktu Eksekusi   : 2026-10-12T02:51:44.671275+00:00
+Ollama Version   : ollama version is 0.33.0
+Runner Num Ctx   : 8192
+Git Head         : 6a3008f6000eeaaf79be09514d1defb1aeaa8fdb
+Git Dirty        : False
+Freeze Commit    : ed406d8d4bf6a585b44617f7e368e43e866f179a
+Freeze Clean     : True
+Gating Clean     : True
+Prompt SHA256    : 13538d8bbfcc4f707d87f2048057ed26b91178cc951460e5510e9262cfaef33d
+
+================================================================================
+(A) TABEL EVALUASI KRITERIA GATE SET 4A (KRITERIA 1 - 9)
+================================================================================
+No   | Kriteria Gate                       | Target         | Realisasi Mentah          | Status    
+-----------------------------------------------------------------------------------------------
+1    | Routing Positif (n=6 prompt)        | >= 90.0%       | 15/18 (83.3%), prompt: 5/6 | Gagal     
+2    | False Call Negatif (n=12 prompt)    | <= 10.0%       | 3/36 (8.3%), prompt: 1/12 | Lulus     
+3    | Fidelity Jawaban pada Tool Benar    | >= 85.0%       | 15/15 (100.0%)            | Lulus     
+4    | Total Timeout (n=30 prompt)         | = 0            | 0/90                      | Lulus     
+5    | Argumen Invalid (n=30 prompt)       | = 0            | 0/90                      | Lulus     
+6    | Negatif Murni & Berpemicu           | False Call=0   | False Call: 3/9           | Gagal     
+7    | Sukses MEM (n=12 prompt)            | 100% (NoTool+Key) | 30/36 (83.3%), prompt: 10/12 | Gagal     
+8    | Komposisi Mode Recall MEM           | >= 4 prompt    | 4/12 prompt Mode Recall   | Lulus     
+9    | Kebijakan Gate (Tanpa Tuning)       | Semua Lulus    | Kriteria 1, 6, 7 Gagal    | Gagal     
+
+================================================================================
+(B) RINCIAN FALSE CALL, SANDBOX, DAN GATING_CLOSED
+================================================================================
+1. False Call Sampai Konfirmasi Eksekusi : 0 / 90 run (0.0%)
+2. False Call Diblokir Sandbox / Read-Only : 3 / 90 run (3.3%)
+   - Seluruh 3 run berasal dari S4A_P26_NEG (memanggil search_memory)
+   - Tool search_memory dieksekusi secara read-only tanpa memerlukan konfirmasi manual.
+3. False Call Gating Closed               : 0 / 90 run (0.0%)
+   - Kata 'tadi' pada S4A_P26_NEG membuka tool search_memory secara leksikal.
+4. Expected Tool Terblokir Gating Closed   : 0 / 18 run positif (0.0%)
+   - Tidak ada expected tool yang tertutup salah oleh gating deterministik.
+
+================================================================================
+(C) METRIK MEMORI (MEM) PER MODE & JENIS PEMICU
+================================================================================
+1. Mode Recall (Active FTS5 Injection) (n=4 prompt unik, 12 turn):
+   - Prompt Unik       : S4A_U01_MEM, S4A_U02_MEM, S4A_U03_MEM, S4A_U04_MEM
+   - Pemicu Leksikal   : Terdeteksi dan blok recall terinjeksi 12/12 turn (100.0%)
+   - Tanpa Tool        : 12/12 (100.0%)
+   - Kunci Ditemukan   : 12/12 (100.0%)
+   - Tingkat Sukses    : 12/12 (100.0%)
+
+2. Mode Profile (System Prompt Base Injection) (n=8 prompt unik, 24 turn):
+   - Prompt Unik       : S4A_U05_MEM, S4A_U06_MEM, S4A_P16_MEM s.d. S4A_P21_MEM
+   - Pemicu Leksikal   : 0 (Tidak memicu pencarian recall FTS5)
+   - Tanpa Tool        : 24/24 (100.0%)
+   - Kunci Ditemukan   : 18/24 (75.0%)
+   - Tingkat Sukses    : 18/24 (75.0%)
+   - Prompt Gagal      : S4A_P18_MEM (kunci 'semgrep' tidak muncul di 3/3 run)
+                         S4A_P21_MEM (kunci 'emissary' tidak muncul di 3/3 run)
+
+================================================================================
+(D) FIDELITY PER KATEGORI & CATATAN EVALUASI ANY-OF
+================================================================================
+- Kategori MEM  : 30/36 (83.3%) fidelity_ok
+- Kategori FILE : 6/9 (66.7%) fidelity_ok
+- Kategori GIT  : 6/6 (100.0%) fidelity_ok
+- Kategori TEST : 3/3 (100.0%) fidelity_ok
+- Kategori NEG  : 33/36 (91.7%) fidelity_ok
+
+Catatan Evaluasi Kunci Any-Of:
+Evaluasi fidelity pada kategori FILE, GIT, dan TEST menggunakan himpunan token any-of
+dari manifes fixture. Sesuai limitasi resmi yang telah dicatat pada plan, skema any-of
+bersifat longgar karena mengukur pemanfaatan output alat dalam respons secara memadai,
+bukan presisi sempit string tunggal.
+
+================================================================================
+(E) TABEL DETAIL PER PROMPT SET 4A (30 PROMPT UNIK x 3 RUN)
+================================================================================
+ID             | Tipe  | Tool Terbuka           | Tool Dipanggil  | Kunci   | Flag   | Durasi (s)
+-----------------------------------------------------------------------------------------------
+S4A_U01_MEM    | MEM   | search_memory          | None            | True    | PASS   | 1.92 avg  
+S4A_U02_MEM    | MEM   | search_memory          | None            | True    | PASS   | 0.31 avg  
+S4A_U03_MEM    | MEM   | search_memory          | None            | True    | PASS   | 0.34 avg  
+S4A_U04_MEM    | MEM   | search_memory          | None            | True    | PASS   | 0.29 avg  
+S4A_U05_MEM    | MEM   | None                   | None            | True    | PASS   | 0.33 avg  
+S4A_U06_MEM    | MEM   | None                   | None            | True    | PASS   | 0.19 avg  
+S4A_U07_FILE   | FILE  | read_file              | read_file       | True    | PASS   | 0.90 avg  
+S4A_U08_FILE   | FILE  | read_file              | None            | False   | FAIL   | 0.78 avg  
+S4A_U09_GIT    | GIT   | git                    | git             | True    | PASS   | 1.45 avg  
+S4A_U10_TEST   | TEST  | run_unittests          | run_unittests   | True    | PASS   | 0.94 avg  
+S4A_U11_NEG    | NEG   | search_memory          | None            | True    | PASS   | 4.13 avg  
+S4A_U12_NEG    | NEG   | search_memory          | None            | True    | PASS   | 2.32 avg  
+S4A_U13_NEG    | NEG   | None                   | None            | True    | PASS   | 2.02 avg  
+S4A_U14_NEG    | NEG   | None                   | None            | True    | PASS   | 8.32 avg  
+S4A_U15_NEG    | NEG   | None                   | None            | True    | PASS   | 6.42 avg  
+S4A_P16_MEM    | MEM   | None                   | None            | True    | PASS   | 0.25 avg  
+S4A_P17_MEM    | MEM   | None                   | None            | True    | PASS   | 2.23 avg  
+S4A_P18_MEM    | MEM   | None                   | None            | False   | FAIL   | 4.89 avg  
+S4A_P19_MEM    | MEM   | None                   | None            | True    | PASS   | 5.39 avg  
+S4A_P20_MEM    | MEM   | None                   | None            | True    | PASS   | 5.26 avg  
+S4A_P21_MEM    | MEM   | None                   | None            | False   | FAIL   | 5.16 avg  
+S4A_P22_WS     | FILE  | read_file              | read_file       | True    | PASS   | 0.76 avg  
+S4A_P23_WS     | GIT   | git                    | git             | True    | PASS   | 1.88 avg  
+S4A_P24_NEG    | NEG   | search_memory          | None            | True    | PASS   | 1.27 avg  
+S4A_P25_NEG    | NEG   | search_memory          | None            | True    | PASS   | 0.72 avg  
+S4A_P26_NEG    | NEG   | search_memory          | search_memory   | False   | FAIL   | 1.15 avg  
+S4A_P27_NEG    | NEG   | search_memory          | None            | True    | PASS   | 0.96 avg  
+S4A_P28_NEG    | NEG   | None                   | None            | True    | PASS   | 0.67 avg  
+S4A_P29_NEG    | NEG   | None                   | None            | True    | PASS   | 5.83 avg  
+S4A_P30_NEG    | NEG   | None                   | None            | True    | PASS   | 0.43 avg  
+
+================================================================================
+(F) RINCIAN SELURUH GILIRAN GAGAL (JAWABAN MENTAH & OUTPUT TOOL)
+================================================================================
+Total Giliran Gagal Set 4A: 12 / 90 turn (4 prompt unik x 3 run)
+Catatan: Pratinjau tool_observations dibatasi 120 karakter karena keterbatasan audit log.
+
+--- Prompt ID: S4A_U08_FILE | Run 1 | Kategori: FILE ---
+Prompt Input    : di app/main.py ada fungsi apa saja?
+Expected Tool   : read_file | Expected Key: zephyr-9082-alpha|get_status|SERVICE_BUILD_REVISION
+Called Tool     : None | Called Arg: None
+Routing OK      : False | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Untuk mengetahui fungsi-fungsi yang ada dalam `app/main.py`, saya perlu membaca file tersebut. Mohon berikan `app/main.py` atau path relatif ke file tersebut agar saya bisa membacanya.
+------------------------------------------------------------
+--- Prompt ID: S4A_P18_MEM | Run 1 | Kategori: MEM ---
+Prompt Input    : sast tool scanner keamanan kode sumber tim kita pakai apa?
+Expected Tool   : None | Expected Key: semgrep
+Called Tool     : None | Called Arg: None
+Routing OK      : True | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Untuk sast tool scanner keamanan kode sumber, tim Anda mungkin menggunakan berbagai alat tergantung pada kebutuhan dan preferensi internal. Beberapa alat yang populer dan sering digunakan dalam industri termasuk:
+
+1. **SonarQube**: Alat yang mendukung banyak bahasa pemrograman dan memiliki fitur yang kuat untuk deteksi keamanan.
+
+2. **Fortify SCA**: Dikenal dengan kekuatannya dalam deteksi keamanan kode sumber dan integrasi dengan berbagai bahasa pemrograman.
+
+3. **OWASP Dependency-Check**: Untuk deteksi dan pengecekan keamanan terhadap paket dan library yang digunakan dalam proyek.
+
+4. **Snyk**: Alat yang mengecek keamanan kode sumber dan paket, serta mengidentifikasi dan menganjurkan pembaruan keamanan.
+
+5. **Checkmarx**: Dikenal dengan kekuatannya dalam deteksi keamanan dan integrasi dengan berbagai bahasa pemrograman.
+
+6. **Veracode**: Alat yang mengecek keamanan kode sumber dan menawarkan penilaian keamanan proyek.
+
+Tim Anda mungkin memilih alat yang sesuai dengan kebutuhan dan anggaran perusahaan. Jika Anda memiliki lebih banyak informasi tentang proyek Anda, saya dapat memberikan saran yang lebih spesifik.
+------------------------------------------------------------
+--- Prompt ID: S4A_P21_MEM | Run 1 | Kategori: MEM ---
+Prompt Input    : ingress controller routing trafik klaster kubernetes apa?
+Expected Tool   : None | Expected Key: emissary
+Called Tool     : None | Called Arg: None
+Routing OK      : True | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Ingress controller dalam Kubernetes bertanggung jawab untuk mengatur routing trafik ke aplikasi yang berjalan di dalam cluster Kubernetes. Ini melibatkan konfigurasi seperti pengaturan domain, path mapping, dan filter pada masuknya trafik ke aplikasi.
+
+Berikut beberapa fungsionalitas utama ingress controller:
+
+1. **Routing Domain**: Memungkinkan pengguna untuk mengarahkan masuknya trafik ke aplikasi melalui domain yang diatur oleh pengguna, bukan alamat IP publik yang digunakan oleh Kubernetes.
+
+2. **Path Mapping**: Memungkinkan pengguna untuk mengatur bagaimana masuknya trafik harus diarahkan ke aplikasi yang berjalan di dalam cluster. Ini bisa melibatkan pengaturan path yang spesifik untuk mengarahkan trafik ke bagian yang berbeda dari aplikasi.
+
+3. **Filtering**: Memungkinkan pengguna untuk menambahkan filter pada masuknya trafik ke aplikasi, seperti SSL termination, TLS passthrough, atau pengecualian untuk masuknya trafik dari domain tertentu.
+
+4. **SSL Termination**: Memungkinkan pengguna untuk mengekstrak SSL certificate dan mengarahkan masuknya trafik ke aplikasi tanpa SSL.
+
+5. **TLS Passthrough**: Memungkinkan pengguna untuk mengarahkan masuknya trafik ke aplikasi tanpa SSL, dengan SSL certificate yang disediakan oleh pengguna.
+
+6. **Health Checks**: Memungkinkan pengguna untuk mengatur bagaimana masuknya trafik harus diarahkan ke aplikasi jika aplikasi tidak sehat.
+
+7. **Custom Headers**: Memungkinkan pengguna untuk menambahkan atau menghapus header pada masuknya trafik ke aplikasi.
+
+8. **Authentication and Authorization**: Memungkinkan pengguna untuk mengatur bagaimana masuknya trafik harus diarahkan ke aplikasi berdasarkan informasi authentikasi dan authorization.
+
+9. **Traffic Splitting**: Memungkinkan pengguna untuk mengatur bagaimana masuknya trafik harus diarahkan ke beberapa versi aplikasi yang berbeda.
+
+10. **SSL Termination**: Memungkinkan pengguna untuk mengekstrak SSL certificate dan mengarahkan masuknya trafik ke aplikasi tanpa SSL.
+
+Ingin mengetahui lebih lanjut tentang konfigurasi atau implementasi ingress controller?
+------------------------------------------------------------
+--- Prompt ID: S4A_P26_NEG | Run 1 | Kategori: NEG ---
+Prompt Input    : tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?
+Expected Tool   : None | Expected Key: None
+Called Tool     : search_memory | Called Arg: {"query": "sejarah rendang minangkabau abad"}
+Routing OK      : False | Fidelity OK: False
+Tool Observations: ['[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori.']
+Final Response  :
+Maaf, database memori tidak menyimpan catatan tentang sejarah rendang Minangkabau dari abad mana. Mohon coba pertanyaan lain.
+------------------------------------------------------------
+--- Prompt ID: S4A_U08_FILE | Run 2 | Kategori: FILE ---
+Prompt Input    : di app/main.py ada fungsi apa saja?
+Expected Tool   : read_file | Expected Key: zephyr-9082-alpha|get_status|SERVICE_BUILD_REVISION
+Called Tool     : None | Called Arg: None
+Routing OK      : False | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Untuk mengetahui fungsi-fungsi dalam file `app/main.py`, saya perlu membaca file tersebut. Mohon berikan `app/main.py` atau alamat file tersebut agar saya dapat membaca dan memahami fungsi-fungsi yang terdapat di dalamnya.
+------------------------------------------------------------
+--- Prompt ID: S4A_P18_MEM | Run 2 | Kategori: MEM ---
+Prompt Input    : sast tool scanner keamanan kode sumber tim kita pakai apa?
+Expected Tool   : None | Expected Key: semgrep
+Called Tool     : None | Called Arg: None
+Routing OK      : True | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Untuk sast tool scanner keamanan kode sumber, tim Anda mungkin menggunakan berbagai alat tergantung pada kebutuhan dan preferensi internal. Beberapa alat yang populer dan sering digunakan dalam industri termasuk:
+
+1. **SonarQube**: Alat yang mengevaluasi kode sumber dan mendeteksi bug, keamanan, dan performa.
+
+2. **Fortify SCA**: Alat yang dirancang khusus untuk deteksi keamanan kode sumber.
+
+3. **OWASP Dependency-Check**: Untuk mengevaluasi dan mendeteksi keamanan dalam paket dan library yang digunakan dalam proyek.
+
+4. **Snyk**: Alat yang mengevaluasi keamanan dalam kode sumber dan paket.
+
+5. **Kali**: Alat yang juga bisa digunakan untuk pengevaluasi keamanan, meskipun lebih banyak digunakan untuk pengetesan keamanan.
+
+6. **SAST (Static Application Security Testing)**: Alat yang mengevaluasi kode sumber secara statis untuk mengekstrak masalah keamanan.
+
+Tim Anda mungkin memilih alat yang sesuai dengan kebutuhan dan anggaran mereka. Jika Anda memiliki lebih banyak informasi tentang kebutuhan spesifik tim Anda, saya bisa memberikan informasi yang lebih spesifik.
+------------------------------------------------------------
+--- Prompt ID: S4A_P21_MEM | Run 2 | Kategori: MEM ---
+Prompt Input    : ingress controller routing trafik klaster kubernetes apa?
+Expected Tool   : None | Expected Key: emissary
+Called Tool     : None | Called Arg: None
+Routing OK      : True | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Ingress controller dalam Kubernetes digunakan untuk routing trafik ke aplikasi yang berjalan di dalam cluster Kubernetes. Ia bertugas untuk mengatur konfigurasi dasbor dan port yang harus diakses oleh pengguna luar, serta mengarahkan trafik ke aplikasi yang sesuai berdasarkan konfigurasi yang telah ditentukan.
+
+Beberapa fungsi utama dari Ingress controller dalam Kubernetes meliputi:
+
+1. **Routing**: Mengarahkan trafik ke aplikasi yang berjalan di dalam cluster.
+2. **TLS Termination**: Mengambil responsibilitas untuk penanganan TLS (Transport Layer Security) dari aplikasi yang berjalan di dalam cluster.
+3. **SSL Termination**: Mengambil responsibilitas untuk penanganan SSL dari aplikasi yang berjalan di dalam cluster.
+4. **SSL Passthrough**: Menggunakan Ingress controller untuk memproses SSL tanpa mengambil responsibilitas dari aplikasi yang berjalan di dalam cluster.
+5. **SSL Passthrough dan TLS Termination**: Menggunakan Ingress controller untuk memproses SSL dan penanganan TLS dari aplikasi yang berjalan di dalam cluster.
+
+Ingress controller juga sering digunakan untuk mengelola konfigurasi dasbor dan port yang harus diakses oleh pengguna luar, serta mengarahkan trafik ke aplikasi yang sesuai berdasarkan konfigurasi yang telah ditentukan.
+------------------------------------------------------------
+--- Prompt ID: S4A_P26_NEG | Run 2 | Kategori: NEG ---
+Prompt Input    : tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?
+Expected Tool   : None | Expected Key: None
+Called Tool     : search_memory | Called Arg: {"query": "sejarah rendang minangkabau abad"}
+Routing OK      : False | Fidelity OK: False
+Tool Observations: ['[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori.']
+Final Response  :
+Maaf, database memori tidak menyimpan catatan tentang sejarah rendang Minangkabau dari abad mana. Mohon coba pertanyaan lain.
+------------------------------------------------------------
+--- Prompt ID: S4A_U08_FILE | Run 3 | Kategori: FILE ---
+Prompt Input    : di app/main.py ada fungsi apa saja?
+Expected Tool   : read_file | Expected Key: zephyr-9082-alpha|get_status|SERVICE_BUILD_REVISION
+Called Tool     : None | Called Arg: None
+Routing OK      : False | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Untuk mengetahui fungsi-fungsi yang ada di file `app/main.py`, saya perlu membaca file tersebut. Mohon berikan atau berikan saya akses ke file tersebut.
+------------------------------------------------------------
+--- Prompt ID: S4A_P18_MEM | Run 3 | Kategori: MEM ---
+Prompt Input    : sast tool scanner keamanan kode sumber tim kita pakai apa?
+Expected Tool   : None | Expected Key: semgrep
+Called Tool     : None | Called Arg: None
+Routing OK      : True | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Untuk sast tool scanner keamanan kode sumber, tim Anda mungkin menggunakan berbagai alat tergantung pada kebutuhan dan preferensi internal. Beberapa alat yang populer untuk keamanan kode sumber termasuk:
+
+1. **SonarQube**: Alat yang mendukung banyak bahasa pemrograman dan menawarkan fitur analisis keamanan.
+
+2. **Fortify**: Alat yang dikembangkan oleh HP, menawarkan analisis keamanan dan fitur peningkatan keamanan.
+
+3. **Coverity**: Alat yang dikembangkan oleh IBM, menawarkan analisis keamanan dan fitur peningkatan keamanan.
+
+4. **Checkmarx**: Alat yang menawarkan analisis keamanan dan peningkatan keamanan.
+
+5. **OWASP Dependency-Check**: Alat yang mengecek keamanan terhadap paket dan library yang digunakan dalam proyek.
+
+6. **Snyk**: Alat yang menawarkan analisis keamanan terhadap paket dan library yang digunakan dalam proyek.
+
+7. **Snyk Code**: Alat yang menawarkan analisis keamanan dan peningkatan keamanan terhadap kode sumber.
+
+8. **Kali**: Alat yang menawarkan berbagai alat keamanan termasuk scanner keamanan kode sumber.
+
+Pilihan alat yang paling tepat akan bergantung pada kebutuhan spesifik tim Anda, seperti bahasa pemrograman yang digunakan, kompleksitas proyek, dan standar keamanan yang diterapkan. Anda mungkin ingin mempertimbangkan beberapa alat dan mencoba yang paling sesuai dengan kebutuhan tim Anda.
+------------------------------------------------------------
+--- Prompt ID: S4A_P21_MEM | Run 3 | Kategori: MEM ---
+Prompt Input    : ingress controller routing trafik klaster kubernetes apa?
+Expected Tool   : None | Expected Key: emissary
+Called Tool     : None | Called Arg: None
+Routing OK      : True | Fidelity OK: False
+Tool Observations: []
+Final Response  :
+Ingress controller dalam Kubernetes bertanggung jawab untuk mengatur routing trafik ke aplikasi yang berjalan di dalam cluster Kubernetes. Ini melibatkan konfigurasi seperti:
+
+1. Mengatur mapping antara domain atau subdomain dan hostnames yang valid untuk aplikasi.
+2. Mengatur pengalihan trafik ke host dan port yang tepat di dalam cluster.
+3. Mengatur pengalihan trafik ke aplikasi yang berjalan di luar cluster menggunakan protokol seperti HTTPS.
+
+Beberapa fitur yang biasanya disediakan oleh ingress controller meliputi:
+
+- Mengatur konfigurasi untuk TLS (HTTPS)
+- Mengatur pengalihan trafik ke aplikasi yang berjalan di luar cluster
+- Mengatur pengalihan trafik ke aplikasi yang berjalan di dalam cluster
+- Mengatur pengalihan trafik ke aplikasi yang berjalan di luar cluster menggunakan protokol seperti HTTP
+
+Ingress controller ini biasanya ditangani oleh plugin seperti NGINX, Traefik, Contour, dan lainnya.
+------------------------------------------------------------
+--- Prompt ID: S4A_P26_NEG | Run 3 | Kategori: NEG ---
+Prompt Input    : tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?
+Expected Tool   : None | Expected Key: None
+Called Tool     : search_memory | Called Arg: {"query": "sejarah rendang minangkabau abad"}
+Routing OK      : False | Fidelity OK: False
+Tool Observations: ['[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori.']
+Final Response  :
+Maaf, database memori tidak menyimpan catatan tentang sejarah rendang Minangkabau dari abad mana. Mohon coba pertanyaan lain.
+------------------------------------------------------------
+================================================================================
+(G) HASIL EVALUASI SET 4R REGRESI (11 PROMPT x 3 RUN = 33 TURN) [TIDAK IKUT GATE]
+================================================================================
+Tingkat Kelulusan Set 4R : 24 / 33 turn (72.7%)
+Prompt Unik Lolos        : 8 / 11 prompt
+
+Rincian per Prompt Set 4R:
+  [S4R_P01_REG   ] PASS   | Tool: None            | Prompt: kapan bahasa pemrograman C pertama kali diciptakan dan oleh ...
+  [S4R_P02_REG   ] PASS   | Tool: None            | Prompt: buatkan fungsi python buat balik urutan string (reverse stri...
+  [S4R_P03_REG   ] PASS   | Tool: None            | Prompt: bantu bikinin draf email izin sakit untuk bos kantor besok...
+  [S4R_P04_REG   ] PASS   | Tool: None            | Prompt: gimana tips mengatasi insomnia dan pola tidur yg berantakan?...
+  [S4R_P05_REG   ] FAIL   | Tool: None            | Prompt: apa database utama proyek kita ya?...
+  [S4R_P06_REG   ] FAIL   | Tool: None            | Prompt: bahasa apa yg kita pake buat backend service pembayaran?...
+  [S4R_P07_REG   ] FAIL   | Tool: None            | Prompt: isi file requirements.txt apa aja ya?...
+  [S4R_P08_REG   ] PASS   | Tool: git             | Prompt: bisa tolong liat branch git kita yg aktif dan status commit ...
+  [S4R_P09_REG   ] PASS   | Tool: run_unittests   | Prompt: tolong jalanin unit test proyek kita dong...
+  [S4R_P10_REG   ] PASS   | Tool: None            | Prompt: tolong jelaskan arsitektur Transformer dan mekanisme self-at...
+  [S4R_P11_REG   ] PASS   | Tool: run_unittests   | Prompt: coba jalankan seluruh tes proyek ini dan laporkan hasilnya...
+
+Giliran Gagal pada Set 4R (9 turn dari 3 prompt unik):
+  --- [S4R_P05_REG Run 1] ---
+  Prompt Input     : apa database utama proyek kita ya?
+  Expected Tool    : None | Expected Key: sqlite
+  Called Tool      : None | Called Arg: None
+  Routing OK       : True | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk mengetahui database utama proyek Anda, saya perlu mengetahui lebih detail tentang proyek tersebut. Apakah ini proyek pribadi atau proyek perusahaan? Apa bahasa pemrograman utama proyek ini? Apakah ada database tertentu yang sudah dipilih atau masih dalam proses pemilihan?
+  ----------------------------------------------------------
+  --- [S4R_P06_REG Run 1] ---
+  Prompt Input     : bahasa apa yg kita pake buat backend service pembayaran?
+  Expected Tool    : None | Expected Key: fastapi
+  Called Tool      : None | Called Arg: None
+  Routing OK       : True | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk backend service pembayaran, bahasa pemrograman yang umum digunakan adalah:
+
+1. **Go**: Dikenal cepat dan efisien, baik untuk pembayaran.
+2. **Java**: Dapat digunakan untuk aplikasi besar dan skalabel.
+3. **Python**: Ringkas dan mudah dipelajari, cocok untuk pengembangan cepat.
+4. **C++**: Dapat memberikan performa tinggi, ideal untuk aplikasi yang memerlukan kecepatan.
+5. **Rust**: Dapat digunakan untuk aplikasi yang membutuhkan keamanan tinggi dan performa tinggi.
+
+Pilihan bahasa pemrograman akan tergantung pada kebutuhan spesifik seperti kecepatan, skalabilitas, keamanan, dan performa yang diinginkan.
+  ----------------------------------------------------------
+  --- [S4R_P07_REG Run 1] ---
+  Prompt Input     : isi file requirements.txt apa aja ya?
+  Expected Tool    : read_file | Expected Key: structlog|aiohttp|prometheus|cerberus
+  Called Tool      : None | Called Arg: None
+  Routing OK       : False | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk mengetahui isi dari file `requirements.txt`, saya perlu membaca file tersebut. Mohon berikan path relatif file `requirements.txt` di dalam workspace Anda.
+  ----------------------------------------------------------
+  --- [S4R_P05_REG Run 2] ---
+  Prompt Input     : apa database utama proyek kita ya?
+  Expected Tool    : None | Expected Key: sqlite
+  Called Tool      : None | Called Arg: None
+  Routing OK       : True | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Maaf, sebagai AI, saya tidak memiliki akses langsung ke profil proyek atau database Anda. Anda dapat mengetahui database utama proyek Anda melalui berbagai cara, seperti:
+
+1. Melihat file konfigurasi database dalam proyek Anda, biasanya berupa file .env, .ini, atau .yml.
+2. Melakukan penelusuran dalam database yang sedang berjalan.
+3. Meminta informasi dari pengembang atau pemilik proyek.
+
+Jika Anda membutuhkan bantuan spesifik untuk menemukan database tersebut, silakan berikan lebih banyak detail tentang proyek Anda.
+  ----------------------------------------------------------
+  --- [S4R_P06_REG Run 2] ---
+  Prompt Input     : bahasa apa yg kita pake buat backend service pembayaran?
+  Expected Tool    : None | Expected Key: fastapi
+  Called Tool      : None | Called Arg: None
+  Routing OK       : True | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk backend service pembayaran, bahasa pemrograman yang umum digunakan adalah:
+
+1. **Go**: Go adalah pilihan yang baik karena memiliki fitur yang mendukung keamanan dan kecepatan yang tinggi. Go juga memiliki standard library yang kuat untuk pengolahan transaksi dan pembayaran.
+
+2. **Rust**: Rust juga merupakan pilihan yang baik karena keamanan dan kecepatan yang tinggi. Rust memiliki fitur yang kuat untuk pengolahan data sensitif dan pembayaran.
+
+3. **Java**: Java juga bisa digunakan, terutama jika Anda membutuhkan dukungan yang lebih luas atau jika Anda bekerja dengan organisasi yang menggunakan teknologi Java.
+
+4. **Python**: Python bisa digunakan, terutama jika Anda membutuhkan dukungan yang lebih luas atau jika Anda bekerja dengan organisasi yang menggunakan teknologi Python.
+
+5. **C++**: C++ juga bisa digunakan, terutama jika Anda membutuhkan kecepatan yang tinggi dan jika Anda bekerja dengan organisasi yang menggunakan teknologi C++.
+
+Pilihan yang paling tepat akan bergantung pada berbagai faktor seperti kebutuhan teknis, standar internal, dan preferensi tim.
+  ----------------------------------------------------------
+  --- [S4R_P07_REG Run 2] ---
+  Prompt Input     : isi file requirements.txt apa aja ya?
+  Expected Tool    : read_file | Expected Key: structlog|aiohttp|prometheus|cerberus
+  Called Tool      : None | Called Arg: None
+  Routing OK       : False | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk memberikan Anda daftar isi dari file `requirements.txt`, saya membutuhkan lokasi file tersebut di workspace Anda. Mohon berikan path relatif dari file tersebut.
+  ----------------------------------------------------------
+  --- [S4R_P05_REG Run 3] ---
+  Prompt Input     : apa database utama proyek kita ya?
+  Expected Tool    : None | Expected Key: sqlite
+  Called Tool      : None | Called Arg: None
+  Routing OK       : True | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk mengetahui database utama proyek Anda, saya perlu lebih banyak informasi. Apakah ini proyek yang Anda kelola secara pribadi atau sebagai bagian dari tim? Apakah proyek ini berbasis lokal atau berbasis cloud? Dan, apakah ada database tertentu yang sudah ditentukan atau masih dalam proses pemilihan?
+  ----------------------------------------------------------
+  --- [S4R_P06_REG Run 3] ---
+  Prompt Input     : bahasa apa yg kita pake buat backend service pembayaran?
+  Expected Tool    : None | Expected Key: fastapi
+  Called Tool      : None | Called Arg: None
+  Routing OK       : True | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk backend service pembayaran, bahasa pemrograman yang umum digunakan adalah Go dan Rust. 
+
+- **Go**: Go adalah bahasa pemrograman yang dirancang untuk desain aplikasi yang cepat dan skalabel. Dengan fitur seperti goroutines, concurrency, dan built-in support untuk HTTP dan cloud, Go sangat cocok untuk pembuatan backend service. 
+
+- **Rust**: Rust adalah bahasa pemrograman yang dirancang untuk keamanan dan performa tinggi. Rust memiliki fitur seperti ownership, borrow checker, dan borrow rules yang memungkinkan pembuatan kode yang lebih aman dan efisien. 
+
+Pilihan antara Go dan Rust untuk backend service pembayaran biasanya tergantung pada beberapa faktor seperti kebutuhan performa, keamanan, dan fitur yang dibutuhkan. Go mungkin lebih cocok untuk kasus yang membutuhkan desain yang cepat dan skalabel, sementara Rust mungkin lebih cocok untuk kasus yang membutuhkan keamanan tingkat tinggi dan performa yang sangat tinggi.
+  ----------------------------------------------------------
+  --- [S4R_P07_REG Run 3] ---
+  Prompt Input     : isi file requirements.txt apa aja ya?
+  Expected Tool    : read_file | Expected Key: structlog|aiohttp|prometheus|cerberus
+  Called Tool      : None | Called Arg: None
+  Routing OK       : False | Fidelity OK: False
+  Tool Observations: []
+  Final Response   :
+Untuk mengetahui isi dari file `requirements.txt`, saya perlu membaca file tersebut. Mohon berikan path relatif file tersebut di dalam workspace Anda.
+  ----------------------------------------------------------
+
+================================================================================
+(H) INFORMASI SEED PENGUJIAN
+================================================================================
+Seed yang dipakai tiap run: tidak dicatat
+(Runner Set 4 menggunakan konfigurasi default Ollama non-seeded / tanpa parameter seed eksplisit).
+================================================================================
