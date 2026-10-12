@@ -379,7 +379,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
   - Keputusan arah (2026-10-12): jalur tool-calling oleh model dihentikan, digantikan Tahap 3B. Keputusan diambil oleh asisten AI atas delegasi pengguna; pengguna menerima hasilnya tanpa meninjau detail teknis.
   - Pembekuan (freeze) berakhir karena Set 4 sudah selesai, hasil Set 4 tetap tersimpan di commit `3e22e86`, dan tidak boleh dipakai ulang sebagai bukti kelulusan. Status Tahap 3 tetap **BELUM LULUS**.
 
-### Tahap 3B: Perintah Eksplisit & Obrolan Tanpa Tool (DIRENCANAKAN)
+### Tahap 3B: Perintah Eksplisit & Obrolan Tanpa Tool (LULUS)
 
 #### Rancangan:
 - **Obrolan biasa:** model selalu dipanggil dengan `tools=None`. Model tidak pernah memilih tool.
@@ -404,6 +404,26 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 7. `/simpan` menambah fakta ke profil lewat `ProfileManager`; pola rahasia ditolak; melebihi batas 500 token ditolak; kunci duplikat ditolak; fakta tetap ada setelah instance `ProfileManager` baru dibuat (simulasi lintas sesi); fakta muncul di system prompt yang dirakit. *(Catatan: Kriteria 7 ditambahkan SEBELUM kode dibuat, setelah penyelidikan memori profil).*
 *Larangan:* Tidak ada tuning prompt atau model. Hasil Set 4 tidak dipakai sebagai bukti kelulusan 3B (prompt-nya boleh dipakai sebagai masukan uji tanpa tool).
 
+#### Hasil Evaluasi Tahap 3B:
+Status Tahap 3B resmi: **LULUS** (seluruh kriteria deterministik K1–K5 dan K7 mencapai 100%).
+1. **Kriteria 1 (Pemanggilan Tool & Argumen Eksplisit):** **100% LULUS** (7 perintah diuji: `/baca`, `/dir`, `/git`, `/test`, `/versi`, `/ingat`, `/simpan`; masing-masing minimal 3 kasus pengujian termasuk penanganan argumen tidak valid yang mengembalikan pesan error tanpa crash).
+2. **Kriteria 2 (Natural Sentences Tanpa Tool Call, `tools=None`):** **100% LULUS** (53 kalimat di `tests/fixtures/tahap3b_natural_sentences.txt` meliputi 30 Set 4A, 11 Set 4R, 6 limitasi gating, dan 6 kalimat tambahan menghasilkan 0 tool call dan selalu dipanggil dengan `tools=None`).
+3. **Kriteria 3 (Keamanan Sandbox, Konfirmasi, & Audit Log):** **100% LULUS** (path traversal `../`, path UNC, direktori sensitif `.env`, `.git/config`, `data/memory` diblokir; penolakan konfirmasi `[y/N]` membatalkan eksekusi; audit log tercatat).
+4. **Kriteria 4 (Recall Aktif FTS5):** **100% LULUS** (kalimat berpemicu leksikal menyisipkan blok recall saat ada hasil; kalimat tanpa pemicu leksikal menghasilkan 0 injeksi blok recall).
+5. **Kriteria 5 (Suite Unit Test Penuh):** **100% LULUS** (Total 104 unit test unik terdaftar di `docs/test_ids.txt`; hasil discovery dan run: `testsRun: 104`, `successes: 101`, `failures: 0`, `errors: 0`, `skipped: 3`, selisih ID dengan `docs/test_ids.txt`: 0).
+   - *Daftar Test yang Diubah:* **0 test lama diubah**.
+   - *Daftar Test yang Di-skip (3 test, semua skip bawaan benchmark suite):*
+     1. `test_react_benchmark_set2.TestReActBenchmarkSet2.test_run_3_iterations_benchmark` (Alasan: Benchmark suite - run explicitly via python tests/test_react_benchmark_set2.py)
+     2. `test_react_benchmark_set3.TestReActBenchmarkSet3.test_run_3_iterations_benchmark_set3` (Alasan: Benchmark suite - run explicitly via python tests/test_react_benchmark_set3.py)
+     3. `test_react_benchmark_set4.TestReActBenchmarkSet4.test_run_set4_benchmark` (Alasan: Benchmark suite - run explicitly via python tests/test_react_benchmark_set4.py)
+6. **Kriteria 6 (Smoke Model Real `qwen2.5:3b`, Tidak Ikut Gate):** **LULUS (0 Timeout, 0 Crash)** (6 perintah dieksekusi mentah, 6 pesan obrolan menghasilkan 0 tool call, 3 konfirmasi auto-approved dicatat di bukti `docs/evidence/tahap3b_smoke.txt`).
+7. **Kriteria 7 (`/simpan` ProfileManager Deterministik):** **100% LULUS** (fakta berhasil disimpan ke profil via `ProfileManager`; pola rahasia ditolak; batas token 500 ditolak; kunci duplikat ditolak; persistensi lintas-sesi terbukti dengan instansiasi `ProfileManager` baru; fakta muncul di system prompt yang dirakit oleh `PromptAssembler`).
+
+#### Status Pembekuan Kode (`check_freeze()`):
+`check_freeze()` kini menghasilkan `False` karena direktori `enki/` (`enki/cli/console.py`, `enki/core/react_loop.py`, `enki/cli/explicit_commands.py`) telah dimodifikasi untuk implementasi Tahap 3B. Perubahan ini **diharapkan** karena masa pembekuan (freeze) Set 4 telah resmi berakhir setelah Set 4 selesai.
+Hasil perintah:
+`python -c "from tests.benchmark_common import check_freeze; print(check_freeze())"` -> `False`
+
 #### Masalah Terbuka: Memori Profil Lintas Sesi
 Berdasarkan penelusuran kode riil pada subsistem memori (`enki/cli/console.py`, `enki/memory/reflector.py`, `enki/memory/profile_manager.py`):
 1. `reflect_session` tidak dijalankan secara otomatis saat keluar aplikasi (`/exit`, `/quit`, EOF, Ctrl+C). Sesi hanya tersimpan dengan status `reflected = 0` di database SQLite `sessions.db`.
@@ -413,7 +433,7 @@ Berdasarkan penelusuran kode riil pada subsistem memori (`enki/cli/console.py`, 
 5. Jalur eksplisit `/simpan` disediakan di Tahap 3B; jalur reflect/approve tidak berubah.
 
 #### Langkah Selanjutnya:
-Tahap 3B (pembuatan kode dan uji), lalu Tahap 4.
+Tahap 4.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
 * Implementasi zero-cost mute check sebelum audio pipeline.
