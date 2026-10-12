@@ -321,7 +321,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Eksekusi Benchmark Set 4 (Waktu Run UTC: 2026-10-12T02:51:44Z):
   - Set 4R (Regresi): 24/33 turn lulus (72.7%), 8/11 prompt unik lulus (tidak ikut gate).
   - Set 4A (Ujian Akhir, 30 prompt x 3 run = 90 turn): 78/90 turn lulus (86.7%), 26/30 prompt unik lulus.
-  - *(Catatan Faktual: Berkas bukti `docs/evidence/set4_report.txt` dan header `benchmark_set4_raw.jsonl` mencatat stempel waktu ISO `2026-10-12T02:51:44.671275+00:00`. Teks dokumen plan sebelumnya sempat mencatat `02:51:35Z`. Pada `docs/evidence/set4_report.txt` baris 24, tabel kriteria 6 awal mencatat `False Call: 3/9` dari 3 prompt negatif berpemicu skrip laporan awal, sedangkan audit independen di `docs/evidence/set4_verification.txt` menghitung dari seluruh 6 prompt negatif berpemicu = 3/18 run, 1/6 prompt unik.)*
+  - *(Catatan Faktual: Berkas bukti `docs/evidence/set4_report.txt` dan header `benchmark_set4_raw.jsonl` mencatat stempel waktu ISO `2026-10-12T02:51:44.671275+00:00`. Teks dokumen plan sebelumnya sempat mencatat `02:51:35Z`. Pada `docs/evidence/set4_report.txt` baris 24, tabel kriteria 6 tercatat `False Call: 3/9` (dari 3 prompt negatif berpemicu yang difilter skrip laporan awal). Berkas `docs/evidence/set4_verification.txt` Bagian 7 sempat salah mengutip baris tersebut sebagai `3/3`, namun teks sebenarnya di `set4_report.txt` adalah `False Call: 3/9`. Audit independen menghitung dari seluruh 6 prompt negatif berpemicu = 3/18 run, 1/6 prompt unik.)*
 * Hasil Evaluasi Gate Kriteria 1-9:
   - Kriteria 1 (Routing Positif): 15/18 run (83.3%), 5/6 prompt unik (Target >= 90.0%) -> **GAGAL**
   - Kriteria 2 (False Call Negatif): 3/36 run (8.3%), 1/12 prompt unik (Target <= 10.0%) -> **LULUS**
@@ -375,8 +375,42 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 3. **Korelasi dengan Kegagalan Set 4R:**
    * 2 prompt mode profile di Set 4R (S4R_P05_REG, S4R_P06_REG) gagal 3/3 run; di Set 4A 2 dari 8 prompt mode profile gagal; prompt mode profile dan mode recall berbeda topik dan jumlah (n=8 vs n=4, Wilson 95% tumpang tindih), sehingga tidak ada kesimpulan kausal.
 
-#### Langkah Selanjutnya (Tahap 3):
-Karena Kriteria 1 (83.3% < 90.0%), Kriteria 6 (3 false tool call pada prompt berpemicu S4A_P26_NEG), dan Kriteria 7 (83.3% < 100.0% akibat kunci profil tidak muncul pada S4A_P18_MEM dan S4A_P21_MEM) berstatus Gagal, maka sesuai Kriteria 9 tidak ada tuning tambahan terhadap model. Keputusan kelanjutan arah proyek / jalur penyederhanaan (misalnya beralih ke moda chat-only tanpa ReAct, atau simplifikasi lainnya sebagaimana tertulis di Kriteria 9) menunggu pengguna. Status Tahap 3 tetap **BELUM LULUS**.
+* **Keputusan Arah & Pengakhiran Pembekuan (2026-10-12):**
+  - Keputusan arah (2026-10-12): jalur tool-calling oleh model dihentikan, digantikan Tahap 3B. Keputusan diambil oleh asisten AI atas delegasi pengguna; pengguna menerima hasilnya tanpa meninjau detail teknis.
+  - Pembekuan (freeze) berakhir karena Set 4 sudah selesai, hasil Set 4 tetap tersimpan di commit `3e22e86`, dan tidak boleh dipakai ulang sebagai bukti kelulusan. Status Tahap 3 tetap **BELUM LULUS**.
+
+### Tahap 3B: Perintah Eksplisit & Obrolan Tanpa Tool (DIRENCANAKAN)
+
+#### Rancangan:
+- **Obrolan biasa:** model selalu dipanggil dengan `tools=None`. Model tidak pernah memilih tool.
+- **Recall aktif:** (pemicu leksikal `kemarin|pernah|ingat|sebelumnya|tadi|waktu itu|remember|earlier` lalu injeksi blok FTS5) tetap berjalan.
+- **Perintah eksplisit di CLI:** dieksekusi langsung oleh kode Python lewat fungsi tool yang sudah ada, dengan sandbox, konfirmasi `[y/N]`, dan audit log yang sama:
+  - `/baca <path>` (`read_file`)
+  - `/dir [path]` (`list_dir`)
+  - `/git status|log|diff` (`git`)
+  - `/test` (`run_unittests`)
+  - `/versi` (`python_version`)
+  - `/ingat <kata kunci>` (`search_memory`)
+- **Output tool:** ditampilkan mentah (tanpa panggilan model). `/help` diperbarui dengan daftar perintah dan keterbatasannya.
+
+#### Kriteria Kelulusan Tahap 3B (Ditulis di Muka Sebelum Kode; Semuanya Deterministik, Tanpa LLM, Wajib 100%):
+1. Tiap perintah memanggil fungsi tool dan argumen yang tepat (minimal 3 kasus per perintah, termasuk argumen salah menghasilkan pesan error tanpa crash).
+2. Pesan bahasa natural tidak pernah mengeksekusi tool dan model dipanggil dengan `tools=None`: daftar tetap minimal 50 kalimat (30 prompt Set 4A, 11 prompt Set 4R, 6 frasa pada tabel limitasi gating, dan minimal 5 kalimat tambahan) menghasilkan 0 eksekusi tool.
+3. Keamanan tidak berubah: path traversal, UNC, dan direktori sensitif tetap diblokir; konfirmasi `[y/N]` tetap untuk git, run_unittests, python_version; audit log tercatat.
+4. Recall aktif: dengan fixture FTS5, kalimat berpemicu menyisipkan blok recall bila ada hasil, dan kalimat tanpa pemicu tidak pernah menyisipkan blok.
+5. Seluruh suite unit test lulus; test yang diubah atau dihapus karena ReAct dinonaktifkan didaftar beserta alasannya, dan `docs/test_ids.txt` diperbarui.
+6. Smoke satu kali dengan model asli (`qwen2.5:3b`): 6 perintah + 6 obrolan, 0 timeout, 0 crash. Dilaporkan mentah dan tidak ikut gate.
+*Larangan:* Tidak ada tuning prompt atau model. Hasil Set 4 tidak dipakai sebagai bukti kelulusan 3B (prompt-nya boleh dipakai sebagai masukan uji tanpa tool).
+
+#### Masalah Terbuka: Memori Profil Lintas Sesi
+Berdasarkan penelusuran kode riil pada subsistem memori (`enki/cli/console.py`, `enki/memory/reflector.py`, `enki/memory/profile_manager.py`):
+1. `reflect_session` tidak dijalankan secara otomatis saat keluar aplikasi (`/exit`, `/quit`, EOF, Ctrl+C). Sesi hanya tersimpan dengan status `reflected = 0` di database SQLite `sessions.db`.
+2. `reflect_session` hanya dijalankan melalui perintah manual `/reflect` di CLI atau prompt konfirmasi interaktif saat startup sesi berikutnya jika ada sesi lampau yang belum direfleksi (`check_startup_reflection()`).
+3. `pending_facts.json` hanya terisi saat `reflect_session` dijalankan, model LLM berhasil mengekstrak usulan berformat `FactProposal`, dan usulan tersebut lolos validasi filter kode deterministik (`validate_and_record_proposal`). Selama obrolan biasa berlangsung, `pending_facts.json` tidak pernah diisi.
+4. Menyebut nama atau fakta di obrolan (misal: "Namaku Budi") tidak otomatis menghasilkan usulan fakta di `pending_facts.json` dan tidak otomatis tersimpan ke `profile.json`. Fakta obrolan hanya tersimpan sebagai transkrip mentah di SQLite `sessions.db`. Untuk masuk ke profil permanen, sesi harus direfleksi, diekstrak LLM, masuk `pending_facts.json`, dan di-approve manual oleh user via `/memory approve <id>`.
+
+#### Langkah Selanjutnya:
+Tahap 3B (pembuatan kode dan uji), lalu Tahap 4.
 
 ### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
 * Implementasi zero-cost mute check sebelum audio pipeline.
