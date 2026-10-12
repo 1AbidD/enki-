@@ -1,0 +1,82 @@
+================================================================================
+SMOKE TEST TAHAP 3B-1 (PETUNJUK PERINTAH - MODEL REAL qwen2.5:3b)
+================================================================================
+Waktu UTC        : 2026-10-12T08:20:02.737335+00:00
+Git Head         : 0a0a5c7abda071e6304a8a798045353c9abbaa7a
+Git Dirty        : True
+Ollama PS        :
+NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+qwen2.5:3b    357c53fb659c    2.3 GB    100% GPU     8192       4 minutes from now
+Workspace Root   : D:\ENKI\ENKI
+Model            : qwen2.5:3b
+================================================================================
+
+[ISOLASI DATA] Menggunakan direktori sementara: C:\Users\aabid\AppData\Local\Temp\enki_smoke_tahap3b1_p0mhyxlg
+[ISOLASI DATA] profile.json dan sessions.db asli dijamin tidak tersentuh.
+
+================================================================================
+EKSEKUSI 5 PESAN OBROLAN DENGAN DETEKSI PETUNJUK PERINTAH
+================================================================================
+
+--- [PESAN #1]: Tolong baca file README.md untuk saya ---
+[Durasi: 1.00s | Prompt: 244 tok | Eval: 53 tok]
+[Jawaban Model]:
+Maaf, sebagai ENKI, saya tidak memiliki kemampuan untuk membaca file atau dokumen. Saya hanya dapat berkomunikasi melalui balasan teks. Anda dapat membaca file README.md sendiri menggunakan perangkat Anda.
+[Baris Petunjuk]:
+[Petunjuk] Gunakan perintah /baca <path> untuk membaca file di workspace. (Sintaks: /baca <path>)
+
+--- [PESAN #2]: cek git status dong ---
+[Durasi: 0.64s | Prompt: 310 tok | Eval: 45 tok]
+[Jawaban Model]:
+Maaf, sebagai ENKI, saya tidak memiliki kemampuan untuk memeriksa status Git. Anda dapat memeriksa status Git menggunakan perintah `git status` di terminal atau command prompt Anda.
+[Baris Petunjuk]:
+[Petunjuk] Gunakan perintah /git status|log|diff untuk melihat informasi repositori git. (Sintaks: /git status|log|diff)
+
+--- [PESAN #3]: jalankan unit test proyek ini ---
+[Durasi: 2.92s | Prompt: 372 tok | Eval: 210 tok]
+[Jawaban Model]:
+Untuk menjalankan unit test pada proyek Anda, Anda biasanya akan menggunakan perintah seperti `pytest` atau `unittest` tergantung pada framework yang Anda gunakan. 
+
+Misalnya, jika Anda menggunakan pytest, Anda bisa menjalankannya dengan perintah:
+```bash
+pytest
+```
+
+Jika Anda menggunakan unittest, Anda mungkin perlu mengaktifkan dan mengatur unit test Anda terlebih dahulu. Biasanya, Anda akan memiliki file `test.py` atau `test_<nama_file>.py` yang berisi unit test. Anda bisa menjalankan unit test tersebut dengan perintah:
+```bash
+python -m unittest discover
+```
+
+Atau jika Anda memiliki file `test_<nama_file>.py`, Anda bisa menjalankannya dengan perintah:
+```bash
+python -m unittest test_<nama_file>
+```
+
+Mohon periksa dokumentasi atau dokumentasi proyek Anda untuk mendapatkan informasi yang lebih spesifik.
+[Baris Petunjuk]:
+[Petunjuk] Gunakan perintah /test untuk menjalankan unit test proyek. (Sintaks: /test)
+
+--- [PESAN #4]: halo apa kabar ---
+[Durasi: 0.37s | Prompt: 596 tok | Eval: 24 tok]
+[Jawaban Model]:
+Halo! Saya baik-baik saja, terima kasih! Bagaimana kabar Anda?
+[Baris Petunjuk]: (Tidak ada petunjuk baru)
+
+--- [PESAN #5]: Tolong baca file README.md untuk saya ---
+[Durasi: 0.75s | Prompt: 639 tok | Eval: 53 tok]
+[Jawaban Model]:
+Maaf, saya tidak dapat membaca atau mengakses file lokal seperti file `README.md`. Anda dapat membukanya sendiri menggunakan perangkat Anda. Bagaimana saya bisa membantu Anda dengan informasi yang terdapat di file tersebut?
+[Baris Petunjuk]: (Tidak ada petunjuk baru)
+
+================================================================================
+RINGKASAN METRIK SMOKE TAHAP 3B-1
+================================================================================
+Total Pesan Chat          : 5
+Total Petunjuk Muncul     : 3
+  - Pesan #1 [/baca]: [Petunjuk] Gunakan perintah /baca <path> untuk membaca file di workspace. (Sintaks: /baca <path>)
+  - Pesan #2 [/git]: [Petunjuk] Gunakan perintah /git status|log|diff untuk melihat informasi repositori git. (Sintaks: /git status|log|diff)
+  - Pesan #3 [/test]: [Petunjuk] Gunakan perintah /test untuk menjalankan unit test proyek. (Sintaks: /test)
+Pesan #5 (/baca diulang)  : 0 petunjuk kedua (BENAR - tersupresi)
+Jumlah Timeout            : 0
+Jumlah Crash              : 0
+================================================================================
