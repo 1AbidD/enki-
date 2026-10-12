@@ -1,0 +1,177 @@
+================================================================================
+SMOKE TEST TAHAP 3B (MODEL REAL OLLAMA qwen2.5:3b)
+================================================================================
+Waktu UTC        : 2026-10-12T08:01:09.966667+00:00
+Git Head         : 96cfa02029d5a6c92397169f282ea9981e466fca
+Git Dirty        : True
+Ollama PS        :
+NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+qwen2.5:3b    357c53fb659c    2.3 GB    100% GPU     8192       4 minutes from now
+Workspace Root   : D:\ENKI\ENKI
+Model            : qwen2.5:3b
+================================================================================
+
+[ISOLASI DATA] Menggunakan direktori sementara: C:\Users\aabid\AppData\Local\Temp\enki_smoke_tahap3b_hwxpfdce
+[ISOLASI DATA] profile.json dan sessions.db asli dijamin tidak tersentuh.
+
+================================================================================
+BAGIAN 1: EKSEKUSI 6 PERINTAH EKSPLISIT
+================================================================================
+
+--- [PERINTAH]: /baca README.md ---
+[Durasi: 0.00s]
+[Keluaran Mentah]:
+[Tool Error: read_file] [File Tidak Ditemukan] File tidak ada di workspace: README.md
+
+--- [PERINTAH]: /dir ---
+[Durasi: 0.00s]
+[Keluaran Mentah]:
+<untrusted_external_content source="list_dir:.">
+[DIR]  _spike/
+[FILE] config.json (158 bytes)
+[DIR]  data/
+[DIR]  docs/
+[DIR]  enki/
+[DIR]  logs/
+[FILE] main.py (623 bytes)
+[DIR]  scratch/
+[DIR]  scripts/
+[DIR]  tests/
+</untrusted_external_content>
+
+--- [PERINTAH]: /git status ---
+[Durasi: 0.05s]
+[Keluaran Mentah]:
+<untrusted_external_content source="git status">
+On branch master
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	docs/evidence/tahap3b_smoke.txt
+	scripts/smoke_tahap3b.py
+
+nothing added to commit but untracked files present (use "git add" to track)
+</untrusted_external_content>
+
+--- [PERINTAH]: /test ---
+[Durasi: 8.33s]
+[Keluaran Mentah]:
+<untrusted_external_content source="python -m unittest discover tests">
+[BENCHMARK LOCK] Mengambil alih lock basi (stale lock) dari PID=99999999 (proses sudah mati, dimulai pada 2026-10-10T10:00:00Z).
+
+=== RAW OUTPUT UJI (a) PASSIVE RECALL ===
+
+[Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
+- User: apa database utama proyek kita ya?
+- Assistant: Database utama proyek kita adalah SQLite dengan mode WAL dan indeks FTS5.
+
+==================================================
+
+=== RAW OUTPUT UJI (b) PASSIVE RECALL (HARUS NONE) ===
+Prompt: 'siapa pencipta bahasa pemrograman python dan kapan pertama kali dirilis?' -> Result: None
+Prompt: 'buatkan resep singkat cara bikin nasi goreng kampung yang enak dan gurih' -> Result: None
+Prompt: 'halo selamat pagi enki, gimana kabarmu hari ini?' -> Result: None
+Prompt: 'apa beda framework dan library dalam pemrograman web?' -> Result: None
+==================================================
+
+=== RAW OUTPUT UJI (a) PASSIVE RECALL ===
+
+[Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
+- User: apa database utama proyek kita ya?
+- Assistant: Database utama proyek kita adalah SQLite dengan mode WAL dan indeks FTS5.
+
+==================================================
+
+=== RAW OUTPUT UJI (b) PASSIVE RECALL (HARUS NONE) ===
+Prompt: 'siapa pencipta bahasa pemrograman python dan kapan pertama kali dirilis?' -> Result: None
+Prompt: 'buatkan resep singkat cara bikin nasi goreng kampung yang enak dan gurih' -> Result: None
+Prompt: 'halo selamat pagi enki, gimana kabarmu hari ini?' -> Result: None
+Prompt: 'apa beda framework dan library dalam pemrograman web?' -> Result: None
+==================================================
+[stderr]
+..............
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_KEY_LEN': Kunci 'ok' memiliki panjang <= 3 huruf! Dilarang keras.
+
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_SYS_PROMPT': Kunci 'enki' muncul di system prompt base! Dilarang keras.
+
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_IN_QUESTION': Kunci 'lulus' muncul di dalam teks pertanyaan: "apakah tes unit kita lulus?"! Dilarang keras.
+
+[PREFLIGHT FIDELITY VIOLATION]: Prompt 'TEST_TOOL_NAME': Kunci 'read_file' sama dengan nama tool! Dilarang keras.
+..................................................................sss.....................
+----------------------------------------------------------------------
+Ran 104 tests in 7.866s
+
+OK (skipped=3)
+</untrusted_external_content>
+
+--- [PERINTAH]: /versi ---
+[Durasi: 0.02s]
+[Keluaran Mentah]:
+<untrusted_external_content source="python --version">
+Python 3.14.4
+</untrusted_external_content>
+
+--- [PERINTAH]: /ingat kata ---
+[Durasi: 0.00s]
+[Keluaran Mentah]:
+<untrusted_memory_content source="sqlite_fts5_recall">
+[Riwayat Percakapan Masa Lalu yang Relevan]
+- Assistant: Siap, kata kunci project_alpha dicatat.
+- User: Tolong ingat satu kata kunci rahasia: project_alpha.
+- Assistant: Betul, SQLite memakai mode WAL dan FTS5 untuk pencarian kata.
+</untrusted_memory_content>
+
+[Instruksi Wajib]: Jawab berdasarkan hasil pencarian di atas. Jika hasil memuat jawabannya, sampaikan isinya. Jangan menambah saran umum.
+
+================================================================================
+BAGIAN 2: EKSEKUSI 6 PESAN OBROLAN BIASA (ENABLE_TOOLS=FALSE)
+================================================================================
+
+--- [CHAT #1]: Halo apa kabar, siapa namamu? ---
+[Durasi: 0.48s | Prompt: 196 tok | Eval: 31 tok]
+[Jawaban Model]:
+Halo, saya ENKI. Saya adalah asisten AI pribadi lokal. Namaku ENKI. Bagaimana kabarmu?
+
+--- [CHAT #2]: Apakah kamu ingat apa yang kita bahas sebelumnya? ---
+[Durasi: 0.66s | Prompt: 250 tok | Eval: 46 tok]
+[Jawaban Model]:
+Maaf, saya tidak ingat apa yang kita bahas sebelumnya karena tidak ada data sebelumnya yang tersimpan. Anda bisa menjelaskan topik atau pertanyaan yang ingin Anda diskusikan lagi.
+
+--- [CHAT #3]: Kemarin kita sempat bicara tentang arsitektur sistem, pernah dengar SQLite? ---
+[Recall Aktif Terpicu]: query='"sempat" OR "bicara" OR "arsitektur" OR "sistem" OR "dengar" OR "sqlite"', cuplikan=2
+[Durasi: 0.86s | Prompt: 448 tok | Eval: 54 tok]
+[Jawaban Model]:
+Ya, sempat kita membahas tentang arsitektur sistem dan Anda menanyakan tentang SQLite. Saya mengerti bahwa SQLite adalah database lokal yang cepat, dan kita juga membahas tentang mode WAL dan FTS5 untuk pencarian kata dalam SQLite.
+
+--- [CHAT #4]: Tolong baca file README.md untuk saya ---
+[Durasi: 0.85s | Prompt: 400 tok | Eval: 53 tok]
+[Jawaban Model]:
+Maaf, saya tidak dapat membaca file README.md untuk Anda karena saya tidak memiliki kemampuan untuk mengakses file lokal atau internet. Anda bisa membaca file tersebut sendiri dan kemudian memberitahu saya apa yang Anda butuhkan.
+
+--- [CHAT #5]: Coba lihat dan baca dokumen README.md ---
+[Durasi: 0.67s | Prompt: 473 tok | Eval: 47 tok]
+[Jawaban Model]:
+Maaf, tetapi saya tidak memiliki kemampuan untuk mengakses atau membaca file lokal. Anda bisa membaca dokumen README.md sendiri dan kemudian memberitahu saya apa yang Anda butuhkan.
+
+--- [CHAT #6]: Jelaskan secara singkat apa fungsi git status dalam pengembangan software ---
+[Durasi: 3.56s | Prompt: 545 tok | Eval: 255 tok]
+[Jawaban Model]:
+Git status adalah fitur dalam sistem kontrol versi Git yang digunakan untuk melihat perubahan yang telah dilakukan tetapi belum ditambahkan ke repository, serta perubahan yang sudah ditambahkan tetapi belum diverifikasi atau divergensi. Fungsi utama git status adalah:
+
+1. Menunjukkan perubahan: Ini menunjukkan file mana saja yang telah berubah, ditambah, atau dihapus sejak terakhir kali Anda memanggil git add.
+2. Menunjukkan status file: Ini menunjukkan apakah file tersebut adalah file yang sudah diverifikasi (misalnya, dengan menandakan tanda plus (+)), file yang belum diverifikasi (tanda minus (-)), atau file yang telah diverifikasi dan divergensi (tanda sama dengan (=)).
+3. Menunjukkan perbedaan: Ini menunjukkan perbedaan antara versi file saat ini dan versi file yang ada di repository.
+
+Git status sangat penting dalam pengembangan software karena memungkinkan pengembang untuk memantau perubahan yang telah dilakukan dan memastikan bahwa semua perubahan telah ditambahkan ke repository sebelum dilanjutkan dengan proses lain seperti commit.
+
+================================================================================
+BAGIAN 3: RINGKASAN METRIK SMOKE
+================================================================================
+Total Perintah Eksplisit : 6
+Total Pesan Chat         : 6
+Konfirmasi Auto-Approved : 3
+  - [CONFIRM AUTO-APPROVED]: git status
+  - [CONFIRM AUTO-APPROVED]: python -m unittest discover tests
+  - [CONFIRM AUTO-APPROVED]: python --version
+Jumlah Timeout           : 0
+Jumlah Crash             : 0
+================================================================================
