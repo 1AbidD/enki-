@@ -179,9 +179,10 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
     - Routing OK: **49/72 (68.1%)** (angka lama: 50/72, 69.4%)
     - Fidelity OK: **47/72 (65.3%)** (angka lama: 48/72, 66.7%)
   * *Catatan Waktu Proses:* Sekuensialitas eksekusi Set 2 dan Set 3 berstatus **tidak terbukti** karena timestamp interaksi antarmuka tidak mencerminkan lifecycle proses OS.
-* **Set 4R (Regresi Tahap 3, 11 Prompt x 3 Runs):** Status **SELESAI (TIDAK IKUT GATE)** (Waktu Run UTC: 2026-10-12T02:51:35Z). Menguji 11 prompt regresi dari Set 3. Hasil: **24/33 turn lulus (72.7%)**, 8/11 prompt unik lulus. Giliran gagal: 9 turn (S4R_P05_REG 3 run, S4R_P06_REG 3 run, S4R_P07_REG 3 run).
-* **Set 4A (Ujian Akhir, 30 Prompt x 3 Runs = 90 Turns):** Status **SELESAI (GAGAL GATE)** (Waktu Run UTC: 2026-10-12T02:51:35Z). Tingkat keberhasilan total: **78/90 turn (86.7%)**, 26/30 prompt unik lulus. Giliran gagal: 12 turn (S4A_U08_FILE 3 run, S4A_P18_MEM 3 run, S4A_P21_MEM 3 run, S4A_P26_NEG 3 run).
+* **Set 4R (Regresi Tahap 3, 11 Prompt x 3 Runs):** Status **SELESAI (TIDAK IKUT GATE)** (Waktu Run UTC: 2026-10-12T02:51:44Z). Menguji 11 prompt regresi dari Set 3. Hasil: **24/33 turn lulus (72.7%)**, 8/11 prompt unik lulus. Giliran gagal: 9 turn (S4R_P05_REG 3 run, S4R_P06_REG 3 run, S4R_P07_REG 3 run).
+* **Set 4A (Ujian Akhir, 30 Prompt x 3 Runs = 90 Turns):** Status **SELESAI (GAGAL GATE)** (Waktu Run UTC: 2026-10-12T02:51:44Z). Tingkat keberhasilan total: **78/90 turn (86.7%)**, 26/30 prompt unik lulus. Giliran gagal: 12 turn (S4A_U08_FILE 3 run, S4A_P18_MEM 3 run, S4A_P21_MEM 3 run, S4A_P26_NEG 3 run).
 * **Catatan Insiden Hash Casing (2026-10-12):** Percobaan eksekusi pertama Set 4 mengalami crash di runner sebelum memproses satu prompt pun karena kunci SHA256 di `docs/set4_lock.txt` ditulis dalam huruf kapital sedangkan `hashlib.sha256().hexdigest()` menghasilkan huruf kecil. Masalah diselesaikan di commit `set4 lock lowercase hash` (`6a3008f`) dengan mengubah nilai kunci di lock menjadi huruf kecil tanpa memodifikasi kode runner. Tidak ada prompt yang diproses pada percobaan pertama tersebut.
+* Bukti resmi adalah berkas yang ter-commit di git; kutipan "output mentah" di percakapan chat tidak dipakai sebagai bukti (ditemukan perbedaan antara kutipan chat dan berkas: Head Git, stempel waktu, daftar kunci MEM).
 
 ### Perbaikan Harness & Evaluator Benchmark (Aturan Mutlak):
 1. **Timeout = Gagal:** Di seluruh evaluator benchmark (Set 2, Set 3, Set 4), jika `is_timeout == True`, maka `is_success`, `routing_ok`, dan `fidelity_ok` wajib `False`.
@@ -317,16 +318,17 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 * Suite unit test keamanan, isolasi, shell tools, policy rejection, passive recall, prompt injection, harness evaluator, benchmark mock runners, benchmark lock, gating deterministik, check_freeze repositori riil terisolasi, dan integritas SHA256 (93 unit test terdaftar secara resmi di docs/test_ids.txt: 90 lulus, 3 benchmark dilewati saat discovery via skipTest).
 * Lock hash user ter-commit di `docs/set4_lock.txt` (commit `645b13a`, diperbaiki di `6a3008f`).
 * File prompt user ter-commit di `tests/set4_user_prompts.txt` (commit `f59b735`).
-* Eksekusi Benchmark Set 4 (Waktu Run UTC: 2026-10-12T02:51:35Z):
+* Eksekusi Benchmark Set 4 (Waktu Run UTC: 2026-10-12T02:51:44Z):
   - Set 4R (Regresi): 24/33 turn lulus (72.7%), 8/11 prompt unik lulus (tidak ikut gate).
   - Set 4A (Ujian Akhir, 30 prompt x 3 run = 90 turn): 78/90 turn lulus (86.7%), 26/30 prompt unik lulus.
+  - *(Catatan Faktual: Berkas bukti `docs/evidence/set4_report.txt` dan header `benchmark_set4_raw.jsonl` mencatat stempel waktu ISO `2026-10-12T02:51:44.671275+00:00`. Teks dokumen plan sebelumnya sempat mencatat `02:51:35Z`. Pada `docs/evidence/set4_report.txt` baris 24, tabel kriteria 6 awal mencatat `False Call: 3/9` dari 3 prompt negatif berpemicu skrip laporan awal, sedangkan audit independen di `docs/evidence/set4_verification.txt` menghitung dari seluruh 6 prompt negatif berpemicu = 3/18 run, 1/6 prompt unik.)*
 * Hasil Evaluasi Gate Kriteria 1-9:
   - Kriteria 1 (Routing Positif): 15/18 run (83.3%), 5/6 prompt unik (Target >= 90.0%) -> **GAGAL**
   - Kriteria 2 (False Call Negatif): 3/36 run (8.3%), 1/12 prompt unik (Target <= 10.0%) -> **LULUS**
   - Kriteria 3 (Fidelity pada Tool Benar): 15/15 run (100.0%) (Target >= 85.0%) -> **LULUS**
   - Kriteria 4 (Total Timeout): 0/90 run (Target = 0) -> **LULUS**
   - Kriteria 5 (Argumen Invalid): 0/90 run (Target = 0) -> **LULUS**
-  - Kriteria 6 (Negatif Murni & Berpemicu): False tool call pada negatif berpemicu = 3/36 run pada S4A_P26_NEG (Target False Call = 0) -> **GAGAL**
+  - Kriteria 6 (Negatif Murni & Berpemicu): false tool call pada negatif berpemicu = 3/18 run, 1/6 prompt unik (berpemicu n = 6: S4A_P24, P25, P26, P27, U11, U12), kebocoran kunci 0/36, injeksi recall 0/18 (berpemicu) dan 0/18 (tanpa pemicu); status tetap **GAGAL**
   - Kriteria 7 (Sukses MEM): 30/36 run (83.3%), 10/12 prompt unik (Target 100% No Tool + Kunci Muncul) -> **GAGAL**
   - Kriteria 8 (Komposisi Mode Recall MEM): 4/12 prompt Mode Recall (Target >= 4) -> **LULUS**
   - Kriteria 9 (Kebijakan Gate): Kriteria 1, 6, dan 7 GAGAL -> **GAGAL**
@@ -371,7 +373,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
    * Total Positif (n=6 prompt unik): 5/6 lulus (83.3%) | Wilson 95%: [43.6%, 97.0%].
    * Total Keseluruhan Set 4A (n=30 prompt unik): 26/30 lulus (86.7%) | Wilson 95%: [70.3%, 94.7%].
 3. **Korelasi dengan Kegagalan Set 4R:**
-   * Di Set 4R, 2 prompt Mode Profile juga gagal konsisten 3/3 run (`S4R_P05_REG` kunci `sqlite` dan `S4R_P06_REG` kunci `fastapi`). Ini mengonfirmasi keterbatasan inheren model 3B dalam menyematkan fakta profil dari system prompt pada topik pengetahuan umum teknis tanpa alat.
+   * 2 prompt mode profile di Set 4R (S4R_P05_REG, S4R_P06_REG) gagal 3/3 run; di Set 4A 2 dari 8 prompt mode profile gagal; prompt mode profile dan mode recall berbeda topik dan jumlah (n=8 vs n=4, Wilson 95% tumpang tindih), sehingga tidak ada kesimpulan kausal.
 
 #### Langkah Selanjutnya (Tahap 3):
 Karena Kriteria 1 (83.3% < 90.0%), Kriteria 6 (3 false tool call pada prompt berpemicu S4A_P26_NEG), dan Kriteria 7 (83.3% < 100.0% akibat kunci profil tidak muncul pada S4A_P18_MEM dan S4A_P21_MEM) berstatus Gagal, maka sesuai Kriteria 9 tidak ada tuning tambahan terhadap model. Keputusan kelanjutan arah proyek / jalur penyederhanaan (misalnya beralih ke moda chat-only tanpa ReAct, atau simplifikasi lainnya sebagaimana tertulis di Kriteria 9) menunggu pengguna. Status Tahap 3 tetap **BELUM LULUS**.
