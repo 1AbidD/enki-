@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.5
+# Rencana Implementasi: ENKI (Local AI Assistant) - v2.6
 
-*Ringkasan Perubahan v2.5: Pembaruan hasil eksekusi resmi benchmark Set 4A dan Set 4R pada 2026-10-12, pencatatan insiden casing hash lock, evaluasi kriteria gate 1-9, dan penentuan status Tahap 3.*
+*Ringkasan Perubahan v2.6: koreksi bukti Set 4, keputusan Tahap 3B, kriteria Tahap 3B.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -391,6 +391,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
   - `/test` (`run_unittests`)
   - `/versi` (`python_version`)
   - `/ingat <kata kunci>` (`search_memory`)
+  - `/simpan <kunci> | <isi fakta>` (menulis langsung ke profil lewat `ProfileManager` dengan filter rahasia deterministik dan batas 500 token profil yang sudah ada; jika kunci sudah ada, tolak dengan pesan agar memakai `/memory delete` dulu; tanpa panggilan model)
 - **Output tool:** ditampilkan mentah (tanpa panggilan model). `/help` diperbarui dengan daftar perintah dan keterbatasannya.
 
 #### Kriteria Kelulusan Tahap 3B (Ditulis di Muka Sebelum Kode; Semuanya Deterministik, Tanpa LLM, Wajib 100%):
@@ -400,6 +401,7 @@ String perintah shell bebas (`run_shell_command`) telah **DIHAPUS PERMANEN**. Se
 4. Recall aktif: dengan fixture FTS5, kalimat berpemicu menyisipkan blok recall bila ada hasil, dan kalimat tanpa pemicu tidak pernah menyisipkan blok.
 5. Seluruh suite unit test lulus; test yang diubah atau dihapus karena ReAct dinonaktifkan didaftar beserta alasannya, dan `docs/test_ids.txt` diperbarui.
 6. Smoke satu kali dengan model asli (`qwen2.5:3b`): 6 perintah + 6 obrolan, 0 timeout, 0 crash. Dilaporkan mentah dan tidak ikut gate.
+7. `/simpan` menambah fakta ke profil lewat `ProfileManager`; pola rahasia ditolak; melebihi batas 500 token ditolak; kunci duplikat ditolak; fakta tetap ada setelah instance `ProfileManager` baru dibuat (simulasi lintas sesi); fakta muncul di system prompt yang dirakit. *(Catatan: Kriteria 7 ditambahkan SEBELUM kode dibuat, setelah penyelidikan memori profil).*
 *Larangan:* Tidak ada tuning prompt atau model. Hasil Set 4 tidak dipakai sebagai bukti kelulusan 3B (prompt-nya boleh dipakai sebagai masukan uji tanpa tool).
 
 #### Masalah Terbuka: Memori Profil Lintas Sesi
@@ -408,6 +410,7 @@ Berdasarkan penelusuran kode riil pada subsistem memori (`enki/cli/console.py`, 
 2. `reflect_session` hanya dijalankan melalui perintah manual `/reflect` di CLI atau prompt konfirmasi interaktif saat startup sesi berikutnya jika ada sesi lampau yang belum direfleksi (`check_startup_reflection()`).
 3. `pending_facts.json` hanya terisi saat `reflect_session` dijalankan, model LLM berhasil mengekstrak usulan berformat `FactProposal`, dan usulan tersebut lolos validasi filter kode deterministik (`validate_and_record_proposal`). Selama obrolan biasa berlangsung, `pending_facts.json` tidak pernah diisi.
 4. Menyebut nama atau fakta di obrolan (misal: "Namaku Budi") tidak otomatis menghasilkan usulan fakta di `pending_facts.json` dan tidak otomatis tersimpan ke `profile.json`. Fakta obrolan hanya tersimpan sebagai transkrip mentah di SQLite `sessions.db`. Untuk masuk ke profil permanen, sesi harus direfleksi, diekstrak LLM, masuk `pending_facts.json`, dan di-approve manual oleh user via `/memory approve <id>`.
+5. Jalur eksplisit `/simpan` disediakan di Tahap 3B; jalur reflect/approve tidak berubah.
 
 #### Langkah Selanjutnya:
 Tahap 3B (pembuatan kode dan uji), lalu Tahap 4.
