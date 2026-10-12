@@ -370,12 +370,14 @@ class ReActCoordinator:
         recall_content: Optional[str] = None,
         num_ctx: int = 8192,
         temperature: float = 0.2,
-        trace_callback: Optional[Callable[[str, str], None]] = None
+        trace_callback: Optional[Callable[[str, str], None]] = None,
+        enable_tools: bool = True
     ) -> Generator[Tuple[str, Optional[Dict[str, Any]]], None, None]:
         """Menjalankan siklus ReAct multi-step hingga balasan final streaming.
         Menerapkan kebijakan:
         - Penolakan kebijakan (sandbox, traversal, unauthorized) -> request berikutnya tanpa tools.
         - Argumen tidak valid -> diperbolehkan retry maksimal 1 kali.
+        - enable_tools=False -> mode tanpa tools (Tahap 3B), tools=None, tool_calls diabaikan.
         """
         start_time = time.time()
 
@@ -398,8 +400,8 @@ class ReActCoordinator:
                 break
 
             # 1. Tentukan tools untuk iterasi ini
-            if model == "qwen2.5-coder:3b" or had_policy_rejection:
-                # Mode coder atau setelah penolakan kebijakan: WAJIB tanpa tools agar model menghasilkan teks
+            if not enable_tools or model == "qwen2.5-coder:3b" or had_policy_rejection:
+                # Mode tanpa tools (Tahap 3B), mode coder, atau setelah penolakan kebijakan: WAJIB tanpa tools agar model menghasilkan teks
                 turn_tools = None
             else:
                 turn_tools = get_active_tools_for_turn(user_input)
@@ -414,8 +416,11 @@ class ReActCoordinator:
 
             tool_calls = chat_res.get("tool_calls")
 
-            # Jika TIDAK ada tool call, model siap memberikan jawaban akhir
-            if not tool_calls:
+            # Jika TIDAK ada tool call atau enable_tools=False, model siap memberikan jawaban akhir
+            if not tool_calls or not enable_tools:
+                if tool_calls and not enable_tools:
+                    if trace_callback:
+                        trace_callback("tool_call_ignored", "[Peringatan] Model mengembalikan tool_calls saat mode tanpa tools aktif. Diabaikan.")
                 assistant_text = chat_res.get("content", "")
                 yield assistant_text, chat_res.get("metrics")
                 return

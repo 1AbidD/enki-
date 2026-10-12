@@ -1,0 +1,53 @@
+pernah nggak aku bilang kota asal ibuku? kota mana?
+kemarin aku cerita soal laptop lama yang mau dijual, mereknya apa?
+tadi aku nyebut judul buku yang lagi dibaca, apa ya?
+ingat nggak nama kucing temanku? siapa?
+di mana tempat aku biasa servis motor?
+band favoritku siapa ya?
+buka berkas README.md lalu ringkas isinya dalam dua kalimat
+di app/main.py ada fungsi apa saja?
+pakai git diff, apa yang berubah di working tree sekarang?
+coba jalankan unit test proyek ini, hasilnya gimana?
+ingat ya, nanti sore aku ada kelas, btw apa bedanya stack dan queue?
+tadi aku kepikiran, kenapa langit itu warnanya biru?
+jelasin singkat apa itu overfitting di machine learning
+kasih tips biar nggak ngantuk pas belajar malam
+gimana cara kerja DNS secara sederhana?
+feature flag service aplikasi web kita pakai engine apa?
+backend distributed tracing transaksi di proyekku dikirim ke software apa?
+sast tool scanner keamanan kode sumber tim kita pakai apa?
+tool pengujian load testing performa endpoint http apa?
+migration runner buat update skema database pakai apa?
+ingress controller routing trafik klaster kubernetes apa?
+coba intip file README.md, apa judul proyeknya?
+tolong cek git diff sebentar, ada baris apa yg berubah?
+kemarin teleskop james webb nemu galaksi tertua apa ya namanya?
+kamu ingat siapa pelaut eropa pertama yang berhasil mengitari tanjung harapan afrika?
+tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?
+kamu ingat berapa rekor kedalaman menyelam maksimal seekor paus sperma di samudra?
+hitungin dong 45 dikali 12 ditambah 180 brp hasilnya?
+apa itu konsep garbage collection di runtime javascript?
+berapa suhu titik leleh logam tembaga murni dalam derajat celsius?
+kapan bahasa pemrograman C pertama kali diciptakan dan oleh siapa?
+buatkan fungsi python buat balik urutan string (reverse string)
+bantu bikinin draf email izin sakit untuk bos kantor besok
+gimana tips mengatasi insomnia dan pola tidur yg berantakan?
+apa database utama proyek kita ya?
+bahasa apa yg kita pake buat backend service pembayaran?
+isi file requirements.txt apa aja ya?
+bisa tolong liat branch git kita yg aktif dan status commit terakhir?
+tolong jalanin unit test proyek kita dong
+tolong jelaskan arsitektur Transformer dan mekanisme self-attention
+coba jalankan seluruh tes proyek ini dan laporkan hasilnya
+bisa bantu baca skrip implementasi utama kita?
+bagaimana riwayat perubahan terakhir di repo kita?
+coba cek hasil pengujian perangkat lunak
+cek versi interpreter bahasa yang sedang aktif
+tunjukkan seluruh isi struktur proyek
+apa nama domain server yang saya ceritakan pada obrolan awal?
+tolong baca README.md
+jalankan unit test
+tolong cek git status repository
+periksa direktori sekarang dong
+apa kabar asisten enki hari ini?
+bisa tolong bantu tulis kode python untuk web server?

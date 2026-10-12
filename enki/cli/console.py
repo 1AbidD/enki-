@@ -13,6 +13,7 @@ from enki.memory.reflector import ReflectorDaemon
 from enki.memory.recall import is_recall_triggered, build_fts_query, format_recall_block, execute_passive_recall
 from enki.core.react_loop import ReActCoordinator
 from enki.cli.memory_commands import handle_memory_command, handle_reflect_command
+from enki.cli.explicit_commands import handle_explicit_command, EXPLICIT_COMMANDS
 
 def get_vram_info() -> str:
     """Mengambil status VRAM saat ini via nvidia-smi."""
@@ -77,19 +78,27 @@ class EnkiConsole:
 
     def print_help(self):
         print("\n--- Perintah Tersedia ---")
+        print("  /baca <path>     : Baca isi file dokumen/kode di dalam workspace")
+        print("  /dir [path]      : Lihat daftar file dan folder di dalam workspace")
+        print("  /git <aksi>      : Jalankan aksi git aman ('status', 'log', 'diff')")
+        print("  /test            : Jalankan unit test sistem Python (konfirmasi [y/N])")
+        print("  /versi           : Periksa versi Python sistem (konfirmasi [y/N])")
+        print("  /ingat <kunci>   : Cari catatan/riwayat percakapan masa lalu di memori")
+        print("  /simpan <k> | <v>: Simpan fakta diri permanen ke profil pengguna")
         print("  /memory <subcmd> : Manajemen memori (view, pending, approve, reject, edit, delete, log, stats)")
         print("  /reflect         : Jalankan refleksi atas sesi yang belum direfleksi")
         print("  /coder           : Beralih ke model coding (qwen2.5-coder:3b, mode chat-only)")
-        print("  /chat            : Beralih ke model percakapan utama (qwen2.5:3b, tools & memory)")
+        print("  /chat            : Beralih ke model percakapan utama (qwen2.5:3b)")
         print("  /mute            : Aktifkan mode senyap (0% beban audio)")
         print("  /unmute          : Nonaktifkan mode senyap")
         print("  /status          : Tampilkan status model, context limit, mute, dan VRAM")
         print("  /clear           : Bersihkan riwayat obrolan sesi aktif")
         print("  /exit            : Keluar dari aplikasi")
-        print("\n[Catatan Memori Lintas Sesi]:")
-        print("  Mengingat fakta dari sesi lampau mengandalkan profil permanen (profile.json)")
-        print("  dan pencarian aktif (active recall dengan kata pemicu: 'kemarin', 'ingat', 'pernah').")
-        print("  Fitur passive recall berstatus eksperimental dan nonaktif secara default (gagal gate evaluasi).\n")
+        print("\n[Catatan Mode Obrolan & Perintah (Tahap 3B)]:")
+        print("  Kalimat bahasa natural biasa tidak akan menjalankan alat (tool); model dipanggil tanpa tool.")
+        print("  Gunakan perintah eksplisit (/baca, /dir, /git, dll.) jika ingin membaca berkas atau menjalankan tool.")
+        print("  Mengingat fakta dari sesi lampau mengandalkan profil permanen (profile.json via /simpan)")
+        print("  dan pencarian aktif (active recall dengan kata pemicu: 'kemarin', 'ingat', 'pernah').\n")
 
     def run(self):
         self.print_banner()
@@ -197,6 +206,19 @@ class EnkiConsole:
                         model="qwen2.5:3b"
                     )
                     continue
+                elif cmd in EXPLICIT_COMMANDS:
+                    raw_args = user_input[len(parts[0]):].strip()
+                    handle_explicit_command(
+                        cmd=cmd,
+                        raw_args=raw_args,
+                        workspace_root=self.config.workspace_root,
+                        db=self.db,
+                        session_id=self.session_id,
+                        profile_mgr=self.profile_mgr
+                    )
+                    if cmd == "/simpan":
+                        self.assembler.profile = self.profile_mgr.get_profile_text()
+                    continue
                 else:
                     print(f"Perintah tidak dikenal: {user_input}. Ketik /help untuk bantuan.")
                     continue
@@ -253,7 +275,8 @@ class EnkiConsole:
                     recall_content=recall_content,
                     num_ctx=self.config.num_ctx,
                     temperature=self.config.temperature,
-                    trace_callback=trace_cb
+                    trace_callback=trace_cb,
+                    enable_tools=False
                 ):
                     if chunk:
                         print(chunk, end="", flush=True)
