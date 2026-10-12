@@ -1,0 +1,178 @@
+================================================================================
+VERIFIKASI INDEPENDEN KRITERIA BENCHMARK SET 4 (SET 4A & SET 4R)
+================================================================================
+Sumber Data      : tests\results\benchmark_set4_raw.jsonl
+Stempel Waktu    : 2026-10-12T02:51:44.671275+00:00
+Head Git         : 6a3008f6000eeaaf79be09514d1defb1aeaa8fdb
+Freeze Commit    : ed406d8d4bf6a585b44617f7e368e43e866f179a
+Freeze Clean     : True
+Prompt SHA256    : 13538d8bbfcc4f707d87f2048057ed26b91178cc951460e5510e9262cfaef33d
+Total Giliran 4A : 90 turn (30 prompt unik x 3 run)
+Total Giliran 4R : 33 turn (11 prompt unik x 3 run)
+
+================================================================================
+1. EVALUASI KRITERIA GATE SET 4A DARI NOL (PER RUN & PER PROMPT UNIK)
+================================================================================
+No   | Kriteria Gate                    | Target         | Per Run (n=90)       | Per Prompt (n=30)  | Status  
+------------------------------------------------------------------------------------------------------
+1    | Routing Positif (Tool Expected)  | >= 90.0%       | 15/18 (83.3%)        | 5/6 (83.3%)        | GAGAL   
+2    | False Call Negatif               | <= 10.0%       | 3/36 (8.3%)          | 1/12 (8.3%)        | LULUS   
+3    | Fidelity pada Tool Benar         | >= 85.0%       | 15/15 (100.0%)       | 5/5 (100.0%)       | LULUS   
+4    | Total Timeout                    | = 0            | 0/90                 | 0/30               | LULUS   
+5    | Argumen Invalid                  | = 0            | 0/90                 | 0/30               | LULUS   
+6    | Negatif Murni & Berpemicu        | False Call=0   | False Call: 3/18     | 1/6 prompt         | GAGAL   
+7    | Sukses MEM (NoTool + Kunci)      | 100%           | 30/36 (83.3%)        | 10/12 (83.3%)      | GAGAL   
+8    | Komposisi Mode Recall MEM        | >= 4 prompt    | 12/36 run            | 4/12 prompt        | LULUS   
+9    | Kebijakan Gate (Tanpa Tuning)    | Semua Lulus    | Kriteria 1, 6, 7 Gagal | 3 Kriteria Gagal   | GAGAL   
+
+================================================================================
+2. DETAIL (A): ANALISIS MENDALAM KRITERIA 6 (NEGATIF)
+================================================================================
+Total Prompt Kategori NEG: 12 prompt unik (36 run)
+
+A. Negatif Berpemicu Memori/Percakapan (Kata: 'tadi', 'kemarin', 'ingat'):
+   - Jumlah Prompt Unik : 6 prompt (18 run)
+   - Daftar Prompt      : ['S4A_P24_NEG', 'S4A_P25_NEG', 'S4A_P26_NEG', 'S4A_P27_NEG', 'S4A_U11_NEG', 'S4A_U12_NEG']
+     * [S4A_P24_NEG] "kemarin teleskop james webb nemu galaksi tertua apa ya namanya?"
+     * [S4A_P25_NEG] "kamu ingat siapa pelaut eropa pertama yang berhasil mengitari tanjung harapan afrika?"
+     * [S4A_P26_NEG] "tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?"
+     * [S4A_P27_NEG] "kamu ingat berapa rekor kedalaman menyelam maksimal seekor paus sperma di samudra?"
+     * [S4A_U11_NEG] "ingat ya, nanti sore aku ada kelas, btw apa bedanya stack dan queue?"
+     * [S4A_U12_NEG] "tadi aku kepikiran, kenapa langit itu warnanya biru?"
+   - False Tool Call    : 3 / 18 run (seluruhnya pada S4A_P26_NEG memanggil search_memory)
+   - Injeksi Blok Recall: 0 / 18 run (dilaporkan terpisah, tidak menggagalkan gate)
+
+B. Negatif Tanpa Pemicu / Murni (Tanpa kata pemicu):
+   - Jumlah Prompt Unik : 6 prompt (18 run)
+   - Daftar Prompt      : ['S4A_P28_NEG', 'S4A_P29_NEG', 'S4A_P30_NEG', 'S4A_U13_NEG', 'S4A_U14_NEG', 'S4A_U15_NEG']
+     * [S4A_P28_NEG] "hitungin dong 45 dikali 12 ditambah 180 brp hasilnya?"
+     * [S4A_P29_NEG] "apa itu konsep garbage collection di runtime javascript?"
+     * [S4A_P30_NEG] "berapa suhu titik leleh logam tembaga murni dalam derajat celsius?"
+     * [S4A_U13_NEG] "jelasin singkat apa itu overfitting di machine learning"
+     * [S4A_U14_NEG] "kasih tips biar nggak ngantuk pas belajar malam"
+     * [S4A_U15_NEG] "gimana cara kerja DNS secara sederhana?"
+   - Injeksi Blok Recall: 0 / 18 run (Target = 0, Status: LULUS)
+   - False Tool Call    : 0 / 18 run (Status: LULUS)
+
+C. Verifikasi Kebocoran Kunci Memori pada Seluruh Respon NEG:
+   - Daftar Kunci MEM yang Dimonitor: ['atomic', 'axioo', 'bagas', 'emissary', 'flipt', 'jaeger', 'liquibase', 'locust', 'payakumbuh', 'semgrep', 'sheila', 'sinar']
+   - Kejadian Kebocoran Kunci: 0 / 36 run (Target = 0, Status: LULUS)
+
+================================================================================
+3. DETAIL (B): ANALISIS FALSE CALL SEARCH_MEMORY PADA S4A_P26_NEG
+================================================================================
+Prompt Input    : "tadi aku baca sejarah rendang minangkabau, tradisi memasaknya konon dari abad berapa?"
+Tool Dipanggil  : search_memory (3/3 run)
+Argumen         : {"query": "sejarah rendang minangkabau abad"}
+Apakah Dieksekusi? : YA. Coordinator mengeksekusi fungsi search_memory secara nyata
+                     terhadap SQLite database turns_fts.
+Output Observasi   : ['[Tool Result: search_memory] Tidak ditemukan catatan yang cocok di database memori.']
+Apakah Ada Konfirmasi? : TIDAK. Tool search_memory adalah read-only internal query
+                         sehingga tidak memicu konfirmasi pengguna (confirmed_commands = []).
+Apakah Diblokir Sandbox? : TIDAK. Field sandbox_status bernilai 'ATTEMPTED'.
+
+Penjelasan Label 'Diblokir Sandbox / Read-Only' di Laporan Lama:
+Di berkas docs/evidence/set4_report.txt bagian (B), tertulis label:
+'2. False Call Diblokir Sandbox / Read-Only : 3 / 90 run (3.3%)'.
+Penjelasan faktual: Label ini merupakan kekeliruan pemilihan kata (misnomer).
+Tool search_memory sama sekali TIDAK diblokir oleh sandbox. Tool tersebut dieksekusi
+sampai tuntas oleh coordinator secara read-only query terhadap database SQLite lokal,
+dan mengembalikan hasil bahwa catatan tidak ditemukan. Sandbox OS tidak memblokir
+panggilan ini karena search_memory bukan proses shell berbahaya.
+
+================================================================================
+4. DETAIL (C): PASS RATE BERDASARKAN ASAL PROMPT & KATEGORI (WILSON 95%)
+================================================================================
+Kelompok                     | Prompt Unik  | Pass Rate  | Wilson 95% CI         
+------------------------------------------------------------------------------
+User Prompts (ID: S4A_U*)    | 14/15        | 93.3%      | [70.2%, 98.8%]        
+Builtin Prompts (ID: S4A_P*) | 12/15        | 80.0%      | [54.8%, 93.0%]        
+------------------------------------------------------------------------------
+
+Pass Rate per Kategori (Dihitung per Prompt Unik Lolos 3/3 Run):
+Kategori   | Jumlah Prompt  | Lolos 3/3  | Pass Rate  | Wilson 95% CI         
+------------------------------------------------------------------------
+MEM        | 12             | 10         | 83.3%      | [55.2%, 95.3%]        
+FILE       | 3              | 2          | 66.7%      | [20.8%, 93.9%]        
+GIT        | 2              | 2          | 100.0%     | [34.2%, 100.0%]       
+TEST       | 1              | 1          | 100.0%     | [20.7%, 100.0%]       
+NEG        | 12             | 11         | 91.7%      | [64.6%, 98.5%]        
+------------------------------------------------------------------------
+POSITIF    | 6              | 5          | 83.3%      | [43.6%, 97.0%]        
+TOTAL 4A   | 30             | 26         | 86.7%      | [70.3%, 94.7%]        
+
+================================================================================
+5. DETAIL (D): MEM SET 4A PER MODE VS KEGAGALAN MODE PROFILE DI SET 4R
+================================================================================
+A. Set 4A Mode Recall (Active FTS5 Injection, n=4 prompt unik, 12 turn):
+   - Prompt: S4A_U01_MEM s.d. S4A_U04_MEM
+   - Lolos : 4/4 prompt unik (100.0%), 12/12 turn (100.0%)
+   - Wilson 95% CI (Prompt Unik): [51.0%, 100.0%]
+
+B. Set 4A Mode Profile (System Prompt Base Injection, n=8 prompt unik, 24 turn):
+   - Prompt: S4A_U05_MEM, S4A_U06_MEM, S4A_P16_MEM s.d. S4A_P21_MEM
+   - Lolos : 6/8 prompt unik (75.0%), 18/24 turn (75.0%)
+   - Wilson 95% CI (Prompt Unik): [40.9%, 92.9%]
+   - Gagal : S4A_P18_MEM (kunci 'semgrep' tidak muncul di 3/3 run)
+             S4A_P21_MEM (kunci 'emissary' tidak muncul di 3/3 run)
+
+C. Perbandingan dengan Prompt Profile-Mode yang Gagal di Set 4R:
+   Di Set 4R, terdapat 2 prompt profile-mode yang menanyakan fakta tanpa alat:
+   - S4R_P05_REG: 'apa database utama proyek kita ya?' (Expected key: sqlite)
+     Hasil: Gagal 3/3 run (model halusinasi / tidak menyebutkan SQLite).
+   - S4R_P06_REG: 'bahasa apa yg kita pake buat backend service pembayaran?' (Expected key: fastapi)
+     Hasil: Gagal 3/3 run (model menyebut Go, Java, Python, Rust, tapi tidak menyebut FastAPI).
+   Temuan Silang:
+   Kedua kegagalan di Set 4R dan Set 4A (S4A_P18_MEM, S4A_P21_MEM) memiliki pola kegagalan yang persis sama:
+   Model 3B mengalami kesulitan konsisten dalam mengingat fakta profil spesifik yang diinjeksi
+   di system prompt base ketika pertanyaan bersifat umum teknis (SAST, Ingress Controller, Database, Framework).
+   Sebaliknya, pada Mode Recall FTS5 di mana blok percakapan lama diinjeksi tepat di atas konteks aktif,
+   tingkat akurasi mencapai 100%.
+
+================================================================================
+6. DETAIL (E): VERIFIKASI KEUTUHAN FINAL_RESPONSE (JSONL VS LAPORAN)
+================================================================================
+Perbandingan Teks final_response antara JSONL Mentah dan docs/evidence/set4_report.txt:
+
+Turn [S4A_P21_MEM Run 1]:
+  - Panjang Karakter di JSONL   : 2076 karakter
+  - Apakah Terpotong di JSONL?  : TIDAK. Respons berakhir utuh dengan: 'si atau implementasi ingress controller?'
+  - Ada String Utuh di Laporan? : YA (100% Persis)
+
+Turn [S4A_P21_MEM Run 2]:
+  - Panjang Karakter di JSONL   : 1260 karakter
+  - Apakah Terpotong di JSONL?  : TIDAK. Respons berakhir utuh dengan: 'arkan konfigurasi yang telah ditentukan.'
+  - Ada String Utuh di Laporan? : YA (100% Persis)
+
+Turn [S4R_P06_REG Run 1]:
+  - Panjang Karakter di JSONL   : 616 karakter
+  - Apakah Terpotong di JSONL?  : TIDAK. Respons berakhir utuh dengan: ' keamanan, dan performa yang diinginkan.'
+  - Ada String Utuh di Laporan? : YA (100% Persis)
+
+Kesimpulan Verifikasi Truncation:
+1. Berkas tests/results/benchmark_set4_raw.jsonl menyimpan seluruh final_response secara lengkap
+   tanpa ada pemotongan string apa pun.
+2. Berkas docs/evidence/set4_report.txt pada bagian (F) menyimpan seluruh teks jawaban akhir secara utuh.
+3. Kemunculan '...' pada pelaporan sebelumnya hanya terjadi pada pratinjau pesan obrolan antarmuka (chat)
+   karena peringkasan visual, bukan pada data mentah JSONL maupun berkas laporan tracked di disk.
+
+================================================================================
+7. REKONSILIASI & PENJELASAN SELISIH ANGKA DENGAN SET4_REPORT.TXT
+================================================================================
+1. Kriteria 1 (Routing Positif):
+   - set4_report.txt mencatat: 15/18 (83.3%), prompt: 5/6 (Status: Gagal).
+   - Verifikasi independen mencatat angka yang persis sama: 15/18 run (83.3%), 5/6 prompt unik (83.3%).
+   - Selisih: 0 (Konsisten).
+2. Kriteria 6 (Negatif Berpemicu):
+   - set4_report.txt mencatat 'False Call: 3/3' karena skrip lama hanya menyaring prompt dengan kata 'tadi'
+     sehingga hanya menemukan S4A_P26_NEG (3 run) sebagai negatif berpemicu.
+   - Verifikasi independen mengidentifikasi seluruh kata pemicu memori ('tadi', 'kemarin', 'ingat')
+     menghasilkan 6 prompt unik berpemicu (18 run). Dari 18 run tersebut, terdapat 3 false call (pada S4A_P26_NEG)
+     sehingga false call rate pada negatif berpemicu adalah 3/18 run (16.7%) atau 1/6 prompt unik (16.7%).
+   - Selisih: Perbedaan jumlah basis prompt berpemicu (1 prompt / 3 run vs 6 prompt / 18 run) akibat kelengkapan
+     pola leksikal 'ingat' dan 'kemarin'. Status kriteria tetap sama: GAGAL.
+3. Kriteria 7 (Sukses MEM):
+   - set4_report.txt mencatat: 30/36 (83.3%), prompt: 10/12 (Status: Gagal).
+   - Verifikasi independen mencatat angka yang persis sama: 30/36 run (83.3%), 10/12 prompt unik (83.3%).
+   - Selisih: 0 (Konsisten).
+================================================================================
