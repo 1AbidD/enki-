@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.7
+# Rencana Implementasi: ENKI (Local AI Assistant) - v2.8
 
-*Ringkasan Perubahan v2.7: rancangan dan kriteria Tahap 3B-1 (petunjuk perintah) serta rancangan Tahap 4A (survei suara Windows).*
+*Ringkasan Perubahan v2.8: rancangan dan kriteria kelulusan Tahap 4B (inti TTS SAPI5 tanpa dependensi suara).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -492,21 +492,29 @@ Status: **SELESAI**.
    - Lokasi direktori sampel WAV: `C:\Users\aabid\AppData\Local\Temp\enki_tts_samples\` (0 berkas WAV karena tidak ada suara lokal Indonesia).
 
 #### Langkah Selanjutnya:
-Pengguna memilih suara dengan mendengarkan WAV, lalu Tahap 4B implementasi.
+Tahap 4B (pembuatan kode dan uji), lalu Tahap 4C (integrasi suara id-ID).
 
-### Tahap 4: Voice Output (TTS) CPU dengan Zero-Cost Mute (AKAN DATANG)
-* Implementasi zero-cost mute check sebelum audio pipeline.
-* Enumerasi daftar suara Indonesia nyata dari sistem Windows pengguna (OneCore / SAPI5).
-* Komparasi sampel suara langsung di perangkat pengguna.
-* Sentence chunking, thread affinity 1–2 core CPU, dan interupsi instan.
+### Tahap 4B: Voice Output (TTS) Core & Zero-Cost Mute (DIRENCANAKAN)
 
-#### Kriteria Kelulusan Tahap 4 (DRAFT, dikonfirmasi setelah pengguna memilih suara; ditulis sebelum kode):
-- **T1 (Zero-Cost Mute):** Saat `is_muted == True`, fungsi `speak()` menghasilkan 0 panggilan sintesis, 0 thread baru, 0 modul audio ter-import (diverifikasi dengan mock dan pemeriksaan `sys.modules`).
-- **T2 (Pemotongan Kalimat / Chunking):** Tabel tetap minimal 15 teks (angka, singkatan, URL, bullet, blok kode) menghasilkan daftar chunk yang diharapkan, blok kode dilewati.
-- **T3 (Interupsi Instan):** Setelah cancel flag aktif, tidak ada chunk baru yang disintesis atau diputar dan antrean pemutaran seketika kosong (diuji dengan engine palsu).
-- **T4 (Batas CPU):** Worker sintesis memakai `OMP_NUM_THREADS=2` dan batas thread affinity $\le 2$ core bila memungkinkan (diuji konfigurasi diterapkan).
-- **T5 (Integritas Suite & CLI):** Seluruh suite unit test lulus dan alur percakapan/perintah eksplisit tidak berubah.
-- **T6 (Smoke Suara Pilihan Pengguna):** 3 kalimat natural disintesis tanpa crash, mengukur latensi, beban CPU, dan RAM (tidak ikut gate).
+#### Rancangan:
+- **Modul `enki/audio/tts.py`:**
+  - Antarmuka engine (`speak_chunk(text, voice=None)`, `stop()`) serta fungsi level tinggi `speak(text, voice=None, is_muted=False)` dan `cancel()`.
+  - Engine nyata pertama: `SAPI5Engine` lewat subprocess PowerShell `System.Speech` (tanpa paket pip baru). Teks dikirim lewat stdin atau berkas sementara (bukan interpolasi string perintah) demi mencegah injeksi perintah. Pembatalan (`cancel()`) memanggil terminasi subprocess aktif (`terminate()`). Pilihan suara dibaca dari `config.json` (kunci `"tts_voice"`, default: suara pertama yang tersedia).
+  - Engine palsu (`FakeEngine`) untuk pengujian deterministik tanpa memanggil audio sistem atau subprocess.
+  - Chunking teks: pemotongan per kalimat, melewati blok kode (```...```), membuang markup formatting (bullet `- `, `* `, `**bold**`, `*italic*`), URL panjang digantikan dengan kata "tautan", serta membatasi panjang chunk per kalimat.
+  - Zero-cost mute: bila `is_muted == True`, `speak()` langsung kembali (return) sebelum mengimpor modul engine audio, tanpa thread baru, tanpa subprocess.
+  - Worker satu thread dengan antrean (`queue.Queue`) dan flag pembatalan (`cancel_flag`). Setiap masukan baru dari pengguna di konsol langsung memicu `cancel()` dan mengosongkan antrean seketika.
+  - Batas beban CPU: `OMP_NUM_THREADS=2` diterapkan pada worker; batas affinity $\le 2$ core bila didukung oleh sistem operasi.
+  - Integrasi Konsol (`enki/cli/console.py`): setelah balasan model selesai dan `is_muted == False`, balasan dikirim ke `speak()`. Perintah `/mute` dan `/unmute` mengubah `config.json`. Kegagalan engine tidak boleh membuat konsol crash (mencetak satu baris peringatan `[Peringatan TTS] ...`).
+
+#### Kriteria Kelulusan Tahap 4B (Ditulis di Muka Sebelum Kode; Deterministik, Tanpa Model, Wajib 100%):
+- **T1 (Zero-Cost Mute):** Dengan `is_muted == True`, dihasilkan 0 panggilan engine, 0 thread baru, 0 subprocess, dan modul engine tidak ter-import (diverifikasi dengan mock dan pemeriksaan `sys.modules`).
+- **T2 (Chunking Teks):** Tabel tetap minimal 15 teks (angka, singkatan, URL, bullet, blok kode, teks kosong, teks sangat panjang) menghasilkan chunk yang diharapkan; blok kode dilewati.
+- **T3 (Interupsi Instan):** Setelah `cancel()`, tidak ada chunk baru yang disintesis, antrean kosong seketika, dan `engine.stop()` dipanggil (diuji dengan `FakeEngine`).
+- **T4 (Batas Beban CPU):** `OMP_NUM_THREADS=2` terpasang pada worker dan affinity $\le 2$ core diterapkan atau tercatat tidak didukung secara aman.
+- **T5 (Keamanan Injeksi):** Teks yang memuat tanda kutip, `$(...)`, `;`, backtick, dan baris baru tidak mengeksekusi apa pun (diuji lewat `FakeEngine` dan pemeriksaan argumen/stdin subprocess).
+- **T6 (Integritas Suite):** Seluruh suite pengujian lulus, test lama tidak diubah, dan `docs/test_ids.txt` diperbarui sama persis dengan hasil discovery.
+- **T7 (Smoke Model Real & Suara Bawaan, Tidak Ikut Gate):** 3 kalimat disintesis dengan suara en-US bawaan yang ada, 0 crash; mencatat latensi, CPU, dan RAM yang disimpan ke `docs/evidence/tahap4b_smoke.txt` lewat skrip otomatis.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
