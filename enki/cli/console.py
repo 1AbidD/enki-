@@ -331,3 +331,9 @@ class EnkiConsole:
             # Update history memori sesi aktif
             self.history.append({"role": "user", "content": user_input})
             self.history.append({"role": "assistant", "content": content})
+
+
+if __name__ == "__main__":
+    app = EnkiConsole()
+    app.run()
+
