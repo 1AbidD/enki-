@@ -31,6 +31,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ollama_url": "http://127.0.0.1:11434",
     "is_muted": False,
     "passive_recall": False,
+    "tts_voice": "",
     "workspace_root": str(Path(__file__).resolve().parent.parent)
 }
 
@@ -80,6 +81,14 @@ class AppConfig:
     @property
     def passive_recall(self) -> bool:
         return bool(self._data.get("passive_recall", False))
+
+    @property
+    def tts_voice(self) -> str:
+        return self._data.get("tts_voice", "")
+
+    def set_tts_voice(self, voice_name: str) -> None:
+        self._data["tts_voice"] = voice_name
+        self._save(self._data)
 
     @property
     def workspace_root(self) -> Path:

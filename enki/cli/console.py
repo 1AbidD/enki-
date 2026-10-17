@@ -15,6 +15,7 @@ from enki.core.react_loop import ReActCoordinator
 from enki.cli.memory_commands import handle_memory_command, handle_reflect_command
 from enki.cli.explicit_commands import handle_explicit_command, EXPLICIT_COMMANDS
 from enki.cli.command_hints import get_command_hints
+from enki.audio.tts import speak, cancel
 
 def get_vram_info() -> str:
     """Mengambil status VRAM saat ini via nvidia-smi."""
@@ -121,11 +122,15 @@ class EnkiConsole:
             if not user_input:
                 continue
 
+            # Interupsi instan jika audio TTS sedang berjalan
+            cancel()
+
             # Command handling
             if user_input.startswith("/"):
                 parts = user_input.split()
                 cmd = parts[0].lower()
                 if cmd in ["/exit", "/quit"]:
+                    cancel()
                     print("Keluar dari ENKI. Sampai jumpa!")
                     break
                 elif cmd == "/help":
@@ -161,6 +166,7 @@ class EnkiConsole:
                     continue
                 elif cmd == "/mute":
                     self.config.set_mute(True)
+                    cancel()
                     print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
                     continue
                 elif cmd == "/unmute":
@@ -176,6 +182,7 @@ class EnkiConsole:
                     print(f"  Num Context  : {self.config.num_ctx}")
                     print(f"  Temperature  : {self.config.temperature}")
                     print(f"  Mute Status  : {self.config.is_muted}")
+                    print(f"  TTS Voice    : {self.config.tts_voice or '(default)'}")
                     print(f"  Sesi Aktif   : {self.session_id}")
                     print(f"  Fakta Profil : {facts_count} fakta ({self.profile_mgr.count_tokens()}/500 token)")
                     print(f"  Pending Usul : {pending_count} usulan")
@@ -301,6 +308,17 @@ class EnkiConsole:
                 for cmd_key, hint_line in hints:
                     print(hint_line)
                     self.seen_hint_commands.add(cmd_key)
+
+            # 5c. Output Suara TTS (Tahap 4B)
+            if content and not self.config.is_muted:
+                try:
+                    speak(
+                        text=content,
+                        is_muted=self.config.is_muted,
+                        voice=self.config.tts_voice
+                    )
+                except Exception as e:
+                    print(f"[Peringatan TTS] Gagal memutar audio: {e}")
 
             # 6. Telemetri Eksekusi & Anggaran Context Riil
             prompt_eval = final_metrics.get("prompt_eval_count", 0)
