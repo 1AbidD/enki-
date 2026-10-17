@@ -17,6 +17,10 @@ def default_supertonic_model_dir() -> str:
     return str(Path.home() / ".cache" / "supertonic3")
 
 
+# Selisih penutupan perangkat winsound terukur pada 5 WAV uji (median = 287.21 ms)
+DEFAULT_WINSOUND_TAIL_PADDING_SEC: float = 0.287208
+
+
 class SupertonicEngine(BaseTTSEngine):
     """Engine TTS lokal Supertonic 3 dengan lazy loading, mode offline ketat,
     fallback otomatis ke SAPI5, dan pemutaran sinkron di thread pemutar via winsound.
@@ -27,10 +31,12 @@ class SupertonicEngine(BaseTTSEngine):
         model_dir: Optional[str] = None,
         default_voice: str = "M4",
         fallback_voice: Optional[str] = None,
+        tail_padding_sec: float = DEFAULT_WINSOUND_TAIL_PADDING_SEC,
     ):
         self.model_dir: str = model_dir or default_supertonic_model_dir()
         self.default_voice: str = default_voice or "M4"
         self.fallback_voice: Optional[str] = fallback_voice
+        self.tail_padding_sec: float = max(0.0, float(tail_padding_sec))
 
         self._load_lock = threading.Lock()
         self._tts: Any = None
@@ -51,6 +57,8 @@ class SupertonicEngine(BaseTTSEngine):
         self.last_purge_completed_at: float = 0.0
         self.last_playback_exited_at: float = 0.0
         self.play_timestamps_after_stop: List[float] = []
+        self.clipped_playbacks_count: int = 0
+        self.playback_records: List[Dict[str, Any]] = []
 
     @property
     def is_fallback(self) -> bool:
@@ -180,9 +188,14 @@ class SupertonicEngine(BaseTTSEngine):
             return None
 
         try:
-            duration_sec = float(dur_arr.squeeze())
+            dur_model = float(dur_arr.squeeze())
         except Exception:
-            duration_sec = float(len(wav_arr.squeeze())) / float(getattr(self._tts, "sample_rate", 44100))
+            dur_model = 0.0
+        try:
+            dur_frames = float(len(wav_arr.squeeze())) / float(getattr(self._tts, "sample_rate", 44100))
+        except Exception:
+            dur_frames = dur_model
+        duration_sec = max(dur_model, dur_frames)
 
         if save_wav_dir is not None and save_wav_name is not None:
             save_wav_dir.mkdir(parents=True, exist_ok=True)
@@ -200,6 +213,7 @@ class SupertonicEngine(BaseTTSEngine):
             "wav_path": wav_path,
             "is_temp": is_temp,
             "duration_sec": duration_sec,
+            "wav_frames_sec": dur_frames,
             "synth_time_sec": synth_time_sec,
             "text": text,
             "voice": target_voice,
@@ -265,6 +279,7 @@ class SupertonicEngine(BaseTTSEngine):
             if on_before_play is not None:
                 on_before_play(item)
 
+            t_play_start = time.perf_counter()
             with self._play_lock:
                 if self._stop_event.is_set() or (cancel_check is not None and cancel_check()):
                     stopped_early = True
@@ -283,14 +298,32 @@ class SupertonicEngine(BaseTTSEngine):
                 self.discard_synthesized(item, count_as_cancelled=True)
                 return False
 
-            # Tunggu pemutaran selesai atau diinterupsi oleh stop()
-            stopped_early = self._stop_event.wait(timeout=max(0.0, duration_sec))
+            # Tunggu pemutaran selesai (durasi WAV + selisih penutupan perangkat terukur) atau diinterupsi oleh stop()
+            wait_timeout = max(0.0, duration_sec + self.tail_padding_sec)
+            stopped_early = self._stop_event.wait(timeout=wait_timeout)
+            t_play_end = time.perf_counter()
+            actual_play_sec = t_play_end - t_play_start
+
             if stopped_early:
                 try:
                     winsound.PlaySound(None, winsound.SND_PURGE)
                 except Exception:
                     pass
                 self.last_playback_exited_at = time.perf_counter()
+            else:
+                is_clipped = actual_play_sec < duration_sec
+                if is_clipped:
+                    self.clipped_playbacks_count += 1
+                self.playback_records.append(
+                    {
+                        "text": item.get("text", ""),
+                        "duration_sec": duration_sec,
+                        "tail_padding_sec": self.tail_padding_sec,
+                        "expected_device_sec": wait_timeout,
+                        "actual_play_sec": actual_play_sec,
+                        "clipped": is_clipped,
+                    }
+                )
 
             if on_after_play is not None:
                 on_after_play(item, stopped_early)

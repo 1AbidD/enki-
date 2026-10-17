@@ -474,7 +474,7 @@ class TestTahap4BTTS(unittest.TestCase):
         - Kasus 2: Balasan 3 kalimat (kalimat pertama >= 6 kata berdiri sendiri, kalimat ke-2 & ke-3 digabung <= 250 karakter).
         - Kasus 3: Kalimat pertama 3 kata (< 6 kata) digabung dengan kalimat kedua.
         """
-        from enki.audio.tts import prepare_tts_chunks
+        from enki.audio.tts import prepare_tts_chunks_4c1 as prepare_tts_chunks
 
         # Kasus 1: Balasan 1 kalimat pendek
         case1 = "Halo, saya ENKI."
@@ -511,8 +511,186 @@ class TestTahap4BTTS(unittest.TestCase):
             ],
         )
 
+    def test_l3_1_first_sentence_20_words_with_comma_cut_le_14(self):
+        """L3(1): Kalimat pertama 20 kata dengan koma -> chunk 1 dipotong pada batas klausa <= 14 kata."""
+        from enki.audio.tts import prepare_tts_chunks
+
+        # Kalimat pertama tepat 20 kata, ada koma setelah kata ke-9
+        s1 = (
+            "Ketika pengguna menjalankan aplikasi asisten lokal pada komputer pribadi, "
+            "seluruh proses sintesis suara berjalan sepenuhnya di prosesor utama tanpa jaringan."
+        )
+        self.assertEqual(len(s1.split()), 20)
+        s2 = "Hal ini menjaga memori kartu grafis tetap longgar untuk model bahasa."
+
+        chunks = prepare_tts_chunks(f"{s1} {s2}")
+        self.assertGreaterEqual(len(chunks), 2)
+        first_chunk_words = len(chunks[0].split())
+        self.assertLessEqual(
+            first_chunk_words,
+            14,
+            f"Chunk 1 memiliki {first_chunk_words} kata (harus <= 14): {chunks[0]!r}",
+        )
+        self.assertEqual(
+            chunks[0],
+            "Ketika pengguna menjalankan aplikasi asisten lokal pada komputer pribadi,",
+        )
+        self.assertEqual(" ".join(chunks), f"{s1} {s2}")
+
+    def test_l3_2_first_sentence_20_words_without_comma_uncut(self):
+        """L3(2): Kalimat pertama 20 kata tanpa koma/titik-koma -> tidak dipotong."""
+        from enki.audio.tts import prepare_tts_chunks
+
+        s1 = (
+            "Pengguna dapat menjalankan aplikasi asisten kecerdasan buatan lokal ini "
+            "langsung melalui terminal untuk memeriksa dokumen proyek setiap hari dengan aman."
+        )
+        self.assertEqual(len(s1.split()), 20)
+        self.assertNotIn(",", s1)
+        self.assertNotIn(";", s1)
+        s2 = "Seluruh data tetap tersimpan di komputer lokal."
+
+        chunks = prepare_tts_chunks(f"{s1} {s2}")
+        self.assertEqual(chunks[0], s1)
+        self.assertEqual(len(chunks[0].split()), 20)
+        self.assertEqual(" ".join(chunks), f"{s1} {s2}")
+
+    def test_l3_3_six_sentences_ramp_non_decreasing_and_le_250(self):
+        """L3(3): Balasan 6 kalimat -> ukuran chunk tidak menurun dan tidak melebihi 250 karakter."""
+        from enki.audio.tts import prepare_tts_chunks
+
+        sentences = [
+            "Sistem asisten lokal siap membantu pekerjaan Anda.",  # 7 kata, 50 chars
+            "Seluruh modul sintesis suara berjalan di prosesor utama.",  # 8 kata, 56 chars
+            "Memori kartu grafis tetap aman untuk pemrosesan model bahasa.",  # 9 kata, 61 chars
+            "Pendekatan antrean berpipa menyiapkan potongan berikutnya di latar.",  # 8 kata, 67 chars
+            "Dengan cara ini pengguna tidak perlu menunggu seluruh teks selesai dibuat.",  # 11 kata, 74 chars
+            "Setiap bagian suara diputar berurutan secara mulus tanpa jeda panjang yang mengganggu.",  # 12 kata, 86 chars
+        ]
+        reply = " ".join(sentences)
+        chunks = prepare_tts_chunks(reply)
+
+        self.assertGreaterEqual(len(chunks), 3)
+        for c in chunks:
+            self.assertLessEqual(len(c), 250, f"Chunk melebihi 250 karakter ({len(c)}): {c!r}")
+
+        lengths = [len(c) for c in chunks]
+        for i in range(len(lengths) - 1):
+            self.assertLessEqual(
+                lengths[i],
+                lengths[i + 1],
+                f"Ukuran chunk menurun pada indeks {i}->{i+1}: {lengths} ({chunks})",
+            )
+        self.assertEqual(" ".join(chunks), reply)
+
+    def test_l3_4_concatenated_chunks_equal_cleaned_text_seeded(self):
+        """L3(4): Properti gabungan chunk == teks asli (setelah dibersihkan) untuk 5 balasan acak tetap (seed tetap)."""
+        import random
+        from enki.audio.tts import apply_pronunciation, clean_text_for_tts, prepare_tts_chunks
+
+        rng = random.Random(20261017)
+        clause_pool = [
+            "saat sistem dijalankan di komputer lokal",
+            "meskipun beban kerja prosesor sedang tinggi",
+            "karena seluruh model telah diunduh sebelumnya",
+            "sehingga tidak ada koneksi jaringan keluar",
+            "agar jeda antar kalimat tetap sangat singkat",
+            "ketika pengguna meminta pemeriksaan berkas proyek",
+            "sementara model bahasa menghasilkan jawaban panjang",
+            "tanpa mengurangi kualitas pelafalan bahasa Indonesia",
+        ]
+        sentence_pool = [
+            "Halo, saya ENKI.",
+            "Sistem siap digunakan sekarang.",
+            "Pemeriksaan berkas di folder enki/audio/tts.py telah selesai dijalankan.",
+            "Modul antrean suara memproses setiap kalimat secara berurutan di latar belakang.",
+            "Pengguna dapat menekan tombol interupsi kapan saja untuk menghentikan suara dengan cepat.",
+            "Seluruh konfigurasi tersimpan secara aman di berkas lokal tanpa memerlukan layanan awan.",
+            "Hasil pengukuran regresi linear digunakan untuk menentukan batas penggabungan kalimat berikutnya.",
+        ]
+
+        for idx in range(5):
+            num_sentences = rng.randint(3, 8)
+            built_sentences = []
+            for s_idx in range(num_sentences):
+                if s_idx == 0 and idx % 2 == 0:
+                    c1 = rng.choice(clause_pool)
+                    c2 = rng.choice(clause_pool)
+                    c3 = rng.choice(clause_pool)
+                    built_sentences.append(f"Pada pengujian ke-{idx}, {c1}, {c2}, dan {c3}.")
+                else:
+                    built_sentences.append(rng.choice(sentence_pool))
+
+            raw_reply = " ".join(built_sentences)
+            expected_clean = " ".join(
+                apply_pronunciation(clean_text_for_tts(raw_reply)).split()
+            )
+            chunks = prepare_tts_chunks(raw_reply)
+            reconstructed = " ".join(" ".join(c.split()) for c in chunks)
+            self.assertEqual(
+                reconstructed,
+                expected_clean,
+                f"Ketidakcocokan gabungan chunk pada sampel acak ke-{idx}",
+            )
+
+    def test_l3_5_single_short_sentence_one_chunk(self):
+        """L3(5): 1 kalimat pendek -> tepat 1 chunk."""
+        from enki.audio.tts import prepare_tts_chunks
+
+        chunks = prepare_tts_chunks("Halo, saya ENKI siap membantu.")
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0], "Halo, saya Enki siap membantu.")
+
+    def test_l6_no_clipped_playback_and_offline_socket_guard(self):
+        """L6 & K2: Verifikasi tidak ada pemutaran terpotong (clipped_playbacks_count == 0)
+        serta verifikasi pemblokiran socket nyata (HF_HUB_OFFLINE=1, 0 koneksi jaringan).
+        """
+        import socket
+        import tempfile
+        import wave
+        from pathlib import Path
+        from enki.audio.supertonic import SupertonicEngine
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            wav_path = Path(tmp_dir) / "dummy_l6.wav"
+            sample_rate = 44100
+            dur_sec = 0.12
+            n_frames = int(sample_rate * dur_sec)
+            with wave.open(str(wav_path), "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(sample_rate)
+                wf.writeframes(b"\x00\x00" * n_frames)
+
+            st_engine = SupertonicEngine(tail_padding_sec=0.05)
+            item = {
+                "mode": "supertonic_wav",
+                "wav_path": str(wav_path),
+                "is_temp": False,
+                "duration_sec": dur_sec,
+                "wav_frames_sec": dur_sec,
+                "synth_time_sec": 0.01,
+                "text": "Tes pemutaran utuh tanpa terpotong.",
+                "voice": "M4",
+            }
+
+            with patch("winsound.PlaySound") as mock_play, patch.object(
+                socket,
+                "create_connection",
+                side_effect=AssertionError("Koneksi jaringan keluar terdeteksi!"),
+            ):
+                ok = st_engine.play_synthesized(item)
+                self.assertTrue(ok)
+                self.assertEqual(st_engine.clipped_playbacks_count, 0)
+                self.assertEqual(len(st_engine.playback_records), 1)
+                rec = st_engine.playback_records[0]
+                self.assertFalse(rec["clipped"])
+                self.assertGreaterEqual(rec["actual_play_sec"], dur_sec)
+                self.assertEqual(mock_play.call_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

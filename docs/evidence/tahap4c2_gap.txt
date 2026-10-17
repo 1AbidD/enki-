@@ -1,0 +1,182 @@
+========================================================================================
+LAPORAN LANGKAH 3 TAHAP 4C-2: SELISIH PENUTUPAN PERANGKAT & JEDA ADVERSARIAL (LAMA vs BARU)
+========================================================================================
+Timestamp (UTC)                : 2026-10-17T15:14:28.315558+00:00
+Python Executable              : D:\ENKI\ENKI\venv\Scripts\python.exe (v3.14.4)
+Model TTS                      : Supertonic 3 (voice='M4', lang='id', HF_HUB_OFFLINE=1)
+Waktu Muat Model (CPU)         : 2.5791 s (2579.15 ms)
+Konstanta Regresi Langkah 1    : c0=1.599501, c1=0.329724, d0=0.596618, d1=0.061480 (chars/s=16.265423)
+Durasi Loop Generasi Ollama    : 974.17 detik (model='qwen2.5:3b')
+Total Token Dihasilkan LLM     : 68867 token (70.69 tok/s)
+Jumlah Request Stream LLM      : 80 request (Errors: 0)
+========================================================================================
+
+--- BAGIAN 1: PENGUKURAN SELISIH PENUTUPAN PERANGKAT (TAIL CLIPPING - KRITERIA L6) ---
+Metode: Memutar 5 WAV uji (sonda_1.wav s.d. sonda_5.wav) menggunakan
+winsound.PlaySound(path, SND_FILENAME) sinkron dan membandingkan lama blokirnya
+dengan durasi WAV sebenarnya.
+
+[A. Sebelum Perbaikan (Lama Blokir Sinkron vs Durasi WAV)]
+  - sonda_1.wav: durasi_wav=2.9954s | blokir_sinkron=3.3660s | selisih=+370.65 ms
+  - sonda_2.wav: durasi_wav=2.5774s | blokir_sinkron=2.8264s | selisih=+249.02 ms
+  - sonda_3.wav: durasi_wav=3.4133s | blokir_sinkron=3.6840s | selisih=+270.67 ms
+  - sonda_4.wav: durasi_wav=3.1347s | blokir_sinkron=3.3756s | selisih=+240.91 ms
+  - sonda_5.wav: durasi_wav=5.2941s | blokir_sinkron=5.6579s | selisih=+363.76 ms
+  * Median Selisih Sebelum Perbaikan : +270.67 ms (> 50 ms -> Perlu Perbaikan)
+  * Perbaikan Diterapkan di Engine   : Menambahkan tail_padding_sec = 270.67 ms serta memakai max(dur_model, dur_frames_wav) agar PlaySound berikutnya tidak memotong ekor chunk.
+
+[B. Setelah Perbaikan (Waktu Tunggu Engine vs Lama Blokir Sinkron)]
+  - sonda_1.wav: durasi_wav=2.9954s | blokir_sinkron=3.3660s | engine_wait=3.2720s | selisih_residu=-94.05 ms (|residu|=94.05 ms) | clipped=False
+  - sonda_2.wav: durasi_wav=2.5774s | blokir_sinkron=2.8264s | engine_wait=2.8516s | selisih_residu=+25.17 ms (|residu|=25.17 ms) | clipped=False
+  - sonda_3.wav: durasi_wav=3.4133s | blokir_sinkron=3.6840s | engine_wait=3.6994s | selisih_residu=+15.41 ms (|residu|=15.41 ms) | clipped=False
+  - sonda_4.wav: durasi_wav=3.1347s | blokir_sinkron=3.3756s | engine_wait=3.4092s | selisih_residu=+33.56 ms (|residu|=33.56 ms) | clipped=False
+  - sonda_5.wav: durasi_wav=5.2941s | blokir_sinkron=5.6579s | engine_wait=5.5754s | selisih_residu=-82.50 ms (|residu|=82.50 ms) | clipped=False
+  * Median Selisih Residu Setelah Perbaikan : +15.41 ms (Median Absolut: 33.56 ms <= 50 ms)
+  * Total Pemutaran Terpotong Tercatat      : 0 (dari seluruh pemutaran)
+
+--- BAGIAN 2: PERBANDINGAN ADVERSARIAL CHUNKER LAMA (4C-1) vs BARU (4C-2) SAAT OLLAMA GENERASI ---
+Metode: 1x pemanasan dibuang + median dari 3 ulangan per bentuk per chunker.
+
+========================================================================================
+BENTUK: Bentuk A (6 kata + >250 chars [4 kalimat])
+========================================================================================
+
+  [LAMA (4C-1)]
+  - Jumlah Chunk : 3
+    * Chunk 1 (42 karakter, 6 kata): 'Asisten lokal ini berjalan tanpa jaringan.'
+    * Chunk 2 (241 karakter, 33 kata): 'Seluruh proses sintesis suara dijalankan di prosesor utama komputer. Pendekatan ini menjaga memori kartu grafis tetap hemat dan stabil sepanjang waktu. Antrean berpipa menyiapkan kalimat berikutnya di latar belakang saat suara masih diputar.'
+    * Chunk 3 (89 karakter, 13 kata): 'Pengguna dapat bekerja dengan tenang tanpa takut kebocoran data pribadi ke jaringan luar.'
+  - Warmup (dibuang) : TTFA = 2.5249 s (2524.89 ms) | Jeda Antar-Chunk = [2621.453 ms, 0.862 ms]
+  - Ulangan 1        : TTFA = 2.2127 s (2212.72 ms) | Jeda Antar-Chunk = [2884.944 ms, 0.691 ms]
+  - Ulangan 2        : TTFA = 2.3524 s (2352.39 ms) | Jeda Antar-Chunk = [3108.782 ms, 0.900 ms]
+  - Ulangan 3        : TTFA = 1.9514 s (1951.42 ms) | Jeda Antar-Chunk = [2974.645 ms, 0.733 ms]
+  - Median TTFA      : 2.2127 s (2212.72 ms)
+  - Median Gap 1->2  : 2974.645 ms
+  - Median Gap 2->3  : 0.733 ms
+  - Median Gap Keseluruhan : 1442.922 ms (Maks Median Transisi: 2974.645 ms)
+
+  [BARU (4C-2)]
+  - Jumlah Chunk : 5
+    * Chunk 1 (42 karakter, 6 kata): 'Asisten lokal ini berjalan tanpa jaringan.'
+    * Chunk 2 (68 karakter, 9 kata): 'Seluruh proses sintesis suara dijalankan di prosesor utama komputer.'
+    * Chunk 3 (82 karakter, 12 kata): 'Pendekatan ini menjaga memori kartu grafis tetap hemat dan stabil sepanjang waktu.'
+    * Chunk 4 (89 karakter, 12 kata): 'Antrean berpipa menyiapkan kalimat berikutnya di latar belakang saat suara masih diputar.'
+    * Chunk 5 (89 karakter, 13 kata): 'Pengguna dapat bekerja dengan tenang tanpa takut kebocoran data pribadi ke jaringan luar.'
+  - Warmup (dibuang) : TTFA = 2.3367 s (2336.68 ms) | Jeda Antar-Chunk = [978.352 ms, 1.166 ms, 1.072 ms, 0.682 ms]
+  - Ulangan 1        : TTFA = 2.3128 s (2312.77 ms) | Jeda Antar-Chunk = [0.764 ms, 1.666 ms, 0.656 ms, 0.729 ms]
+  - Ulangan 2        : TTFA = 2.6324 s (2632.38 ms) | Jeda Antar-Chunk = [196.518 ms, 0.658 ms, 0.647 ms, 1.694 ms]
+  - Ulangan 3        : TTFA = 2.5375 s (2537.47 ms) | Jeda Antar-Chunk = [1.036 ms, 0.724 ms, 1.968 ms, 0.748 ms]
+  - Median TTFA      : 2.5375 s (2537.47 ms)
+  - Median Gap 1->2  : 1.036 ms
+  - Median Gap 2->3  : 0.724 ms
+  - Median Gap 3->4  : 0.656 ms
+  - Median Gap 4->5  : 0.748 ms
+  - Median Gap Keseluruhan : 0.756 ms (Maks Median Transisi: 1.036 ms)
+
+========================================================================================
+BENTUK: Bentuk B (14 kata + 3 kalimat)
+========================================================================================
+
+  [LAMA (4C-1)]
+  - Jumlah Chunk : 2
+    * Chunk 1 (109 karakter, 14 kata): 'Sistem asisten kecerdasan buatan lokal ini dirancang untuk membantu pengguna memeriksa dokumen proyek harian.'
+    * Chunk 2 (245 karakter, 35 kata): 'Semua berkas konfigurasi disimpan secara aman di dalam ruang kerja lokal. Mesin suara mengubah balasan teks menjadi gelombang audio secara efisien di prosesor. Interaksi terasa lebih alami karena jeda antar potongan kalimat dijaga tetap singkat.'
+  - Warmup (dibuang) : TTFA = 4.2362 s (4236.23 ms) | Jeda Antar-Chunk = [10.719 ms]
+  - Ulangan 1        : TTFA = 4.4073 s (4407.27 ms) | Jeda Antar-Chunk = [0.612 ms]
+  - Ulangan 2        : TTFA = 3.4982 s (3498.20 ms) | Jeda Antar-Chunk = [0.665 ms]
+  - Ulangan 3        : TTFA = 3.6514 s (3651.41 ms) | Jeda Antar-Chunk = [0.745 ms]
+  - Median TTFA      : 3.6514 s (3651.41 ms)
+  - Median Gap 1->2  : 0.665 ms
+  - Median Gap Keseluruhan : 0.665 ms (Maks Median Transisi: 0.665 ms)
+
+  [BARU (4C-2)]
+  - Jumlah Chunk : 2
+    * Chunk 1 (109 karakter, 14 kata): 'Sistem asisten kecerdasan buatan lokal ini dirancang untuk membantu pengguna memeriksa dokumen proyek harian.'
+    * Chunk 2 (245 karakter, 35 kata): 'Semua berkas konfigurasi disimpan secara aman di dalam ruang kerja lokal. Mesin suara mengubah balasan teks menjadi gelombang audio secara efisien di prosesor. Interaksi terasa lebih alami karena jeda antar potongan kalimat dijaga tetap singkat.'
+  - Warmup (dibuang) : TTFA = 3.9278 s (3927.82 ms) | Jeda Antar-Chunk = [0.744 ms]
+  - Ulangan 1        : TTFA = 3.4128 s (3412.76 ms) | Jeda Antar-Chunk = [0.557 ms]
+  - Ulangan 2        : TTFA = 4.4062 s (4406.20 ms) | Jeda Antar-Chunk = [0.664 ms]
+  - Ulangan 3        : TTFA = 3.3643 s (3364.34 ms) | Jeda Antar-Chunk = [0.782 ms]
+  - Median TTFA      : 3.4128 s (3412.76 ms)
+  - Median Gap 1->2  : 0.664 ms
+  - Median Gap Keseluruhan : 0.664 ms (Maks Median Transisi: 0.664 ms)
+
+========================================================================================
+BENTUK: Bentuk C (3 kata + 1 kalimat 28 kata [total >250 chars -> 2 chunk])
+========================================================================================
+
+  [LAMA (4C-1)]
+  - Jumlah Chunk : 2
+    * Chunk 1 (16 karakter, 3 kata): 'Halo, saya Enki.'
+    * Chunk 2 (238 karakter, 28 kata): 'Pemeriksaan menyeluruh terhadap konfigurasi aplikasi asisten kecerdasan buatan lokal ini menunjukkan bahwa seluruh komponen pemrosesan bahasa alami dan manajemen memori percakapan berjalan sangat stabil sesuai rancangan arsitektur sistem.'
+  - Warmup (dibuang) : TTFA = 1.8889 s (1888.87 ms) | Jeda Antar-Chunk = [6338.353 ms]
+  - Ulangan 1        : TTFA = 1.9549 s (1954.92 ms) | Jeda Antar-Chunk = [6304.882 ms]
+  - Ulangan 2        : TTFA = 2.1909 s (2190.91 ms) | Jeda Antar-Chunk = [6193.675 ms]
+  - Ulangan 3        : TTFA = 1.7872 s (1787.17 ms) | Jeda Antar-Chunk = [5605.511 ms]
+  - Median TTFA      : 1.9549 s (1954.92 ms)
+  - Median Gap 1->2  : 6193.675 ms
+  - Median Gap Keseluruhan : 6193.675 ms (Maks Median Transisi: 6193.675 ms)
+
+  [BARU (4C-2)]
+  - Jumlah Chunk : 2
+    * Chunk 1 (16 karakter, 3 kata): 'Halo, saya Enki.'
+    * Chunk 2 (238 karakter, 28 kata): 'Pemeriksaan menyeluruh terhadap konfigurasi aplikasi asisten kecerdasan buatan lokal ini menunjukkan bahwa seluruh komponen pemrosesan bahasa alami dan manajemen memori percakapan berjalan sangat stabil sesuai rancangan arsitektur sistem.'
+  - Warmup (dibuang) : TTFA = 2.2843 s (2284.27 ms) | Jeda Antar-Chunk = [6119.718 ms]
+  - Ulangan 1        : TTFA = 1.4063 s (1406.30 ms) | Jeda Antar-Chunk = [4669.454 ms]
+  - Ulangan 2        : TTFA = 1.0526 s (1052.62 ms) | Jeda Antar-Chunk = [4225.836 ms]
+  - Ulangan 3        : TTFA = 1.3523 s (1352.27 ms) | Jeda Antar-Chunk = [4298.297 ms]
+  - Median TTFA      : 1.3523 s (1352.27 ms)
+  - Median Gap 1->2  : 4298.297 ms
+  - Median Gap Keseluruhan : 4298.297 ms (Maks Median Transisi: 4298.297 ms)
+
+========================================================================================
+BENTUK: Bentuk D (25 kata dengan koma + 3 kalimat)
+========================================================================================
+
+  [LAMA (4C-1)]
+  - Jumlah Chunk : 3
+    * Chunk 1 (201 karakter, 25 kata): 'Ketika pengguna menjalankan aplikasi asisten kecerdasan buatan lokal pada komputer pribadi, seluruh proses sintesis suara dijalankan sepenuhnya di prosesor utama tanpa memerlukan koneksi jaringan luar.'
+    * Chunk 2 (181 karakter, 24 kata): 'Pendekatan ini menjaga memori kartu grafis tetap longgar untuk menjalankan model bahasa. Potongan kalimat berikutnya langsung disiapkan di latar belakang saat suara pertama diputar.'
+    * Chunk 3 (92 karakter, 12 kata): 'Dengan arsitektur ini pengalaman percakapan terasa jauh lebih responsif dan nyaman didengar.'
+  - Warmup (dibuang) : TTFA = 5.3593 s (5359.34 ms) | Jeda Antar-Chunk = [0.666 ms, 0.929 ms]
+  - Ulangan 1        : TTFA = 4.8635 s (4863.48 ms) | Jeda Antar-Chunk = [0.790 ms, 1.286 ms]
+  - Ulangan 2        : TTFA = 5.0688 s (5068.80 ms) | Jeda Antar-Chunk = [0.624 ms, 0.634 ms]
+  - Ulangan 3        : TTFA = 5.5807 s (5580.73 ms) | Jeda Antar-Chunk = [0.825 ms, 1.156 ms]
+  - Median TTFA      : 5.0688 s (5068.80 ms)
+  - Median Gap 1->2  : 0.790 ms
+  - Median Gap 2->3  : 1.156 ms
+  - Median Gap Keseluruhan : 0.807 ms (Maks Median Transisi: 1.156 ms)
+
+  [BARU (4C-2)]
+  - Jumlah Chunk : 3
+    * Chunk 1 (91 karakter, 11 kata): 'Ketika pengguna menjalankan aplikasi asisten kecerdasan buatan lokal pada komputer pribadi,'
+    * Chunk 2 (198 karakter, 26 kata): 'seluruh proses sintesis suara dijalankan sepenuhnya di prosesor utama tanpa memerlukan koneksi jaringan luar. Pendekatan ini menjaga memori kartu grafis tetap longgar untuk menjalankan model bahasa.'
+    * Chunk 3 (185 karakter, 24 kata): 'Potongan kalimat berikutnya langsung disiapkan di latar belakang saat suara pertama diputar. Dengan arsitektur ini pengalaman percakapan terasa jauh lebih responsif dan nyaman didengar.'
+  - Warmup (dibuang) : TTFA = 3.3505 s (3350.52 ms) | Jeda Antar-Chunk = [0.789 ms, 0.774 ms]
+  - Ulangan 1        : TTFA = 3.0305 s (3030.49 ms) | Jeda Antar-Chunk = [1082.591 ms, 0.882 ms]
+  - Ulangan 2        : TTFA = 2.9950 s (2994.97 ms) | Jeda Antar-Chunk = [1.058 ms, 2.133 ms]
+  - Ulangan 3        : TTFA = 2.6960 s (2695.96 ms) | Jeda Antar-Chunk = [0.788 ms, 0.837 ms]
+  - Median TTFA      : 2.9950 s (2994.97 ms)
+  - Median Gap 1->2  : 1.058 ms
+  - Median Gap 2->3  : 0.882 ms
+  - Median Gap Keseluruhan : 0.970 ms (Maks Median Transisi: 1.058 ms)
+
+--- CATATAN ANALISIS BENTUK C (3 KATA + 1 KALIMAT PANJANG 28 KATA) ---
+Pada Bentuk C, aturan Chunk Pertama menyatakan: 'Jika kurang dari 6 kata, gabung dengan
+kalimat berikutnya (aturan 4C-1 tetap).' Terdapat dua kemungkinan struktur fisik:
+  1. Bila panjang gabungan kalimat 1 (3 kata) + kalimat 2 (28 kata) > 250 karakter (seperti diuji di atas: 16 + 1 + 238 = 255 karakter > 250):
+     Penggabungan ditolak oleh batas 250 karakter, sehingga Chunk 1 tetap 3 kata (16 karakter,
+     durasi audio ~1.64s) dan Chunk 2 berisi kalimat 28 kata (240 karakter, waktu sintesis ~5.9s).
+     Akibatnya, saat Chunk 1 selesai diputar, sintesis Chunk 2 belum selesai dan timbul jeda ~3.9s.
+  2. Bila panjang gabungan kalimat 1 (3 kata) + kalimat 2 (28 kata) <= 250 karakter (contoh varian 210 karakter -> LAMA=1 chunk, BARU=1 chunk):
+     Kedua kalimat digabung menjadi 1 chunk tunggal berukuran 31 kata (0 jeda antar-chunk,
+     namun TTFA naik menjadi ~5.5 detik karena harus menyintesis 31 kata di Chunk 1).
+
+--- RINGKASAN EVALUASI KRITERIA L4, L5, L6 ---
+  - L4 [Bentuk A (6 kata + >250 chars [4 kalimat])]: Median Gap BARU = 0.756 ms (Maks Transisi = 1.036 ms) -> LULUS
+  - L4 [Bentuk B (14 kata + 3 kalimat)]: Median Gap BARU = 0.664 ms (Maks Transisi = 0.664 ms) -> LULUS
+  - L4 [Bentuk C (3 kata + 1 kalimat 28 kata [total >250 chars -> 2 chunk])]: Median Gap BARU = 4298.297 ms (Maks Transisi = 4298.297 ms) -> GAGAL (> 500 ms)
+  - L4 [Bentuk D (25 kata dengan koma + 3 kalimat)]: Median Gap BARU = 0.970 ms (Maks Transisi = 1.058 ms) -> LULUS
+  - L5 [TTFA Bentuk D BARU <= 4.0 s]: Median TTFA = 2.9950 s (2994.97 ms) -> LULUS
+  - L6 [Selisih Penutupan Perangkat <= 50 ms & 0 Terpotong]: Median Residu = +15.41 ms (|median|=33.56 ms), terpotong=0 -> LULUS
+========================================================================================

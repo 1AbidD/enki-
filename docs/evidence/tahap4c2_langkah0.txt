@@ -1,0 +1,75 @@
+========================================================================================
+VERIFIKASI LANGKAH 0 TAHAP 4C-2 (SEBELUM KODE BARU)
+========================================================================================
+
+[0a] git show --stat HEAD (922e628) & git check-ignore -v venv
+----------------------------------------------------------------------------------------
+commit 922e62849cef00a9520fa4da140c5cdde9ae9679
+Author: 1AbidD <aabidaqila880@gmail.com>
+Date:   Sat Oct 17 21:29:25 2026 +0700
+
+    tahap 4C-1 engine supertonic M4 + kamus pelafalan
+
+ docs/evidence/tahap4c1_bench.txt        | 138 ++++++++
+ docs/evidence/tahap4c1_langkah0.txt     |   3 +
+ docs/evidence/tahap4c1_test_summary.txt |  24 ++
+ docs/implementation_plan.md             |  88 ++++-
+ docs/test_ids.txt                       |   5 +
+ enki/audio/__init__.py                  |  16 +-
+ enki/audio/supertonic.py                | 341 +++++++++++++++++++
+ enki/audio/tts.py                       | 371 +++++++++++++++++++--
+ enki/cli/console.py                     |  18 +-
+ enki/config.py                          |  37 ++-
+ requirements.txt                        |   5 +
+ scripts/bench_tahap4c1.py               | 573 ++++++++++++++++++++++++++++++++
+ scripts/generate_tahap4c1_summary.py    |  95 ++++++
+ tests/test_tts.py                       | 180 ++++++++++
+ 14 files changed, 1848 insertions(+), 46 deletions(-)
+
+Hasil verifikasi berkas commit 922e628:
+- TIDAK ada folder venv/ di commit.
+- TIDAK ada berkas model (.onnx / .safetensors / .json bobot) di commit.
+- TIDAK ada berkas .wav di commit.
+
+Output `git check-ignore -v venv`:
+.gitignore:16:venv/	venv
+
+[0b] Verifikasi Nama Fungsi test_ di tests/test_tts.py (4C-1) vs Plan vs Pesan Akhir 4C-1
+----------------------------------------------------------------------------------------
+5 fungsi test_ yang ditambahkan di `tests/test_tts.py` pada commit 922e628:
+1. test_langkah0_regex_regression_dunder_and_italic_punctuation
+2. test_k2_zero_cost_mute_supertonic_and_onnxruntime_not_imported
+3. test_k3_fallback_to_sapi5_on_invalid_model_dir
+4. test_k4_pronunciation_dictionary_and_screen_text_unchanged
+5. test_langkah3_chunk_strategy_first_short_and_subsequent_250
+
+5 nama di `docs/implementation_plan.md` (baris 671-676 pada commit 922e628):
+1. test_langkah0_regex_regression_dunder_and_italic_punctuation
+2. test_k2_zero_cost_mute_supertonic_and_onnxruntime_not_imported
+3. test_k3_fallback_to_sapi5_on_invalid_model_dir
+4. test_k4_pronunciation_dictionary_and_screen_text_unchanged
+5. test_langkah3_chunk_strategy_first_short_and_subsequent_250
+
+Perbandingan & Pernyataan Kebenaran:
+- Daftar 5 nama tes di `tests/test_tts.py`, `docs/test_ids.txt`, dan `docs/implementation_plan.md` SAMA PERSIS (cocok 100%).
+- Yang BENAR adalah penomoran K1-K8 dan nama fungsi tes yang tertulis di `docs/implementation_plan.md` serta kode `tests/test_tts.py`:
+  * K1 = Suite penuh lulus, test_ids.txt sinkron, 3 skip tetap, tes lama tidak diubah.
+  * K2 = Zero-cost mute (`test_k2_zero_cost_mute_supertonic_and_onnxruntime_not_imported`).
+  * K3 = Fallback ke SAPI5 (`test_k3_fallback_to_sapi5_on_invalid_model_dir`).
+  * K4 = Kamus pelafalan (`test_k4_pronunciation_dictionary_and_screen_text_unchanged`).
+  * K5 = Waktu interupsi cancel() median <= 300 ms & 0 audio bocor.
+  * K6 = TTFA 3 kata median <= 4,0 detik saat Ollama generasi.
+  * K7 = Celah antar-chunk median <= 500 ms saat Ollama generasi.
+  * K8 = Tanpa paket PyTorch & daftar paket baru dilaporkan.
+- Tabel pada pesan akhir 4C-1 di chat SALAH menggeser penomoran K1-K8 dan salah menulis nama fungsi tes (`test_k1_k2_k3_supertonic_mute_offline_and_fallback` serta `test_k4_pronunciation_dictionary_and_screen_unchanged` tidak ada di repo).
+- Pernyataan tentang tes pemblokiran socket (K2 versi tabel pesan akhir):
+  TIDAK ADA unit test di `tests/test_tts.py` pada commit 922e628 yang memblokir `socket.create_connection` untuk `SupertonicEngine` (pemblokiran socket hanya dilakukan pada skrip uji kelayakan terpisah di `D:\ENKI\tts_test2\run_supertonic_test.py`).
+
+[0c] Interpreter Valid & Perbedaan Versi Paket Venv vs Global Python
+----------------------------------------------------------------------------------------
+- Perintah valid menjalankan ENKI (interpreter venv):
+  `D:\ENKI\ENKI\venv\Scripts\python.exe main.py`
+- Lingkungan Python global `C:\Python314\python.exe` juga berisi `supertonic==1.3.1` dan `huggingface_hub==1.33.0`, dengan perbedaan versi `onnxruntime`:
+  * Venv (`D:\ENKI\ENKI\venv\Scripts\python.exe`): `onnxruntime==1.31.0`, `supertonic==1.3.1`, `huggingface_hub==1.33.0`
+  * Global (`C:\Python314\python.exe`): `onnxruntime==1.28.0`, `supertonic==1.3.1`, `huggingface_hub==1.33.0`
+========================================================================================

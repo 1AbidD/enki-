@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.1
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.2
 
-*Ringkasan Perubahan v3.1: rancangan dan kriteria preregistrasi Tahap 4C-1 (integrasi mesin suara Supertonic 3 voice M4, fallback SAPI5, kamus pelafalan, strategi chunk cepat-mulai, dan pengukuran pipelining).*
+*Ringkasan Perubahan v3.2: verifikasi Tahap 4C-1 (Langkah 0), pemodelan regresi waktu sintesis & durasi audio Supertonic M4, perancangan chunker bertahap (ramp), serta kriteria preregistrasi dan pengukuran jeda adversarial Tahap 4C-2.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -705,7 +705,112 @@ Status Tahap 4C-1 resmi: **LULUS** (seluruh kriteria K1–K8 mencapai **LULUS**;
   - **Sonda 6 String (`D:\ENKI\tts_test2\out4c\sonda_1.wav` s.d. `sonda_6.wav`):** Seluruh 6 berkas WAV berhasil dibuat melalui pipeline asli ENKI (`clean_text_for_tts` $\rightarrow$ `apply_pronunciation` $\rightarrow$ `prepare_tts_chunks`) tanpa normalisasi angka baru.
 
 #### Langkah Berikutnya (Tahap 4C-2):
-- **Tahap 4C-2:** Teks tampil per kalimat sinkron dengan suara (hanya saat tidak mute); karena **K6 (`1,3811 s` $\le 4,0\text{ s}$)** dan **K7 (`0,912 ms` $\le 500\text{ ms}$)** keduanya **LULUS**, arsitektur pipelining Supertonic M4 memenuhi syarat latensi untuk sinkronisasi tampilan kalimat dengan pemutaran suara di Tahap 4C-2.
+- **Tahap 4C-2:** Verifikasi 4C-1, pemodelan waktu sintesis Supertonic M4, chunker bertahap (*ramp*), dan pengukuran jeda secara adversarial.
+
+### Tahap 4C-2: Verifikasi 4C-1 + Chunk Bertahap (Ramp) + Ukur Ulang Jeda Secara Adversarial
+
+#### 1. Hasil Verifikasi Langkah 0 (Sebelum Kode Baru — `docs/evidence/tahap4c2_langkah0.txt`):
+- **0a. Verifikasi Commit `922e628` (`git show --stat 922e628` & `git check-ignore -v venv`):**
+  - Commit `922e628` berisi 14 berkas teks/kode; **TIDAK ADA** `venv/`, berkas model (`.onnx`/`.safetensors`), ataupun berkas `.wav` di dalam commit.
+  - Output `git check-ignore -v venv`: `.gitignore:16:venv/	venv`.
+- **0b. Perbandingan Nama Fungsi `test_` di `tests/test_tts.py` (4C-1) vs Plan vs Pesan Akhir 4C-1:**
+  - Daftar 5 fungsi `test_` yang ditambahkan di `tests/test_tts.py` pada 4C-1 cocok 100% dengan 5 nama yang tertulis di `docs/implementation_plan.md` dan `docs/test_ids.txt`:
+    1. `test_langkah0_regex_regression_dunder_and_italic_punctuation`
+    2. `test_k2_zero_cost_mute_supertonic_and_onnxruntime_not_imported`
+    3. `test_k3_fallback_to_sapi5_on_invalid_model_dir`
+    4. `test_k4_pronunciation_dictionary_and_screen_text_unchanged`
+    5. `test_langkah3_chunk_strategy_first_short_and_subsequent_250`
+  - **Pernyataan Kebenaran Penomoran K1–K8:** Penomoran K1–K8 dan nama fungsi tes yang benar adalah yang tertulis di `docs/implementation_plan.md` (baris 669–702) dan di kode `tests/test_tts.py`. Tabel ringkasan pada pesan akhir chat 4C-1 salah menggeser penomoran K1–K8 dan mencantumkan nama tes fiktif (`test_k1_k2_k3_supertonic_mute_offline_and_fallback` dan `test_k4_pronunciation_dictionary_and_screen_unchanged`).
+  - **Pernyataan tentang Tes Pemblokiran Socket:** Pada commit `922e628`, **TIDAK ADA** unit test di `tests/test_tts.py` yang memblokir `socket.create_connection` untuk `SupertonicEngine` (pemblokiran socket hanya dijalankan pada skrip uji kelayakan terpisah di `D:\ENKI\tts_test2\run_supertonic_test.py`).
+- **0c. Perintah Valid Menjalankan ENKI & Perbedaan Versi Paket Python:**
+  - Perintah valid menjalankan ENKI menggunakan interpreter venv:
+    ```powershell
+    D:\ENKI\ENKI\venv\Scripts\python.exe main.py
+    ```
+  - Lingkungan Python global `C:\Python314\python.exe` kini juga berisi `supertonic==1.3.1` dan `huggingface_hub==1.33.0`, dengan perbedaan versi `onnxruntime`:
+    - **Venv (`D:\ENKI\ENKI\venv\Scripts\python.exe`):** `onnxruntime==1.31.0`, `supertonic==1.3.1`, `huggingface_hub==1.33.0`
+    - **Global (`C:\Python314\python.exe`):** `onnxruntime==1.28.0`, `supertonic==1.3.1`, `huggingface_hub==1.33.0`
+- **Status Normalisasi Angka:** **MENUNGGU** (belum dikerjakan; menunggu penilaian dengar Abid pada berkas `sonda_1.wav` sampai `sonda_6.wav`).
+
+#### 2. Rancangan Tahap 4C-2 (Ditulis Sebelum Kode):
+1. **Langkah 1: Pengukuran Model Waktu Sintesis (`scripts/bench_tahap4c2_fit.py` $\rightarrow$ `docs/evidence/tahap4c2_fit.txt`):**
+   - Engine Supertonic M4 pada kondisi idle.
+   - Mengukur teks bahasa Indonesia dengan jumlah kata `3, 6, 10, 16, 25, 40` (minimal 2 teks berbeda per ukuran): 1 pemanasan dibuang + median dari 3 ulangan.
+   - Mencatat durasi audio (detik), waktu sintesis (detik), dan jumlah karakter untuk tiap teks.
+   - Menghitung regresi linear:
+     - $\text{waktu\_sintesis} = c_0 + c_1 \times \text{durasi\_audio}$
+     - $\text{durasi\_audio} = d_0 + d_1 \times \text{jumlah\_karakter}$
+   - Melaporkan $c_0, c_1, d_0, d_1$, dan $R^2$ keduanya (tanpa batas lulus; hanya dilaporkan).
+   - Menyimpan konstanta terukur di `enki/config.py` (`tts_synth_c0`, `tts_synth_c1`, `tts_chars_per_sec` serta `tts_audio_d0` / `tts_audio_d1`) dan **TIDAK dihitung ulang setelah ini**.
+2. **Langkah 2: Chunker Bertahap (`prepare_tts_chunks` versi baru; fungsi `chunk_text` lama dan tes lamanya tidak diubah):**
+   - **Aturan Chunk Pertama:** Ambil kalimat pertama. Jika kalimat pertama memiliki **lebih dari 14 kata**, potong di batas klausa (koma `,` atau titik koma `;`) terdekat yang menghasilkan **$\le 14$ kata** (jika ada beberapa batas klausa yang menghasilkan $\le 14$ kata, pilih batas klausa terpanjang yang tetap $\le 14$ kata agar chunk pertama alami dan tidak terlalu pendek; sisa klausa dari kalimat pertama menjadi kalimat berikutnya dalam antrean penggabungan). Jika tidak ada tanda baca koma/titik koma yang cocok (yang menghasilkan $\le 14$ kata), jangan dipotong. Jika chunk pertama memiliki **kurang dari 6 kata**, gabung dengan kalimat berikutnya selama $\le 250$ karakter (aturan 4C-1 tetap).
+   - **Aturan Chunk ke-$N+1$ ($N \ge 1$):** Gabungkan kalimat-kalimat berurutan selama:
+     $$\text{waktu\_sintesis\_prediksi}(\text{chunk}_{N+1}) \le \text{durasi\_audio\_prediksi}(\text{chunk}_N) - 0,3\text{ detik}$$
+     menggunakan konstanta regresi dari Langkah 1, dengan batas atas `250` karakter dan minimal satu kalimat per chunk. Kalimat tunggal yang melebihi batas 250 karakter tetap dipotong pada batas klausa seperti sekarang (`chunk_text`).
+   - **Invarian Keutuhan Teks:** Gabungan semua chunk dengan spasi (`" ".join(chunks)`) harus sama persis dengan teks bersih asli setelah `clean_text_for_tts` + `apply_pronunciation` (tanpa ada kata/tanda baca yang hilang atau berulang).
+   - **5 Tes Unit Baru di `tests/test_tts.py`:**
+     1. Kalimat pertama 20 kata dengan koma $\rightarrow$ chunk 1 memiliki $\le 14$ kata.
+     2. Kalimat pertama 20 kata tanpa koma $\rightarrow$ tidak dipotong.
+     3. Balasan 6 kalimat $\rightarrow$ ukuran chunk tidak menurun dan tidak melebihi 250 karakter.
+     4. Properti gabungan chunk == teks asli untuk 5 balasan acak tetap (seed tetap).
+     5. 1 kalimat pendek $\rightarrow$ 1 chunk.
+3. **Langkah 3: Ukur Jeda Secara Adversarial (`scripts/bench_tahap4c2_gap.py` $\rightarrow$ `docs/evidence/tahap4c2_gap.txt`):**
+   - Dalam kondisi Ollama sedang generasi nyata (`qwen2.5:3b`, seperti 4C-1), 1 pemanasan dibuang + median 3 ulangan, membandingkan chunker **LAMA (4C-1)** vs **BARU (4C-2)** pada 4 bentuk:
+     - **Bentuk A:** kalimat pertama 6 kata + total $> 250$ karakter lagi (3–4 kalimat).
+     - **Bentuk B:** kalimat pertama 14 kata + 3 kalimat lagi.
+     - **Bentuk C:** kalimat pertama 3 kata + 1 kalimat panjang 28 kata.
+     - **Bentuk D:** kalimat pertama 25 kata dengan koma + 3 kalimat lagi.
+   - Mencatat per bentuk: TTFA, semua jeda antar-chunk, jumlah chunk, dan ukuran tiap chunk (karakter & kata).
+   - **Pengukuran Selisih Penutupan Perangkat (*Tail Clipping*):** Memutar 5 WAV uji dengan `winsound.PlaySound(path, SND_FILENAME)` sinkron (menunggu selesai) dan membandingkan lama blokirnya dengan durasi WAV sebenarnya; melaporkan selisih median. Jika selisih median $> 50\text{ ms}$, engine disesuaikan untuk menunggu penyelesaian pemutaran sebenarnya (atau menambahkan selisih terukur) agar ekor chunk tidak terpotong saat `PlaySound` berikutnya, lalu mengulangi pengukuran jeda setelah perbaikan.
+
+#### 3. Kriteria Lulus Tahap 4C-2 (Final Sebelum Kode) & Hasil Evaluasi Terukur:
+- **L1:** Langkah 0 selesai dan dilaporkan (`venv` tidak ter-commit; daftar tes cocok atau plan dikoreksi) $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c2_langkah0.txt`. Commit `922e628` terverifikasi bersih dari `venv/`, berkas model, dan `.wav`; `.gitignore:16:venv/	venv` aktif; daftar 5 fungsi `test_` di `tests/test_tts.py` cocok 100% dengan `docs/implementation_plan.md`; diklarifikasi bahwa tabel pesan akhir 4C-1 salah menggeser penomoran K1–K8 dan bahwa pada `922e628` belum ada unit test pemblokiran socket di `tests/test_tts.py` (kini ditambahkan di `test_l6_no_clipped_playback_and_offline_socket_guard`).
+- **L2:** Langkah 1 dilaporkan lengkap ($c_0, c_1, d_0, d_1, R^2$); tidak ada batas $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c2_fit.txt` (12 sampel bahasa Indonesia pada ukuran `3, 6, 10, 16, 25, 40` kata, masing-masing 1 warmup dibuang + median 3 ulangan):
+    - $\text{waktu\_sintesis} = c_0 + c_1 \times \text{durasi\_audio}$:
+      - $c_0 = \mathbf{1,599501}\text{ detik}$
+      - $c_1 = \mathbf{0,329724}$ (detik sintesis per detik audio)
+      - $R^2 = \mathbf{0,993615}$
+    - $\text{durasi\_audio} = d_0 + d_1 \times \text{jumlah\_karakter}$:
+      - $d_0 = \mathbf{0,596618}\text{ detik}$
+      - $d_1 = \mathbf{0,061480}$ (detik audio per karakter; `tts_chars_per_sec` $= 1 / d_1 = \mathbf{16,265423}$ karakter/detik)
+      - $R^2 = \mathbf{0,999524}$
+    - Disimpan permanen di `enki/config.py` (`tts_synth_c0`, `tts_synth_c1`, `tts_audio_d0`, `tts_audio_d1`, `tts_chars_per_sec`).
+- **L3:** Tes unit chunker baru lulus (5 tes), suite penuh lulus, skip 3, `test_ids` sinkron $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c2_test_summary.txt`: `Total Discovered Test IDs = 129`, `Total Recorded in test_ids = 129`, `Selisih ID = 0`, `testsRun = 129`, `successes = 126`, `skipped = 3` (hanya 3 benchmark lama Set 2, Set 3, Set 4), `failures = 0`, `errors = 0`, `Ran 129 tests in 13.159s`, `OK (skipped=3)` dengan Ollama aktif.
+  - 6 fungsi tes baru yang ditambahkan di `tests/test_tts.py` dan `docs/test_ids.txt`:
+    1. `test_l3_1_first_sentence_20_words_with_comma_cut_le_14`
+    2. `test_l3_2_first_sentence_20_words_without_comma_uncut`
+    3. `test_l3_3_six_sentences_ramp_non_decreasing_and_le_250`
+    4. `test_l3_4_concatenated_chunks_equal_cleaned_text_seeded`
+    5. `test_l3_5_single_short_sentence_one_chunk`
+    6. `test_l6_no_clipped_playback_and_offline_socket_guard`
+- **L4:** Chunker BARU: median jeda antar-chunk $\le 500\text{ ms}$ pada KEEMPAT bentuk (A–D) saat Ollama generasi. Jika ada bentuk yang gagal: laporkan, jangan ubah aturan $\rightarrow$ **GAGAL** *(3 dari 4 bentuk lulus [Bentuk A, B, D $\le 500\text{ ms}$]; Bentuk C gagal karena aturan `< 6 kata` 4C-1 tidak mengizinkan penggabungan melampaui 250 karakter dan tidak memotong kalimat ke-2 yang $\le 250$ karakter)*
+  - Bukti: `docs/evidence/tahap4c2_gap.txt` (saat Ollama `qwen2.5:3b` aktif men-stream `68.867 token` @ `70,69 tok/s` selama `974,17 s`):
+    - **Bentuk A (6 kata + $> 250$ karakter [4 kalimat]):**
+      - Chunker LAMA (4C-1): 3 chunk (`[42, 241, 89]` chars), Median TTFA = `2,2127 s`, Median Gap 1$\rightarrow$2 = **`2974,645 ms`** ($> 500\text{ ms}$), Gap 2$\rightarrow$3 = `0,733 ms`.
+      - Chunker BARU (4C-2): 5 chunk (`[42, 68, 82, 89, 89]` chars), Median TTFA = `2,5375 s`, Median Gap 1$\rightarrow$2 = **`1,036 ms`**, Gap 2$\rightarrow$3 = **`0,724 ms`**, Gap 3$\rightarrow$4 = **`0,656 ms`**, Gap 4$\rightarrow$5 = **`0,748 ms`**, Median Keseluruhan = **`0,756 ms`** ($\le 500\text{ ms}$) $\rightarrow$ **LULUS**.
+    - **Bentuk B (14 kata + 3 kalimat):**
+      - Chunker LAMA (4C-1): 2 chunk (`[109, 245]` chars), Median TTFA = `3,6514 s`, Median Gap 1$\rightarrow$2 = `0,665 ms`.
+      - Chunker BARU (4C-2): 2 chunk (`[109, 245]` chars), Median TTFA = `3,4128 s`, Median Gap 1$\rightarrow$2 = **`0,664 ms`** ($\le 500\text{ ms}$) $\rightarrow$ **LULUS**.
+    - **Bentuk C (3 kata + 1 kalimat panjang 28 kata):**
+      - Chunker LAMA (4C-1): 2 chunk (`[16, 238]` chars), Median TTFA = `1,9549 s`, Median Gap 1$\rightarrow$2 = **`6193,675 ms`**.
+      - Chunker BARU (4C-2): 2 chunk (`[16, 238]` chars), Median TTFA = `1,3523 s`, Median Gap 1$\rightarrow$2 = **`4298,297 ms`** ($> 500\text{ ms}$) $\rightarrow$ **GAGAL**.
+      - *Alasan Teknis Kegagalan Bentuk C (Dilaporkan Apa Adanya Tanpa Mengubah Aturan):* Kalimat pertama (3 kata, `16` karakter) ditambah kalimat kedua (28 kata, `238` karakter $\le 250$) berjumlah `255` karakter ($> 250$), sehingga aturan 4C-1 (`Jika kurang dari 6 kata, gabung dengan kalimat berikutnya` selama $\le 250$ karakter) menolak menggabungkannya. Karena kalimat kedua (`238` karakter) merupakan 1 kalimat tunggal $\le 250$ karakter dan aturan Chunk $N+1$ menetapkan `minimal satu kalimat`, Chunk 2 tetap berisi 28 kata (`waktu_sintesis` $\approx 6\text{ s}$) sementara Chunk 1 hanya berdurasi $\approx 1,91\text{ s}$, menimbulkan jeda `4298,297 ms`. (Sebaliknya bila kalimat 28 kata berjumlah $\le 233$ karakter sehingga gabungan $\le 250$ karakter, keduanya digabung menjadi 1 chunk tunggal 31 kata tanpa jeda antar-chunk namun TTFA naik ke $\sim 5,5\text{ s}$).
+    - **Bentuk D (25 kata dengan koma + 3 kalimat):**
+      - Chunker LAMA (4C-1): 3 chunk (`[201, 181, 92]` chars), Median TTFA = **`5,0688 s`** ($> 4,0\text{ s}$), Median Gap 1$\rightarrow$2 = `0,790 ms`, Gap 2$\rightarrow$3 = `1,156 ms`.
+      - Chunker BARU (4C-2): 3 chunk (`[91, 198, 185]` chars), Median TTFA = **`2,9950 s`** ($\le 4,0\text{ s}$), Median Gap 1$\rightarrow$2 = **`1,058 ms`**, Gap 2$\rightarrow$3 = **`0,882 ms`**, Median Keseluruhan = **`0,970 ms`** ($\le 500\text{ ms}$) $\rightarrow$ **LULUS**.
+- **L5:** Chunker BARU: median TTFA bentuk D (kalimat pertama 25 kata dengan koma) $\le 4,0\text{ detik}$ saat Ollama generasi $\rightarrow$ **LULUS**
+  - Bukti: Median TTFA Bentuk D pada Chunker BARU = **`2,9950 detik`** (`2994,97 ms` $\le 4,0\text{ s}$; ulangan: `[3,0305 s, 2,9950 s, 2,6960 s]`, turun dari `5,0688 s` pada Chunker LAMA berkat pemotongan batas klausa $\le 14$ kata pada kalimat pertama).
+- **L6:** Selisih penutupan perangkat median $\le 50\text{ ms}$ (setelah perbaikan bila perlu), dan tes: tidak ada pemutaran terpotong yang tercatat $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c2_gap.txt` Bagian 1 & `test_l6_no_clipped_playback_and_offline_socket_guard`:
+    - Sebelum perbaikan: Median selisih `(blokir_sinkron - durasi_wav)` pada 5 WAV uji = **`+270,67 ms`** (`[+370,65 ms, +249,02 ms, +270,67 ms, +240,91 ms, +363,76 ms]`, $> 50\text{ ms}$).
+    - Perbaikan di `SupertonicEngine`: Menambahkan `tail_padding_sec` sebesar selisih terukur serta menggunakan `max(dur_model, dur_frames_wav)` pada `wait_timeout`.
+    - Setelah perbaikan: Median selisih residu `(engine_wait - blokir_sinkron)` = **`+15,41 ms`** (median absolut **`33,56 ms`** $\le 50\text{ ms}$; rincian: `[-94,05 ms, +25,17 ms, +15,41 ms, +33,56 ms, -82,50 ms]`), dan jumlah pemutaran terpotong = **`0`** (`clipped_playbacks_count == 0`).
+
+#### Langkah Berikutnya (Tahap 4C-3):
+- **Tahap 4C-3:** Teks tampil per segmen sinkron dengan suara (hanya saat tidak mute; sisa teks langsung ditampilkan penuh saat interupsi atau `/mute`; riwayat percakapan selalu menyimpan balasan lengkap).
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.

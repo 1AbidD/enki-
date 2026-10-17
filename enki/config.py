@@ -37,6 +37,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "tts_voice_supertonic": "M4",
     "tts_model_dir": str(Path.home() / ".cache" / "supertonic3"),
     "tts_pronunciation": {"ENKI": "Enki"},
+    "tts_synth_c0": 1.599501,
+    "tts_synth_c1": 0.329724,
+    "tts_audio_d0": 0.596618,
+    "tts_audio_d1": 0.061480,
+    "tts_chars_per_sec": 16.265423,
     "workspace_root": str(Path(__file__).resolve().parent.parent)
 }
 
@@ -115,6 +120,26 @@ class AppConfig:
         if isinstance(val, dict):
             return dict(val)
         return {"ENKI": "Enki"}
+
+    @property
+    def tts_synth_c0(self) -> float:
+        return float(self._data.get("tts_synth_c0", 1.599501))
+
+    @property
+    def tts_synth_c1(self) -> float:
+        return float(self._data.get("tts_synth_c1", 0.329724))
+
+    @property
+    def tts_audio_d0(self) -> float:
+        return float(self._data.get("tts_audio_d0", 0.596618))
+
+    @property
+    def tts_audio_d1(self) -> float:
+        return float(self._data.get("tts_audio_d1", 0.061480))
+
+    @property
+    def tts_chars_per_sec(self) -> float:
+        return float(self._data.get("tts_chars_per_sec", 16.265423))
 
     @property
     def workspace_root(self) -> Path:

@@ -1,0 +1,107 @@
+========================================================================================
+LAPORAN LANGKAH 1 TAHAP 4C-2: MODEL WAKTU SINTESIS & DURASI AUDIO SUPERTONIC M4 (IDLE)
+========================================================================================
+Timestamp (UTC)        : 2026-10-17T14:42:07.161235+00:00
+Python Executable      : D:\ENKI\ENKI\venv\Scripts\python.exe (v3.14.4)
+Model Directory        : C:\Users\aabid\.cache\supertonic3
+Voice Supertonic       : M4 (lang='id')
+Waktu Muat Model (CPU) : 2.3718 s (2371.84 ms)
+Metode                 : Kondisi Idle, 6 ukuran kata (3, 6, 10, 16, 25, 40) x 2 teks = 12 sampel.
+                         Tiap sampel: 1x pemanasan dibuang + median dari 3 ulangan.
+========================================================================================
+
+--- TABEL PENGUKURAN PER SAMPEL (12 SAMPEL) ---
+  [01] 3_kata_A (3 kata, 16 karakter):
+       Teks             : 'Halo, saya Enki.'
+       Durasi Audio     : 1.6423 s
+       Warmup (dibuang) : 1.9356 s
+       3 Ulangan Synth  : [2.1176s, 2.5139s, 1.8472s]
+       Median Synth     : 2.1176 s (RTF: 1.2894x)
+  [02] 3_kata_B (3 kata, 18 karakter):
+       Teks             : 'Sistem sudah siap.'
+       Durasi Audio     : 1.7876 s
+       Warmup (dibuang) : 2.1435 s
+       3 Ulangan Synth  : [2.2147s, 2.0201s, 2.1191s]
+       Median Synth     : 2.1191 s (RTF: 1.1855x)
+  [03] 6_kata_A (6 kata, 42 karakter):
+       Teks             : 'Asisten lokal ini berjalan tanpa jaringan.'
+       Durasi Audio     : 3.0379 s
+       Warmup (dibuang) : 2.5402 s
+       3 Ulangan Synth  : [2.5567s, 2.6533s, 2.8433s]
+       Median Synth     : 2.6533 s (RTF: 0.8734x)
+  [04] 6_kata_B (6 kata, 42 karakter):
+       Teks             : 'Semua berkas proyek tersimpan dengan aman.'
+       Durasi Audio     : 2.9506 s
+       Warmup (dibuang) : 2.5764 s
+       3 Ulangan Synth  : [2.4932s, 2.6504s, 2.7688s]
+       Median Synth     : 2.6504 s (RTF: 0.8982x)
+  [05] 10_kata_A (10 kata, 56 karakter):
+       Teks             : 'Versi Python di sistem ini adalah tiga koma empat belas.'
+       Durasi Audio     : 4.2548 s
+       Warmup (dibuang) : 2.9027 s
+       3 Ulangan Synth  : [3.4572s, 3.1313s, 2.8970s]
+       Median Synth     : 3.1313 s (RTF: 0.7359x)
+  [06] 10_kata_B (10 kata, 63 karakter):
+       Teks             : 'Mesin suara bekerja di prosesor utama agar memori grafis hemat.'
+       Durasi Audio     : 4.5607 s
+       Warmup (dibuang) : 3.1608 s
+       3 Ulangan Synth  : [3.1422s, 3.0545s, 3.1907s]
+       Median Synth     : 3.1422 s (RTF: 0.6890x)
+  [07] 16_kata_A (16 kata, 116 karakter):
+       Teks             : 'Sistem asisten kecerdasan buatan lokal Enki kini menggunakan mesin suara baru yang bekerja sepenuhnya secara luring.'
+       Durasi Audio     : 7.7874 s
+       Warmup (dibuang) : 3.9431 s
+       3 Ulangan Synth  : [4.1337s, 4.3226s, 4.0468s]
+       Median Synth     : 4.1337 s (RTF: 0.5308x)
+  [08] 16_kata_B (16 kata, 125 karakter):
+       Teks             : 'Pengguna dapat memeriksa riwayat perubahan kode sumber dan menjalankan pengujian otomatis langsung dari terminal setiap hari.'
+       Durasi Audio     : 8.2633 s
+       Warmup (dibuang) : 4.3275 s
+       3 Ulangan Synth  : [3.7489s, 4.2218s, 4.1668s]
+       Median Synth     : 4.1668 s (RTF: 0.5043x)
+  [09] 25_kata_A (25 kata, 201 karakter):
+       Teks             : 'Asisten kecerdasan buatan lokal ini dirancang untuk membantu pengguna mengelola catatan harian, membaca dokumen proyek, serta menjawab berbagai pertanyaan teknis dengan cepat tanpa memerlukan jaringan.'
+       Durasi Audio     : 12.6635 s
+       Warmup (dibuang) : 5.9563 s
+       3 Ulangan Synth  : [5.8023s, 5.7274s, 5.4728s]
+       Median Synth     : 5.7274 s (RTF: 0.4523x)
+  [10] 25_kata_B (25 kata, 196 karakter):
+       Teks             : 'Pendekatan antrean berpipa memastikan kalimat berikutnya sedang disiapkan di latar belakang saat kalimat sebelumnya masih diputar, sehingga jeda antar bagian terdengar sangat mulus bagi pendengar.'
+       Durasi Audio     : 12.6780 s
+       Warmup (dibuang) : 6.0256 s
+       3 Ulangan Synth  : [5.9841s, 5.7202s, 5.5015s]
+       Median Synth     : 5.7202 s (RTF: 0.4512x)
+  [11] 40_kata_A (40 kata, 316 karakter):
+       Teks             : 'Arsitektur perangkat lunak yang dirancang untuk perangkat keras terbatas harus selalu mengutamakan efisiensi penggunaan memori dan waktu tanggap yang konsisten, sehingga seluruh komponen pemrosesan bahasa alami maupun sintesis suara lokal dapat berjalan berdampingan secara stabil tanpa membebani kartu grafis utama.'
+       Durasi Audio     : 20.1040 s
+       Warmup (dibuang) : 7.8929 s
+       3 Ulangan Synth  : [7.8869s, 8.2677s, 7.9021s]
+       Median Synth     : 7.9021 s (RTF: 0.3931x)
+  [12] 40_kata_B (40 kata, 320 karakter):
+       Teks             : 'Ketika pengguna memberikan instruksi panjang melalui antarmuka baris perintah, modul pemecah kalimat akan segera membagi balasan menjadi beberapa potongan yang terukur agar bagian pembuka langsung terdengar sementara bagian selanjutnya disintesis secara bertahap di latar belakang tanpa memotong kalimat secara mendadak.'
+       Durasi Audio     : 20.3257 s
+       Warmup (dibuang) : 8.1376 s
+       3 Ulangan Synth  : [8.7208s, 8.2426s, 8.8128s]
+       Median Synth     : 8.7208 s (RTF: 0.4291x)
+
+--- HASIL REGRESI LINEAR (N = 12 SAMPEL) ---
+1. Model Waktu Sintesis terhadap Durasi Audio:
+   Rumus : waktu_sintesis = c0 + c1 * durasi_audio
+   c0    : 1.599501 detik
+   c1    : 0.329724 (detik sintesis per detik audio)
+   R^2   : 0.993615
+
+2. Model Durasi Audio terhadap Jumlah Karakter:
+   Rumus : durasi_audio = d0 + d1 * jumlah_karakter
+   d0    : 0.596618 detik
+   d1    : 0.061480 (detik audio per karakter)
+   R^2   : 0.999524
+   tts_chars_per_sec (1 / d1) : 16.265423 karakter/detik
+
+--- KONSTANTA YANG DISIMPAN DI CONFIG (enki/config.py) ---
+   tts_synth_c0      = 1.599501
+   tts_synth_c1      = 0.329724
+   tts_audio_d0      = 0.596618
+   tts_audio_d1      = 0.061480
+   tts_chars_per_sec = 16.265423
+========================================================================================

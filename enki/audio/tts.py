@@ -143,12 +143,48 @@ def _split_sentences_from_cleaned(cleaned: str, max_chunk_chars: int = 250) -> L
     return chunks
 
 
+# Konstanta regresi linear Langkah 1 Tahap 4C-2 (Supertonic M4, CPU Idle, N=12):
+# waktu_sintesis = c0 + c1 * durasi_audio  (R^2 = 0.993615)
+# durasi_audio   = d0 + d1 * jumlah_karakter (R^2 = 0.999524)
+DEFAULT_SYNTH_C0: float = 1.599501
+DEFAULT_SYNTH_C1: float = 0.329724
+DEFAULT_AUDIO_D0: float = 0.596618
+DEFAULT_AUDIO_D1: float = 0.061480
+DEFAULT_CHARS_PER_SEC: float = 16.265423
+
+
+def predict_audio_duration(
+    text_or_len: Any,
+    d0: float = DEFAULT_AUDIO_D0,
+    d1: float = DEFAULT_AUDIO_D1,
+) -> float:
+    """Memprediksi durasi audio (detik) dari teks atau jumlah karakter berdasarkan regresi Langkah 1."""
+    char_count = len(text_or_len) if isinstance(text_or_len, str) else int(text_or_len)
+    if char_count <= 0:
+        return 0.0
+    return float(d0) + float(d1) * float(char_count)
+
+
+def predict_synth_time(
+    text_or_len: Any,
+    c0: float = DEFAULT_SYNTH_C0,
+    c1: float = DEFAULT_SYNTH_C1,
+    d0: float = DEFAULT_AUDIO_D0,
+    d1: float = DEFAULT_AUDIO_D1,
+) -> float:
+    """Memprediksi waktu sintesis (detik) dari teks atau jumlah karakter berdasarkan regresi Langkah 1."""
+    dur = predict_audio_duration(text_or_len, d0=d0, d1=d1)
+    if dur <= 0.0:
+        return 0.0
+    return float(c0) + float(c1) * dur
+
+
 def merge_sentences_for_tts(
     sentences: List[str],
     max_chunk_chars: int = 250,
     min_first_words: int = 6,
 ) -> List[str]:
-    """Strategi chunk Tahap 4C-1:
+    """Strategi chunk Tahap 4C-1 (LAMA):
     - Chunk PERTAMA dibuat pendek supaya suara cepat mulai: kalimat pertama saja,
       tetapi jika kurang dari `min_first_words` (6 kata), digabung dengan kalimat berikutnya
       (selama panjang gabungan <= max_chunk_chars).
@@ -192,6 +228,82 @@ def merge_sentences_for_tts(
     return merged
 
 
+def merge_sentences_for_tts_ramp(
+    sentences: List[str],
+    max_chunk_chars: int = 250,
+    min_first_words: int = 6,
+    max_first_words: int = 14,
+    synth_c0: float = DEFAULT_SYNTH_C0,
+    synth_c1: float = DEFAULT_SYNTH_C1,
+    audio_d0: float = DEFAULT_AUDIO_D0,
+    audio_d1: float = DEFAULT_AUDIO_D1,
+    safety_margin_sec: float = 0.3,
+) -> List[str]:
+    """Strategi chunk bertahap (ramp) Tahap 4C-2 (BARU):
+    - Chunk pertama: kalimat pertama. Jika lebih dari 14 kata, potong di batas klausa
+      (koma atau titik koma) terdekat yang menghasilkan <= 14 kata; jika tidak ada
+      tanda baca yang cocok, jangan dipotong. Jika kurang dari 6 kata, gabung dengan
+      kalimat berikutnya (aturan 4C-1 tetap).
+    - Chunk ke-N+1: gabungkan kalimat berurutan selama
+      waktu_sintesis_prediksi(chunk N+1) <= durasi_audio_prediksi(chunk N) - 0.3 detik,
+      dengan batas atas 250 karakter dan minimal satu kalimat.
+    """
+    work = [s.strip() for s in sentences if s and s.strip()]
+    if not work:
+        return []
+
+    first = work.pop(0)
+    first_words = first.split()
+
+    if len(first_words) > max_first_words:
+        clauses = [c.strip() for c in re.split(r"(?<=[,;])\s+", first) if c.strip()]
+        if len(clauses) > 1:
+            best_k = None
+            for k in range(1, len(clauses)):
+                prefix_candidate = " ".join(clauses[:k]).strip()
+                if len(prefix_candidate.split()) <= max_first_words:
+                    best_k = k
+                else:
+                    break
+            if best_k is not None:
+                first_cut = " ".join(clauses[:best_k]).strip()
+                remainder = " ".join(clauses[best_k:]).strip()
+                first = first_cut
+                if remainder:
+                    work.insert(0, remainder)
+    elif len(first_words) < min_first_words and len(work) > 0:
+        combined = f"{first} {work[0]}".strip()
+        if len(combined) <= max_chunk_chars:
+            first = combined
+            work.pop(0)
+
+    chunks: List[str] = [first]
+
+    while work:
+        prev_chunk = chunks[-1]
+        prev_audio_dur = predict_audio_duration(prev_chunk, d0=audio_d0, d1=audio_d1)
+        max_synth_allowed = prev_audio_dur - safety_margin_sec
+
+        current = work.pop(0)
+        while work:
+            candidate = f"{current} {work[0]}".strip()
+            cand_synth = predict_synth_time(
+                candidate,
+                c0=synth_c0,
+                c1=synth_c1,
+                d0=audio_d0,
+                d1=audio_d1,
+            )
+            if len(candidate) <= max_chunk_chars and cand_synth <= max_synth_allowed:
+                current = candidate
+                work.pop(0)
+            else:
+                break
+        chunks.append(current)
+
+    return chunks
+
+
 def chunk_text(text: str, max_chunk_chars: int = 250) -> List[str]:
     """Memotong teks yang telah dibersihkan menjadi daftar chunk kalimat.
     Menjaga angka desimal, angka ribuan, dan singkatan agar tidak terpotong sembarangan.
@@ -200,18 +312,13 @@ def chunk_text(text: str, max_chunk_chars: int = 250) -> List[str]:
     return _split_sentences_from_cleaned(cleaned, max_chunk_chars=max_chunk_chars)
 
 
-def prepare_tts_chunks(
+def prepare_tts_chunks_4c1(
     text: str,
     max_chunk_chars: int = 250,
     pronunciation_map: Optional[Dict[str, str]] = None,
     min_first_words: int = 6,
 ) -> List[str]:
-    """Pipeline lengkap teks ke daftar chunk TTS (Tahap 4C-1):
-    1. clean_text_for_tts(text)
-    2. apply_pronunciation(cleaned, pronunciation_map)
-    3. Pemotongan per kalimat
-    4. Strategi chunk cepat-mulai (chunk pertama pendek / gabung jika < 6 kata; chunk berikutnya <= 250 chars)
-    """
+    """Pipeline teks ke daftar chunk TTS versi Tahap 4C-1 (LAMA, untuk perbandingan benchmark)."""
     cleaned = clean_text_for_tts(text)
     if not cleaned.strip():
         return []
@@ -221,6 +328,45 @@ def prepare_tts_chunks(
         sentences,
         max_chunk_chars=max_chunk_chars,
         min_first_words=min_first_words,
+    )
+
+
+def prepare_tts_chunks(
+    text: str,
+    max_chunk_chars: int = 250,
+    pronunciation_map: Optional[Dict[str, str]] = None,
+    min_first_words: int = 6,
+    max_first_words: int = 14,
+    synth_c0: float = DEFAULT_SYNTH_C0,
+    synth_c1: float = DEFAULT_SYNTH_C1,
+    audio_d0: float = DEFAULT_AUDIO_D0,
+    audio_d1: float = DEFAULT_AUDIO_D1,
+) -> List[str]:
+    """Pipeline lengkap teks ke daftar chunk TTS bertahap (Tahap 4C-2 BARU):
+    1. clean_text_for_tts(text)
+    2. apply_pronunciation(cleaned, pronunciation_map)
+    3. Pemotongan per kalimat (kalimat > 250 karakter dipotong di batas klausa)
+    4. Chunker bertahap (ramp):
+       - Chunk 1: kalimat pertama (dipotong di batas klausa <= 14 kata bila > 14 kata;
+         digabung dengan kalimat berikutnya bila < 6 kata).
+       - Chunk N+1: gabungkan kalimat berurutan selama
+         waktu_sintesis_prediksi(chunk N+1) <= durasi_audio_prediksi(chunk N) - 0.3 detik,
+         batas atas 250 karakter, minimal 1 kalimat.
+    """
+    cleaned = clean_text_for_tts(text)
+    if not cleaned.strip():
+        return []
+    pronounced = apply_pronunciation(cleaned, pronunciation_map=pronunciation_map)
+    sentences = _split_sentences_from_cleaned(pronounced, max_chunk_chars=max_chunk_chars)
+    return merge_sentences_for_tts_ramp(
+        sentences,
+        max_chunk_chars=max_chunk_chars,
+        min_first_words=min_first_words,
+        max_first_words=max_first_words,
+        synth_c0=synth_c0,
+        synth_c1=synth_c1,
+        audio_d0=audio_d0,
+        audio_d1=audio_d1,
     )
 
 
@@ -425,6 +571,7 @@ class TTSManager:
         engine: Optional[BaseTTSEngine] = None,
         max_chunk_chars: int = 250,
         pronunciation_map: Optional[Dict[str, str]] = None,
+        chunker_fn: Optional[Callable[..., List[str]]] = None,
     ) -> None:
         if engine is None:
             engine, resolved_voice, cfg_pron = self._resolve_default_engine_and_voice(voice=voice)
@@ -433,7 +580,8 @@ class TTSManager:
         else:
             resolved_voice = voice
 
-        chunks = prepare_tts_chunks(
+        active_chunker = chunker_fn if chunker_fn is not None else prepare_tts_chunks
+        chunks = active_chunker(
             text,
             max_chunk_chars=max_chunk_chars,
             pronunciation_map=pronunciation_map,
