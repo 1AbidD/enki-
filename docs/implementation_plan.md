@@ -1,6 +1,6 @@
 # Rencana Implementasi: ENKI (Local AI Assistant) - v3.0
 
-*Ringkasan Perubahan v3.0: kriteria perbaikan Tahap 4B-2 (uji kalimat ber-underscore ganda, dokumentasi metodologi TTFA, dan koreksi atribusi metrik T7).*
+*Ringkasan Perubahan v3.0: hasil kelulusan Tahap 4B-2 (uji kalimat ber-underscore ganda, dokumentasi metodologi TTFA, dan koreksi atribusi metrik T7).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -566,7 +566,7 @@ Status Tahap 4B-1 resmi: **LULUS** (seluruh kriteria F1–F7 mencapai 100%).
 #### Langkah Selanjutnya:
 Tahap 4B-2: Perbaikan dan uji tingkat kalimat ber-identifier jamak, disusul Tahap 4C (integrasi suara id-ID).
 
-### Tahap 4B-2: Pengujian Kalimat Multi-Identifier & Dokumentasi Metodologi TTFA (DIRENCANAKAN)
+### Tahap 4B-2: Pengujian Kalimat Multi-Identifier & Dokumentasi Metodologi TTFA (LULUS)
 
 #### Dokumentasi Metodologi Pengukuran `time_to_first_audio_ms` (G2):
 - **Cara Pengukuran (Titik Awal ke Titik Akhir):**
@@ -588,6 +588,16 @@ Tahap 4B-2: Perbaikan dan uji tingkat kalimat ber-identifier jamak, disusul Taha
 - **G2 (Dokumentasi Metodologi TTFA):** Berkas `docs/evidence/tahap4b1_smoke.txt` tidak diubah; penjelasan metodologi `time_to_first_audio_ms` (event/penanda, titik ukur, dan batasan yang tidak diukur) ditulis secara eksplisit di plan.
 - **G3 (Catatan Koreksi T7 Tahap 4B):** Baris hasil T7 pada Tahap 4B diberi catatan koreksi bahwa RAM 19.88 MB dan CPU 16.0% hanya mengukur proses Python induk, sedangkan angka proses anak PowerShell yang sah ada di Tahap 4B-1 (F3).
 - **G4 (Integritas Suite Penuh dengan Ollama Aktif):** Seluruh suite pengujian lulus dengan daemon Ollama aktif, test lama tidak diubah, dan `docs/test_ids.txt` cocok 100% dengan hasil discovery.
+
+#### Hasil Evaluasi Tahap 4B-2:
+Status Tahap 4B-2 resmi: **LULUS** (seluruh kriteria G1–G4 mencapai 100%).
+- **G1 (Tes Tingkat Kalimat Multi-Identifier):** **100% LULUS** (6 kasus kalimat multi-identifier diuji pada `test_g1_sentence_level_clean_text_for_tts`: keenam kasus lulus pada kode lama 4B-1 karena batas spasi sudah diterapkan; selain itu, regex underscore disempurnakan menjadi batas CommonMark `(?<![\w_])_(?![\s_])([^_\n]+?)(?<![\s_])_(?![\w_])` dan menghapus regex `__([^_]+?)__` agar identifier dunder berdiri sendiri seperti `__init__` tanpa ekstensi `.py` serta `_miring_,` yang diikuti tanda baca juga ditangani dengan akurat).
+- **G2 (Dokumentasi Metodologi TTFA):** **SELESAI** (`docs/evidence/tahap4b1_smoke.txt` tidak disentuh; mekanisme `add_SpeakStarted` -> `"EVENT_SPEAK_STARTED"` dari `subprocess.Popen` hingga `stdout.readline()`, beserta batasan bahwa gelombang akustik fisik speaker dan buffer driver WASAPI/DAC tidak diukur, telah didokumentasikan secara transparan).
+- **G3 (Catatan Koreksi T7 Tahap 4B):** **SELESAI** (catatan koreksi ditambahkan langsung pada butir T7 Tahap 4B bahwa RAM 19.88 MB dan CPU 16.0% adalah metrik proses induk Python, sedangkan metrik proses anak `powershell.exe` yang sah adalah F3 pada Tahap 4B-1: RAM puncak 100.12 MB, CPU puncak 102.6%).
+- **G4 (Integritas Suite Penuh dengan Ollama Aktif):** **100% LULUS** (`docs/evidence/tahap4b2_test_summary.txt`: `testsRun: 118`, `successes: 115`, `skipped: 3` [hanya 3 suite frozen benchmark Set 2, Set 3, Set 4], `failures: 0`, `errors: 0`, `test_llm_indirect_prompt_injection_safety` berjalan penuh dan lulus; `docs/test_ids.txt` cocok 100% dengan 118 test ID hasil discovery).
+
+#### Langkah Selanjutnya:
+Tahap 4C: Integrasi Suara Bahasa Indonesia (id-ID) menunggu pengguna memasang suara id-ID di Windows dan hasil evaluasi `survey_tts.py`.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
