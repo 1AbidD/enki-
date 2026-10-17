@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.8
+# Rencana Implementasi: ENKI (Local AI Assistant) - v2.9
 
-*Ringkasan Perubahan v2.8: hasil kelulusan Tahap 4B (inti TTS SAPI5, zero-cost mute, chunking cerdas, dan interupsi instan).*
+*Ringkasan Perubahan v2.9: kriteria perbaikan Tahap 4B-1 (preservasi identifier/path, koreksi batas CPU SAPI5, default mute, dan telemetri child process).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -527,7 +527,31 @@ Status Tahap 4B resmi: **LULUS** (seluruh kriteria T1–T6 mencapai 100%, T7 smo
 - **T7 (Smoke Suara Real SAPI5 & Telemetri):** **100% SUKSES** (`docs/evidence/tahap4b_smoke.txt`: 3 kalimat disintesis dengan `Microsoft David Desktop`, 0 crash, rata-rata latensi 8259.79 ms / kalimat, puncak RAM 19.88 MB, puncak CPU 16.0%, interupsi instan terukur 52.49 ms, zero-cost mute terukur 0.0014 ms / 0% beban).
 
 #### Langkah Selanjutnya:
-Tahap 4C: Integrasi Suara Bahasa Indonesia (id-ID) melalui evaluasi suara Windows Speech OneCore id-ID atau paket bahasa resmi Windows.
+Tahap 4B-1: Perbaikan Inti TTS (preservasi identifier/path, koreksi batas CPU, default mute, dan telemetri child process), disusul Tahap 4C (integrasi suara id-ID).
+
+### Tahap 4B-1: Perbaikan Inti TTS & Preservasi Teks (DIRENCANAKAN)
+
+#### Koreksi & Catatan Desain (F5 & F6):
+- **Koreksi T4 (Beban CPU SAPI5 - F6):** Variabel lingkungan `OMP_NUM_THREADS` adalah konfigurasi untuk pustaka komputasi numerik OpenMP (misalnya Torch/NumPy) dan secara faktual **tidak berpengaruh** pada arsitektur Windows Speech API (SAPI5) atau subprocess PowerShell `System.Speech`. Hasil pengukuran T4 sebelumnya tetap dicatat sebagai bukti kepatuhan konfigurasi thread worker, namun pengukuran beban CPU yang sah dan representatif untuk SAPI5 dilakukan langsung terhadap proses anak PowerShell (`powershell.exe`) menggunakan `psutil` (kriteria F3).
+- **Kebijakan Default Mute (F5):** Nilai awal konfigurasi baru (`DEFAULT_CONFIG["is_muted"]` di `enki/config.py`) diset ke `True` sampai suara Bahasa Indonesia (id-ID) dipilih dan dipasang pada Tahap 4C. Berkas `config.json` pengguna di lingkungan lokal tidak diubah paksa.
+
+#### Kriteria Kelulusan Tahap 4B-1 (Deterministik, Wajib 100%):
+- **F1 (Ollama Aktif & Suite Penuh):** Pastikan daemon Ollama aktif (`ollama ps` berjalan tanpa error). Seluruh suite pengujian dijalankan dan `test_llm_indirect_prompt_injection_safety` wajib berjalan dan lulus (tidak boleh di-skip). Angka `testsRun`, `successes`, `skipped` dilaporkan apa adanya. Jika Ollama tidak dapat diaktifkan, dilaporkan apa adanya dan suite tidak diklaim lulus.
+- **F2 (Preservasi Identifier, Path, dan Formula Matematika):** `clean_text_for_tts` tidak boleh merusak nama ber-underscore atau path file. Minimal 8 kasus tetap diuji secara deterministik:
+  1. `read_file` -> `read_file`
+  2. `list_dir` -> `list_dir`
+  3. `snake_case_name` -> `snake_case_name`
+  4. `app/main.py` -> `app/main.py`
+  5. `__init__.py` -> `__init__.py`
+  6. `_private` -> `_private`
+  7. `2 * 3 * 4` -> `2 * 3 * 4`
+  8. Teks dengan format markdown `**tebal**` serta `*miring*` tetap dibersihkan (`tebal` dan `miring`).
+  Hasil pembersihan dilarang menghapus underscore di dalam kata.
+- **F3 (Telemetri Child Process & Time-to-First-Audio):** Smoke test Tahap 4B diulang lewat skrip otomatis dan mengukur proses anak PowerShell (`powershell.exe`) via `psutil` (puncak RAM proses anak dan puncak CPU proses anak), serta memisahkan `time_to_first_audio_ms` dari `total_playback_ms`. Jika `time_to_first_audio` tidak dapat diukur secara presisi tanpa hook audio hardware, alasan teknisnya dicatat secara transparan.
+- **F4 (Verifikasi Perintah /mute dan /unmute):** Memverifikasi lewat tes bahwa perintah `/mute` dan `/unmute` ada dan mengubah `config.json` (`/mute` -> `is_muted: True`, `/unmute` -> `is_muted: False`), serta fungsi `speak()` tidak memanggil engine saat status mute aktif.
+- **F5 (Default is_muted True):** Nilai default `is_muted` pada `DEFAULT_CONFIG` diset ke `True` sampai suara id-ID tersedia di Tahap 4C.
+- **F6 (Koreksi Dokumentasi T4 di Plan):** Koreksi T4 dicantumkan secara jujur di plan bahwa `OMP_NUM_THREADS` tidak berdampak pada SAPI5/PowerShell dan metrik CPU yang valid adalah F3.
+- **F7 (Integritas Suite & test_ids.txt):** Seluruh suite pengujian lulus, tidak ada test lama yang diubah, dan `docs/test_ids.txt` cocok 100% dengan hasil discovery.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
