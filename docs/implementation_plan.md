@@ -1,6 +1,6 @@
 # Rencana Implementasi: ENKI (Local AI Assistant) - v2.8
 
-*Ringkasan Perubahan v2.8: rancangan dan kriteria kelulusan Tahap 4B (inti TTS SAPI5 tanpa dependensi suara).*
+*Ringkasan Perubahan v2.8: hasil kelulusan Tahap 4B (inti TTS SAPI5, zero-cost mute, chunking cerdas, dan interupsi instan).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -494,7 +494,7 @@ Status: **SELESAI**.
 #### Langkah Selanjutnya:
 Tahap 4B (pembuatan kode dan uji), lalu Tahap 4C (integrasi suara id-ID).
 
-### Tahap 4B: Voice Output (TTS) Core & Zero-Cost Mute (DIRENCANAKAN)
+### Tahap 4B: Voice Output (TTS) Core & Zero-Cost Mute (LULUS)
 
 #### Rancangan:
 - **Modul `enki/audio/tts.py`:**
@@ -515,6 +515,19 @@ Tahap 4B (pembuatan kode dan uji), lalu Tahap 4C (integrasi suara id-ID).
 - **T5 (Keamanan Injeksi):** Teks yang memuat tanda kutip, `$(...)`, `;`, backtick, dan baris baru tidak mengeksekusi apa pun (diuji lewat `FakeEngine` dan pemeriksaan argumen/stdin subprocess).
 - **T6 (Integritas Suite):** Seluruh suite pengujian lulus, test lama tidak diubah, dan `docs/test_ids.txt` diperbarui sama persis dengan hasil discovery.
 - **T7 (Smoke Model Real & Suara Bawaan, Tidak Ikut Gate):** 3 kalimat disintesis dengan suara en-US bawaan yang ada, 0 crash; mencatat latensi, CPU, dan RAM yang disimpan ke `docs/evidence/tahap4b_smoke.txt` lewat skrip otomatis.
+
+#### Hasil Evaluasi Tahap 4B:
+Status Tahap 4B resmi: **LULUS** (seluruh kriteria T1–T6 mencapai 100%, T7 smoke selesai).
+- **T1 (Zero-Cost Mute):** **100% LULUS** (dengan `is_muted == True`, 0 panggilan engine, 0 thread baru, 0 subprocess, dan modul `enki.audio.sapi5` tidak ter-import ke `sys.modules`).
+- **T2 (Chunking Teks Cerdas):** **100% LULUS** (17 kasus uji fixed table di `tests/test_tts.py`: angka desimal dan ribuan terlindungi, singkatan `dll.`, `dsb.`, `e.g.` terlindungi, URL http/https digantikan kata 'tautan' dengan preservasi tanda baca akhir, format markdown dibersihkan, blok kode ```...``` dilewati 100%, string panjang dipotong <= 250 karakter).
+- **T3 (Interupsi Instan):** **100% LULUS** (`cancel()` mengosongkan antrean seketika, flag `cancel_event` aktif, `engine.stop()` dipanggil, 0 chunk tersisa diproses worker).
+- **T4 (Batas Beban CPU):** **100% LULUS** (`OMP_NUM_THREADS=2` terpasang di worker thread, `apply_cpu_affinity(2)` mengembalikan `True` pada host Windows 20 core).
+- **T5 (Keamanan Injeksi):** **100% LULUS** (6 payload injeksi berbahaya: kutip ganda, `$()`, `;`, backtick, newline, SQL injection tidak pernah masuk ke argumen proses `powershell`; teks dikirim aman sebagai stream stdin UTF-8 murni).
+- **T6 (Integritas Suite Penuh):** **100% LULUS** (115 unit test terdaftar, 111 lulus, 0 failures, 0 errors, 4 skipped: 3 benchmark suite & 1 indirect injection saat Ollama offline; seluruh test lama tidak disentuh; `docs/test_ids.txt` cocok 100% dengan discovery).
+- **T7 (Smoke Suara Real SAPI5 & Telemetri):** **100% SUKSES** (`docs/evidence/tahap4b_smoke.txt`: 3 kalimat disintesis dengan `Microsoft David Desktop`, 0 crash, rata-rata latensi 8259.79 ms / kalimat, puncak RAM 19.88 MB, puncak CPU 16.0%, interupsi instan terukur 52.49 ms, zero-cost mute terukur 0.0014 ms / 0% beban).
+
+#### Langkah Selanjutnya:
+Tahap 4C: Integrasi Suara Bahasa Indonesia (id-ID) melalui evaluasi suara Windows Speech OneCore id-ID atau paket bahasa resmi Windows.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
