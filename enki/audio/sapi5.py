@@ -21,18 +21,50 @@ class SAPI5Engine(BaseTTSEngine):
             return True
 
         ps_script = """
-Add-Type -AssemblyName System.Speech
-$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 $voice = [Console]::ReadLine()
-if ($voice -and $voice.Trim() -ne '') {
-    try { $synth.SelectVoice($voice.Trim()) } catch {}
-}
+if ($voice) { $voice = $voice.Trim() } else { $voice = '' }
 $text = [Console]::In.ReadToEnd()
 if ($text -and $text.Trim() -ne '') {
-    $synth.Speak($text)
+    $spoken = $false
+    try {
+        $cat = New-Object -ComObject SAPI.SpObjectTokenCategory
+        $cat.SetId("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech_OneCore\\Voices", $false)
+        $selectedToken = $null
+        foreach ($t in $cat.EnumerateTokens()) {
+            $desc = $t.GetDescription()
+            $attrName = $t.GetAttribute("Name")
+            $attrLang = $t.GetAttribute("Language")
+            if ($voice -ne '') {
+                if (($desc -like "*$voice*") -or ($attrName -like "*$voice*")) {
+                    $selectedToken = $t
+                    break
+                }
+            } else {
+                if (($attrLang -eq "421") -or ($desc -like "*Andika*") -or ($desc -like "*Indonesian*")) {
+                    $selectedToken = $t
+                    break
+                }
+            }
+        }
+        if ($selectedToken -ne $null) {
+            $spVoice = New-Object -ComObject SAPI.SpVoice
+            $spVoice.Voice = $selectedToken
+            $spVoice.Speak($text) | Out-Null
+            $spoken = $true
+        }
+    } catch {}
+
+    if (-not $spoken) {
+        Add-Type -AssemblyName System.Speech
+        $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+        if ($voice -ne '') {
+            try { $synth.SelectVoice($voice) } catch {}
+        }
+        $synth.Speak($text)
+        $synth.Dispose()
+    }
 }
-$synth.Dispose()
 """
         env = os.environ.copy()
         env["OMP_NUM_THREADS"] = "2"

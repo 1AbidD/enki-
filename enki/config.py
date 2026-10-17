@@ -31,7 +31,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ollama_url": "http://127.0.0.1:11434",
     "is_muted": True,
     "passive_recall": False,
-    "tts_voice": "",
+    "tts_voice": "Microsoft Andika",
     "workspace_root": str(Path(__file__).resolve().parent.parent)
 }
 
