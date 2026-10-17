@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.0
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.1
 
-*Ringkasan Perubahan v3.0: hasil kelulusan Tahap 4B-2 (uji kalimat ber-underscore ganda, dokumentasi metodologi TTFA, dan koreksi atribusi metrik T7).*
+*Ringkasan Perubahan v3.1: rancangan dan kriteria preregistrasi Tahap 4C-1 (integrasi mesin suara Supertonic 3 voice M4, fallback SAPI5, kamus pelafalan, strategi chunk cepat-mulai, dan pengukuran pipelining).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -622,6 +622,90 @@ Tahap 4C: Integrasi Suara Bahasa Indonesia (id-ID) menunggu pengguna memasang su
     - `M4`: Kalimat 1 (3 kata) = `1,9007 s` / durasi `1,79 s` (`RTF 1,0623x`); Kalimat 2 (10 kata) = `2,6874 s` / durasi `4,25 s` (`RTF 0,6316x`); Kalimat 3 (25 kata) = `4,6483 s` / durasi `12,66 s` (`RTF 0,3671x`).
     - `M5`: Kalimat 1 (3 kata) = `2,2682 s` / durasi `1,85 s` (`RTF 1,2274x`); Kalimat 2 (10 kata) = `2,8593 s` / durasi `4,49 s` (`RTF 0,6363x`); Kalimat 3 (25 kata) = `5,0466 s` / durasi `13,46 s` (`RTF 0,3749x`).
   - **Ringkasan Rentang Sintesis:** Median waktu generate `1,9007 s – 5,0811 s` (rata-rata `3,2482 s`); RTF `0,3648x – 1,2435x` (rata-rata `0,7365x`; kalimat sedang–panjang berjalan `1,41x – 2,74x` lebih cepat dari real-time di CPU).
+
+### Tahap 4C-1: Mesin Suara Supertonic 3 (Voice M4) + Kamus Pelafalan (LULUS)
+
+#### Catatan Lisensi, Status Repo, dan Pinning Revisi:
+- **Lisensi Bobot Model (`BigScience Open RAIL-M License`, 18 Agustus 2022):** Larangan penggunaan pada *Attachment A (Use Restrictions)* tidak berlaku/tidak menghalangi pemakaian asisten pribadi lokal ENKI. Satu syarat yang relevan dari *Attachment A (e)* adalah konten yang dibuat mesin harus jelas diberi label buatan mesin bila disebarkan di konteks publik.
+- **Status Repositori Kode GitHub:** Repositori GitHub `supertone-inc/supertonic` dan `supertone-inc/supertonic-py` berstatus *archived* (diarsipkan pemilik dan disalin ke `supertone-oss-archive`), sedangkan paket PyPI `supertonic==1.3.1` dan repositori bobot Hugging Face `Supertone/supertonic-3` tetap aktif.
+- **Pinning Revisi Model:** Model `Supertone/supertonic-3` di-pin ke revisi commit SHA `724fb5abbf5502583fb520898d45929e62f02c0b`. Berkas model berada di luar repositori Git (`~/.cache/supertonic3`).
+
+#### Rancangan Tahap 4C-1 (Ditulis Sebelum Kode):
+1. **Langkah 0 (Utang Lama Regresi 4B-2):**
+   - Menambahkan tes regresi eksplisit untuk dua kasus regex Tahap 4B-2 yang belum memiliki tes khusus:
+     - `"Method __init__ dipanggil"` $\rightarrow$ `"Method __init__ dipanggil"` (`__init__` berdiri sendiri harus utuh).
+     - `"Ini _miring_, bagus."` $\rightarrow$ `"Ini miring, bagus."` (italic dengan tanda baca setelahnya harus bersih tanpa underscore).
+   - Menjalankan suite penuh dan melaporkan angkanya sebelum melangkah ke implementasi Langkah 1.
+2. **Langkah 1: Engine Supertonic (`enki/audio/supertonic.py` & Konfigurasi):**
+   - Mengimplementasikan antarmuka `BaseTTSEngine` (`speak_chunk`, `stop`) dengan bahasa `lang="id"` dan suara default dari kunci konfigurasi baru `tts_voice_supertonic` (default `"M4"`). Kunci lama `tts_voice` tetap digunakan untuk `SAPI5Engine`.
+   - Menambahkan konfigurasi baru di `enki/config.py`:
+     - `tts_engine`: `"supertonic"` | `"sapi5"` (default `"supertonic"`).
+     - `tts_voice_supertonic`: default `"M4"`.
+     - `tts_model_dir`: default `str(Path.home() / ".cache" / "supertonic3")` (tanpa menghardcode username).
+   - **Larangan Unduh saat Runtime & Fallback Otomatis:** Sebelum mengimpor `supertonic`, kode mengeset `os.environ["HF_HUB_OFFLINE"] = "1"` dan memanggil `TTS(..., auto_download=False)`. Jika direktori model tidak ada, berkas model tidak lengkap, atau gagal dimuat, sistem otomatis melakukan fallback ke `SAPI5Engine` dengan mencetak tepat **SATU baris pesan peringatan** ke pengguna tanpa crash/exception.
+   - **Zero-Cost Mute & Lazy Loading:** Saat `is_muted=True`, `onnxruntime` dan `supertonic` TIDAK boleh ter-import (`sys.modules`). Model hanya dimuat secara malas (*lazy*) di thread latar saat pertama kali dibutuhkan untuk berbicara, bukan saat startup ENKI.
+   - **Pipelining Sintesis & Pemutaran:** Thread sintesis menghasilkan audio WAV per chunk dan memasukkannya ke antrean pemutaran; thread pemutar memutar WAV secara berurutan. Dengan demikian, sintesis chunk $N+1$ berjalan secara paralel saat chunk $N$ sedang diputar.
+   - **Pemutaran Audio (`winsound` stdlib):** Menggunakan modul standar `winsound` (`winsound.PlaySound(wav_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)` yang ditunggu secara sinkron di thread pemutar menggunakan `stop_event.wait(timeout=duration_sec)`, dan dihentikan seketika dari thread lain menggunakan `winsound.PlaySound(None, winsound.SND_PURGE)`). *(Catatan teknis terukur: pemanggilan `winsound.PlaySound(..., SND_MEMORY)` tanpa `SND_ASYNC` menahan lock internal WinMM selama seluruh durasi WAV [~3,07 detik], dan `SND_MEMORY | SND_ASYNC` melempar `RuntimeError('Cannot play asynchronously from memory')`; penggunaan berkas WAV sementara dengan `SND_FILENAME | SND_ASYNC` + `stop_event.wait(duration_sec)` memungkinkan penghentian instan via `SND_PURGE` dalam ~5–12 ms tanpa dependensi pemutar baru).*
+   - **Pembatalan / Interupsi (`cancel()` / `stop()`):** Pemutaran dihentikan seketika (`SND_PURGE`), antrean chunk sintesis dan antrean audio dibuang, serta hasil sintesis ONNX yang sedang berjalan saat `cancel()` dipanggil ditandai kadaluwarsa (*epoch/generation counter*) dan langsung dibuang begitu selesai inferensi sehingga tidak pernah diputar setelah `cancel()`.
+   - **Dependensi:** Pin `supertonic==1.3.1` dan `huggingface_hub==1.33.0` di berkas dependensi repo (`requirements.txt`). Tanpa PyTorch.
+3. **Langkah 2: Kamus Pelafalan (`tts_pronunciation`):**
+   - Konfigurasi `tts_pronunciation` (`dict`, default `{"ENKI": "Enki"}`).
+   - Diterapkan HANYA pada teks yang dikirim ke TTS (`apply_pronunciation`), SETELAH `clean_text_for_tts` dan SEBELUM pemotongan kalimat (`chunk_text`). Teks yang tampil di layar tidak berubah.
+   - Aturan pencocokan: peka huruf besar-kecil persis (*case-sensitive*) dengan batas kata (`\b`), namun TIDAK mencocokkan kata yang menempel pada garis miring path. Contoh: `"ENKI"` $\rightarrow$ `"Enki"`, sedangkan `"ENKIDU"`, `"enki"`, dan `"enki/audio/tts.py"` tidak berubah.
+4. **Langkah 3: Strategi Chunk Cepat-Mulai (`prepare_tts_chunks` / `merge_sentences_for_tts`):**
+   - **Aturan Chunk Pertama:** Chunk pertama dibuat pendek supaya suara cepat mulai, yaitu **kalimat pertama saja**; tetapi jika kalimat pertama **kurang dari 6 kata**, maka digabung dengan kalimat berikutnya (selama panjang gabungan $\le 250$ karakter).
+   - **Aturan Chunk Berikutnya:** Chunk ke-2 dan seterusnya boleh menggabungkan kalimat-kalimat berurutan hingga batas `max_chunk_chars = 250` karakter (alasan teknis: sintesis chunk panjang pada Supertonic 3 jauh lebih efisien dengan RTF $\approx 0,37\times$ dibanding $\approx 1,1\times$ untuk kalimat pendek).
+   - Diuji pada minimal 3 kasus: (1) balasan 1 kalimat pendek, (2) balasan 3 kalimat, (3) kalimat pertama 3 kata ($< 6$ kata, digabung dengan kalimat ke-2).
+5. **Langkah 4: Pengukuran (`scripts/bench_tahap4c1.py` $\rightarrow$ `docs/evidence/tahap4c1_bench.txt`):**
+   - A. TTFA (dari panggilan `speak()` sampai tepat sebelum `winsound.PlaySound` dipanggil; event perangkat lunak, bukan suara fisik) untuk chunk pertama pendek (3 kata), sedang (10 kata), panjang (25 kata) pada kondisi (1) idle dan (2) saat Ollama sedang menghasilkan jawaban nyata lewat `qwen2.5:3b` pada prompt panjang.
+   - B. Celah antar-chunk (*gap*) pada balasan 3 chunk (akhir pemutaran chunk $N$ hingga awal pemutaran chunk $N+1$) pada kedua kondisi (idle & Ollama generasi).
+   - C. Waktu interupsi (`cancel()` sampai pemutaran berhenti, 5 ulangan) dan bukti 0 audio dari chunk yang dibatalkan setelah `cancel()`.
+   - D. RAM (puncak RSS) dan CPU% proses utama ENKI saat model termuat (idle vs sintesis chunk panjang).
+   - E. Sonda angka/simbol: 6 string melalui pipeline pembersihan asli ENKI tanpa normalisasi angka baru, disimpan ke `D:\ENKI\tts_test2\out4c\`.
+
+#### Kriteria Lulus Tahap 4C-1 (Final, Pre-Registered Sebelum Kode) & Hasil Evaluasi:
+Status Tahap 4C-1 resmi: **LULUS** (seluruh kriteria K1–K8 mencapai **LULUS**; bukti lengkap di `docs/evidence/tahap4c1_langkah0.txt`, `docs/evidence/tahap4c1_test_summary.txt`, dan `docs/evidence/tahap4c1_bench.txt`).
+- **Hasil Langkah 0 (Sebelum Langkah 1):** Suite penuh setelah penambahan `test_langkah0_regex_regression_dunder_and_italic_punctuation`: `discovered=119`, `recorded=119`, `diff=0`, `testsRun=119`, `successes=116`, `skipped=3`, `failures=0`, `errors=0`, `duration=18.037s`.
+- **K1 (Suite Penuh & Tes Baru):** **LULUS**
+  - Hasil `docs/evidence/tahap4c1_test_summary.txt`: `Total Discovered Test IDs: 123`, `Total Recorded in test_ids: 123`, `Selisih ID: 0`, `testsRun: 123`, `successes: 120`, `skipped: 3` (hanya 3 suite benchmark Set 2, Set 3, Set 4), `failures: 0`, `errors: 0` (`Ran 123 tests in 14.507s`, Ollama hidup selama seluruh suite).
+  - 5 unit test baru ditambahkan ke `tests/test_tts.py` dan `docs/test_ids.txt`:
+    1. `test_langkah0_regex_regression_dunder_and_italic_punctuation`
+    2. `test_k2_zero_cost_mute_supertonic_and_onnxruntime_not_imported`
+    3. `test_k3_fallback_to_sapi5_on_invalid_model_dir`
+    4. `test_k4_pronunciation_dictionary_and_screen_text_unchanged`
+    5. `test_langkah3_chunk_strategy_first_short_and_subsequent_250`
+- **K2 (Zero-Cost Mute):** **LULUS**
+  - Terbukti lewat `test_k2_zero_cost_mute_supertonic_and_onnxruntime_not_imported`: saat `is_muted=True` (default konfigurasi) dan `speak()` dipanggil, `sys.modules` tidak memuat `"onnxruntime"`, `"supertonic"`, maupun `"enki.audio.supertonic"`.
+- **K3 (Fallback Otomatis ke SAPI5):** **LULUS**
+  - Terbukti lewat `test_k3_fallback_to_sapi5_on_invalid_model_dir`: ketika `tts_model_dir` diarahkan ke path yang tidak ada, `SupertonicEngine` beralih otomatis ke `SAPI5Engine`, mencetak tepat **1 baris** pesan peringatan (`[Peringatan TTS] Model Supertonic gagal dimuat ... beralih otomatis ke SAPI5.`) meskipun memproses banyak chunk, tanpa melempar exception.
+- **K4 (Kamus Pelafalan & Layar Tidak Berubah):** **LULUS**
+  - Terbukti lewat `test_k4_pronunciation_dictionary_and_screen_text_unchanged`: `"ENKI"` $\rightarrow$ `"Enki"` di kalimat biasa, di awal/akhir kalimat, dan sebelum tanda baca `"ENKI,"`, sedangkan `"enki/audio/tts.py"`, `"ENKIDU"`, dan `"enki"` huruf kecil tidak berubah; teks yang dicetak ke layar tetap utuh.
+- **K5 (Waktu Interupsi $\le 300\text{ ms}$ & 0 Audio Batal Setelah Cancel):** **LULUS**
+  - Hasil 5 ulangan (`docs/evidence/tahap4c1_bench.txt` Bagian C): `[146,119 ms, 7,122 ms, 5,349 ms, 12,097 ms, 145,373 ms]`.
+  - **Median Waktu Interupsi:** **`12,097 ms`** (batas $\le 300\text{ ms}$; maksimum `146,119 ms`).
+  - **Total Audio dari Chunk Batal Setelah Cancel:** **`0`** pada kelima ulangan (masing-masing ulangan membuang chunk yang sedang disintesis ONNX di latar belakang setelah jeda verifikasi 4,5 detik).
+- **K6 (TTFA Chunk Pertama Pendek 3 Kata Median $\le 4,0\text{ s}$ saat Ollama Generasi):** **LULUS**
+  - Hasil `docs/evidence/tahap4c1_bench.txt` Bagian A (event perangkat lunak dari `speak()` hingga tepat sebelum `winsound.PlaySound`, bukan pengukuran bunyi fisik):
+    - **Kondisi 1 (Idle):**
+      - Pendek (3 kata): Warmup `2,7421 s` | 3 Ulangan `[1,4240 s, 1,4470 s, 1,6001 s]` | **Median = `1,4470 s` (`1.446,99 ms`)**.
+      - Sedang (10 kata): Warmup `2,6174 s` | 3 Ulangan `[2,6060 s, 2,3387 s, 2,1282 s]` | **Median = `2,3387 s` (`2.338,67 ms`)**.
+      - Panjang (25 kata): Warmup `4,2994 s` | 3 Ulangan `[3,9033 s, 4,1175 s, 4,1382 s]` | **Median = `4,1175 s` (`4.117,53 ms`)**.
+    - **Kondisi 2 (Saat Ollama Generasi Nyata `qwen2.5:3b` — durasi loop `248,71 s`, `17.831 token` @ `71,69 tok/s`, `20 request`, `0 error`):**
+      - **Pendek (3 kata):** Warmup `1,4894 s` | 3 Ulangan `[1,3811 s, 1,3322 s, 2,0202 s]` | **Median = `1,3811 s` (`1.381,11 ms`)** (memenuhi batas $\le 4,0\text{ s}$).
+      - **Sedang (10 kata):** Warmup `2,6596 s` | 3 Ulangan `[2,4441 s, 2,3179 s, 2,2091 s]` | **Median = `2,3179 s` (`2.317,91 ms`)**.
+      - **Panjang (25 kata):** Warmup `4,2961 s` | 3 Ulangan `[4,5895 s, 4,0783 s, 4,4132 s]` | **Median = `4,4132 s` (`4.413,22 ms`)**.
+- **K7 (Gap Antar-Chunk Median $\le 500\text{ ms}$ saat Ollama Generasi):** **LULUS**
+  - Hasil `docs/evidence/tahap4c1_bench.txt` Bagian B pada balasan 3 chunk:
+    - **Kondisi 1 (Idle):** Warmup `[0,779 ms, 1,764 ms]` | Ulangan 1 `[0,829 ms, 1,383 ms]` | Ulangan 2 `[1,127 ms, 0,806 ms]` | Ulangan 3 `[0,872 ms, 1,267 ms]` | Median Gap 1$\rightarrow$2 = `0,872 ms`, Median Gap 2$\rightarrow$3 = `1,267 ms`, **Median Keseluruhan (Idle) = `0,999 ms`**.
+    - **Kondisi 2 (Saat Ollama Generasi Nyata `qwen2.5:3b`):** Warmup `[0,761 ms, 0,936 ms]` | Ulangan 1 `[0,968 ms, 1,096 ms]` | Ulangan 2 `[0,991 ms, 0,717 ms]` | Ulangan 3 `[0,855 ms, 0,675 ms]` | Median Gap 1$\rightarrow$2 = `0,968 ms`, Median Gap 2$\rightarrow$3 = `0,717 ms`, **Median Keseluruhan (Ollama) = `0,912 ms`** (memenuhi batas $\le 500\text{ ms}$).
+- **K8 (Tanpa Paket PyTorch & Daftar Paket Baru Dilaporkan):** **LULUS**
+  - Di dalam `D:\ENKI\ENKI\venv` (Python `3.14.4`), terpasang 29 paket dari `requirements.txt` dengan **0 paket PyTorch (`torch` tidak ada)** dan `pip check` melaporkan `No broken requirements found` (0 bentrok versi dengan `numpy 2.5.4` dan `onnxruntime 1.31.0`). Pada lingkungan Python pengguna (`C:\Python314`), penambahan `supertonic==1.3.1` dan `huggingface_hub==1.33.0` hanya memasang 4 paket baru (`supertonic-1.3.1`, `huggingface_hub-1.33.0`, `soundfile-0.14.0`, `hf-xet-1.7.0`) tanpa bentrok dengan `numpy 2.4.4` maupun `onnxruntime 1.28.0`.
+- **Metrik Tambahan Bagian D (RAM & CPU Proses Utama ENKI) & Bagian E (Sonda 6 String):**
+  - **RAM & CPU Proses Utama (0 Proses Anak):** Waktu muat model `2,6396 s`; RAM sebelum muat `27,02 MB` $\rightarrow$ setelah muat `473,23 MB`; RAM RSS puncak saat sintesis chunk panjang **`583,32 MB`**; CPU% rata-rata saat sintesis chunk panjang `1569,97%` psutil (`78,50%` kapasitas sistem 20 logical core).
+  - **Sonda 6 String (`D:\ENKI\tts_test2\out4c\sonda_1.wav` s.d. `sonda_6.wav`):** Seluruh 6 berkas WAV berhasil dibuat melalui pipeline asli ENKI (`clean_text_for_tts` $\rightarrow$ `apply_pronunciation` $\rightarrow$ `prepare_tts_chunks`) tanpa normalisasi angka baru.
+
+#### Langkah Berikutnya (Tahap 4C-2):
+- **Tahap 4C-2:** Teks tampil per kalimat sinkron dengan suara (hanya saat tidak mute); karena **K6 (`1,3811 s` $\le 4,0\text{ s}$)** dan **K7 (`0,912 ms` $\le 500\text{ ms}$)** keduanya **LULUS**, arsitektur pipelining Supertonic M4 memenuhi syarat latensi untuk sinkronisasi tampilan kalimat dengan pemutaran suara di Tahap 4C-2.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.

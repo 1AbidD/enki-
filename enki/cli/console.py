@@ -176,13 +176,19 @@ class EnkiConsole:
                 elif cmd == "/status":
                     facts_count = len(self.profile_mgr.get_all_facts())
                     pending_count = len(self.reflector.get_pending_proposals())
+                    active_tts_voice = (
+                        self.config.tts_voice
+                        if self.config.tts_engine.lower() == "sapi5"
+                        else self.config.tts_voice_supertonic
+                    )
                     print(f"\n--- Status Sistem ENKI ---")
                     model_display = self.config.model + (" (Chat-Only)" if "coder" in self.config.model else "")
                     print(f"  Model        : {model_display}")
                     print(f"  Num Context  : {self.config.num_ctx}")
                     print(f"  Temperature  : {self.config.temperature}")
                     print(f"  Mute Status  : {self.config.is_muted}")
-                    print(f"  TTS Voice    : {self.config.tts_voice or '(default)'}")
+                    print(f"  TTS Engine   : {self.config.tts_engine}")
+                    print(f"  TTS Voice    : {active_tts_voice or '(default)'}")
                     print(f"  Sesi Aktif   : {self.session_id}")
                     print(f"  Fakta Profil : {facts_count} fakta ({self.profile_mgr.count_tokens()}/500 token)")
                     print(f"  Pending Usul : {pending_count} usulan")
@@ -309,13 +315,19 @@ class EnkiConsole:
                     print(hint_line)
                     self.seen_hint_commands.add(cmd_key)
 
-            # 5c. Output Suara TTS (Tahap 4B)
+            # 5c. Output Suara TTS (Tahap 4B / 4C-1)
             if content and not self.config.is_muted:
                 try:
+                    active_voice = (
+                        self.config.tts_voice
+                        if self.config.tts_engine.lower() == "sapi5"
+                        else self.config.tts_voice_supertonic
+                    )
                     speak(
                         text=content,
                         is_muted=self.config.is_muted,
-                        voice=self.config.tts_voice
+                        voice=active_voice,
+                        pronunciation_map=self.config.tts_pronunciation,
                     )
                 except Exception as e:
                     print(f"[Peringatan TTS] Gagal memutar audio: {e}")

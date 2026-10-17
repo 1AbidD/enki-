@@ -331,6 +331,186 @@ class TestTahap4BTTS(unittest.TestCase):
                 f"G1 gagal untuk kalimat {raw_sentence!r}: dihasilkan {cleaned!r}, diharapkan {expected_sentence!r}"
             )
 
+    def test_langkah0_regex_regression_dunder_and_italic_punctuation(self):
+        """Langkah 0 (Utang Lama 4B-2): Regresi __init__ berdiri sendiri dan _miring_, diikuti tanda baca."""
+        self.assertEqual(
+            clean_text_for_tts("Method __init__ dipanggil"),
+            "Method __init__ dipanggil"
+        )
+        self.assertEqual(
+            clean_text_for_tts("Ini _miring_, bagus."),
+            "Ini miring, bagus."
+        )
+
+    def test_k2_zero_cost_mute_supertonic_and_onnxruntime_not_imported(self):
+        """K2: Saat ENKI start dengan is_muted=True dan speak() dipanggil,
+        sys.modules tidak berisi onnxruntime maupun supertonic.
+        """
+        saved_modules = {}
+        target_prefixes = ("onnxruntime", "supertonic", "enki.audio.supertonic")
+        for mod_name in list(sys.modules.keys()):
+            if mod_name == "onnxruntime" or mod_name.startswith("onnxruntime.") or mod_name == "supertonic" or mod_name.startswith("supertonic.") or mod_name == "enki.audio.supertonic":
+                saved_modules[mod_name] = sys.modules.pop(mod_name)
+
+        try:
+            from enki.config import AppConfig
+            import tempfile
+            from pathlib import Path
+
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                cfg_path = Path(tmp_dir) / "config.json"
+                cfg = AppConfig(config_path=cfg_path)
+                self.assertTrue(cfg.is_muted)
+                self.assertEqual(cfg.tts_engine, "supertonic")
+
+                speak(
+                    "Halo, saya ENKI sedang dalam mode mute.",
+                    is_muted=cfg.is_muted,
+                    voice=cfg.tts_voice_supertonic,
+                    pronunciation_map=cfg.tts_pronunciation,
+                )
+
+                self.assertNotIn("onnxruntime", sys.modules)
+                self.assertNotIn("supertonic", sys.modules)
+                self.assertNotIn("enki.audio.supertonic", sys.modules)
+        finally:
+            sys.modules.update(saved_modules)
+
+    def test_k3_fallback_to_sapi5_on_invalid_model_dir(self):
+        """K3: Jika tts_model_dir salah/tidak ada, SupertonicEngine otomatis pindah ke SAPI5,
+        mencetak tepat satu baris pesan peringatan, tanpa melempar exception.
+        """
+        import io
+        import tempfile
+        from contextlib import redirect_stdout
+        from pathlib import Path
+        from enki.audio.supertonic import SupertonicEngine
+        from enki.audio.sapi5 import SAPI5Engine
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bad_model_dir = str(Path(tmp_dir) / "direktori_model_tidak_ada")
+            st_engine = SupertonicEngine(
+                model_dir=bad_model_dir,
+                default_voice="M4",
+                fallback_voice="Microsoft David Desktop",
+            )
+
+            buf = io.StringIO()
+            with patch.object(SAPI5Engine, "speak_chunk", return_value=True) as mock_sapi_speak:
+                with redirect_stdout(buf):
+                    mgr = TTSManager()
+                    mgr.speak(
+                        "Kalimat pertama yang cukup panjang untuk chunk satu. Kalimat kedua untuk menguji pesan peringatan hanya muncul sekali.",
+                        engine=st_engine,
+                    )
+                    mgr.wait_done(timeout=3.0)
+
+                self.assertTrue(st_engine.is_fallback)
+                self.assertEqual(mock_sapi_speak.call_count, 2)
+
+            out_lines = [line.strip() for line in buf.getvalue().splitlines() if line.strip()]
+            self.assertEqual(
+                len(out_lines),
+                1,
+                f"Pesan fallback harus tepat 1 baris, tetapi ditemukan {len(out_lines)}: {out_lines}",
+            )
+            self.assertIn("SAPI5", out_lines[0])
+
+    def test_k4_pronunciation_dictionary_and_screen_text_unchanged(self):
+        """K4: Kamus pelafalan menerapkan 'ENKI' -> 'Enki' secara case-sensitive dengan batas kata,
+        tidak mengubah 'ENKIDU', 'enki', atau path 'enki/audio/tts.py', dan teks layar tidak berubah.
+        """
+        from enki.audio.tts import apply_pronunciation, prepare_tts_chunks
+
+        cases = [
+            # 1. Kalimat biasa
+            ("Halo, saya ENKI asisten lokal.", "Halo, saya Enki asisten lokal."),
+            # 2. Di awal dan di akhir kalimat
+            ("ENKI siap membantu pengguna bersama ENKI", "Enki siap membantu pengguna bersama Enki"),
+            # 3. Dengan tanda baca "ENKI,"
+            ("Halo ENKI, bagaimana kabar sistem hari ini?", "Halo Enki, bagaimana kabar sistem hari ini?"),
+            # 4. Dalam path "enki/audio/tts.py" TIDAK berubah
+            ("Buka file enki/audio/tts.py lalu jalankan /test.", "Buka file enki/audio/tts.py lalu jalankan /test."),
+            # 5. "ENKIDU" TIDAK berubah
+            ("Kisah epik ENKIDU dan asisten ENKI.", "Kisah epik ENKIDU dan asisten Enki."),
+            # 6. Huruf kecil "enki" TIDAK berubah
+            ("Folder enki milik sistem ENKI.", "Folder enki milik sistem Enki."),
+        ]
+
+        for raw_text, expected in cases:
+            cleaned = clean_text_for_tts(raw_text)
+            pronounced = apply_pronunciation(cleaned, {"ENKI": "Enki"})
+            self.assertEqual(
+                pronounced,
+                expected,
+                f"K4 gagal untuk {raw_text!r}: dihasilkan {pronounced!r}, diharapkan {expected!r}",
+            )
+
+        # Verifikasi path ber-slash dengan huruf besar juga tetap terlindungi oleh guard slash
+        self.assertEqual(
+            apply_pronunciation("Lihat folder D:/ENKI/enki/audio/tts.py milik ENKI.", {"ENKI": "Enki"}),
+            "Lihat folder D:/ENKI/enki/audio/tts.py milik Enki.",
+        )
+
+        # Verifikasi teks di layar tidak berubah sementara engine TTS menerima teks berlafal "Enki"
+        screen_buffer = []
+        raw_reply = "Halo ENKI, silakan cek enki/audio/tts.py dan cerita ENKIDU."
+        screen_buffer.append(raw_reply)
+
+        fake_engine = FakeEngine()
+        mgr = TTSManager()
+        mgr.speak(raw_reply, engine=fake_engine, pronunciation_map={"ENKI": "Enki"})
+        mgr.wait_done(timeout=2.0)
+
+        self.assertEqual(screen_buffer[0], "Halo ENKI, silakan cek enki/audio/tts.py dan cerita ENKIDU.")
+        self.assertEqual(
+            fake_engine.spoken_chunks,
+            ["Halo Enki, silakan cek enki/audio/tts.py dan cerita ENKIDU."],
+        )
+
+    def test_langkah3_chunk_strategy_first_short_and_subsequent_250(self):
+        """Langkah 3: Strategi chunk cepat-mulai:
+        - Kasus 1: Balasan 1 kalimat pendek tetap 1 chunk.
+        - Kasus 2: Balasan 3 kalimat (kalimat pertama >= 6 kata berdiri sendiri, kalimat ke-2 & ke-3 digabung <= 250 karakter).
+        - Kasus 3: Kalimat pertama 3 kata (< 6 kata) digabung dengan kalimat kedua.
+        """
+        from enki.audio.tts import prepare_tts_chunks
+
+        # Kasus 1: Balasan 1 kalimat pendek
+        case1 = "Halo, saya ENKI."
+        chunks1 = prepare_tts_chunks(case1)
+        self.assertEqual(chunks1, ["Halo, saya Enki."])
+
+        # Kasus 2: Balasan 3 kalimat (kalimat pertama 7 kata >= 6 kata)
+        case2 = (
+            "Sistem asisten lokal ini sudah siap digunakan. "
+            "Silakan ketik perintah yang Anda butuhkan. "
+            "Saya akan segera memproses permintaan tersebut."
+        )
+        chunks2 = prepare_tts_chunks(case2)
+        self.assertEqual(
+            chunks2,
+            [
+                "Sistem asisten lokal ini sudah siap digunakan.",
+                "Silakan ketik perintah yang Anda butuhkan. Saya akan segera memproses permintaan tersebut.",
+            ],
+        )
+
+        # Kasus 3: Kalimat pertama 3 kata (< 6 kata), digabung dengan kalimat berikutnya
+        case3 = (
+            "Halo, saya ENKI. "
+            "Saya siap membantu pekerjaan teknis Anda sekarang. "
+            "Silakan berikan instruksi atau pertanyaan lebih lanjut."
+        )
+        chunks3 = prepare_tts_chunks(case3)
+        self.assertEqual(
+            chunks3,
+            [
+                "Halo, saya Enki. Saya siap membantu pekerjaan teknis Anda sekarang.",
+                "Silakan berikan instruksi atau pertanyaan lebih lanjut.",
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

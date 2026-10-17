@@ -1,0 +1,138 @@
+========================================================================================
+LAPORAN PENGUKURAN TAHAP 4C-1: SUPERTONIC 3 (VOICE M4, CPU, HF_HUB_OFFLINE=1)
+========================================================================================
+Timestamp (UTC)        : 2026-10-17T14:25:40.217858+00:00
+Python Executable      : D:\ENKI\ENKI\venv\Scripts\python.exe (v3.14.4)
+Model Directory        : C:\Users\aabid\.cache\supertonic3
+Voice Supertonic       : M4 (lang='id')
+HF_HUB_OFFLINE         : 1
+Waktu Muat Model (CPU) : 2.6396 s (2639.60 ms)
+RAM Sebelum Muat Model : 27.02 MB
+RAM Setelah Muat Model : 473.23 MB
+========================================================================================
+
+--- BAGIAN A: TIME-TO-FIRST-AUDIO (TTFA) ---
+Catatan Metodologi: TTFA diukur sebagai selisih waktu perangkat lunak dari panggilan
+speak() (mgr.last_speak_called_at) sampai tepat sebelum pemanggilan winsound.PlaySound()
+pada chunk pertama (on_before_play chunk_idx=0). Ini adalah event perangkat lunak,
+BUKAN pengukuran gelombang akustik/suara fisik yang keluar dari speaker.
+Metode: 1x pemanasan dibuang + median dari 3 ulangan.
+
+[Kondisi 1: IDLE]
+  * pendek_3_kata:
+    - Teks Masuk Engine   : 'Halo, saya Enki.'
+    - Warmup (dibuang)    : 2.7421 s (2742.09 ms)
+    - 3 Ulangan           : [1.4240s (1424.02ms), 1.4470s (1446.99ms), 1.6001s (1600.11ms)]
+    - Median TTFA (Idle)  : 1.4470 s (1446.99 ms)
+  * sedang_10_kata:
+    - Teks Masuk Engine   : 'Versi Python di sistem ini adalah tiga koma empat belas.'
+    - Warmup (dibuang)    : 2.6174 s (2617.36 ms)
+    - 3 Ulangan           : [2.6060s (2606.04ms), 2.3387s (2338.67ms), 2.1282s (2128.20ms)]
+    - Median TTFA (Idle)  : 2.3387 s (2338.67 ms)
+  * panjang_25_kata:
+    - Teks Masuk Engine   : 'Asisten kecerdasan buatan lokal ini dirancang untuk membantu pengguna mengelola catatan harian, membaca dokumen proyek, serta menjawab berbagai pertanyaan teknis dengan cepat tanpa memerlukan jaringan.'
+    - Warmup (dibuang)    : 4.2994 s (4299.39 ms)
+    - 3 Ulangan           : [3.9033s (3903.30ms), 4.1175s (4117.53ms), 4.1382s (4138.16ms)]
+    - Median TTFA (Idle)  : 4.1175 s (4117.53 ms)
+
+[Kondisi 2: SAAT OLLAMA SEDANG GENERASI NYATA (qwen2.5:3b)]
+  - Durasi Loop Generasi Ollama : 248.71 detik
+  - Total Token Dihasilkan LLM  : 17831 token (71.69 tok/s)
+  - Jumlah Request Stream LLM   : 20 request (Errors: 0)
+  * pendek_3_kata:
+    - Teks Masuk Engine   : 'Halo, saya Enki.'
+    - Warmup (dibuang)    : 1.4894 s (1489.40 ms)
+    - 3 Ulangan           : [1.3811s (1381.11ms), 1.3322s (1332.24ms), 2.0202s (2020.16ms)]
+    - Median TTFA (Ollama): 1.3811 s (1381.11 ms)
+  * sedang_10_kata:
+    - Teks Masuk Engine   : 'Versi Python di sistem ini adalah tiga koma empat belas.'
+    - Warmup (dibuang)    : 2.6596 s (2659.57 ms)
+    - 3 Ulangan           : [2.4441s (2444.14ms), 2.3179s (2317.91ms), 2.2091s (2209.07ms)]
+    - Median TTFA (Ollama): 2.3179 s (2317.91 ms)
+  * panjang_25_kata:
+    - Teks Masuk Engine   : 'Asisten kecerdasan buatan lokal ini dirancang untuk membantu pengguna mengelola catatan harian, membaca dokumen proyek, serta menjawab berbagai pertanyaan teknis dengan cepat tanpa memerlukan jaringan.'
+    - Warmup (dibuang)    : 4.2961 s (4296.06 ms)
+    - 3 Ulangan           : [4.5895s (4589.48ms), 4.0783s (4078.26ms), 4.4132s (4413.22ms)]
+    - Median TTFA (Ollama): 4.4132 s (4413.22 ms)
+
+--- BAGIAN B: CELAH ANTAR-CHUNK (GAP) PADA BALASAN 3 CHUNK ---
+Definisi: Jeda waktu dari akhir pemutaran chunk N sampai awal pemutaran chunk N+1.
+Teks 3 Chunk setelah pipeline:
+  Chunk 1 (116 chars, 16 kata): 'Sistem asisten kecerdasan buatan lokal Enki kini menggunakan mesin suara baru yang bekerja sepenuhnya secara luring.'
+  Chunk 2 (217 chars, 28 kata): 'Seluruh proses sintesis suara dijalankan di prosesor utama sehingga memori kartu grafis tetap hemat dan stabil. Pendekatan antrean berpipa memastikan kalimat berikutnya disiapkan saat kalimat sebelumnya masih diputar.'
+  Chunk 3 (137 chars, 19 kata): 'Dengan arsitektur ini pengguna dapat berinteraksi secara nyaman, cepat, dan aman tanpa khawatir terhadap kebocoran data ke jaringan luar.'
+
+[Kondisi 1: IDLE]
+  - Warmup (dibuang) [Gap 1->2, Gap 2->3] : [0.779 ms, 1.764 ms]
+  - Ulangan 1        [Gap 1->2, Gap 2->3] : [0.829 ms, 1.383 ms]
+  - Ulangan 2        [Gap 1->2, Gap 2->3] : [1.127 ms, 0.806 ms]
+  - Ulangan 3        [Gap 1->2, Gap 2->3] : [0.872 ms, 1.267 ms]
+  - Median Gap 1->2 (Idle)                : 0.872 ms
+  - Median Gap 2->3 (Idle)                : 1.267 ms
+  - Median Keseluruhan Gap (Idle)         : 0.999 ms
+
+[Kondisi 2: SAAT OLLAMA SEDANG GENERASI NYATA (qwen2.5:3b)]
+  - Warmup (dibuang) [Gap 1->2, Gap 2->3] : [0.761 ms, 0.936 ms]
+  - Ulangan 1        [Gap 1->2, Gap 2->3] : [0.968 ms, 1.096 ms]
+  - Ulangan 2        [Gap 1->2, Gap 2->3] : [0.991 ms, 0.717 ms]
+  - Ulangan 3        [Gap 1->2, Gap 2->3] : [0.855 ms, 0.675 ms]
+  - Median Gap 1->2 (Ollama)              : 0.968 ms
+  - Median Gap 2->3 (Ollama)              : 0.717 ms
+  - Median Keseluruhan Gap (Ollama)       : 0.912 ms
+
+--- BAGIAN C: WAKTU INTERUPSI (cancel()) & BUKTI PEMBUANGAN CHUNK BATAL ---
+Definisi: Selisih dari panggilan cancel() sampai pemutaran berhenti (SND_PURGE selesai
+dan thread pemutar keluar dari wait), diikuti jeda 4.5s untuk memastikan chunk yang
+sedang disintesis ONNX di latar belakang dibuang dan TIDAK diputar setelah cancel.
+  - Ulangan 1: Waktu berhenti = 146.119 ms | Audio diputar setelah cancel = 0 | Chunk batal dibuang = 1
+  - Ulangan 2: Waktu berhenti = 7.122 ms | Audio diputar setelah cancel = 0 | Chunk batal dibuang = 1
+  - Ulangan 3: Waktu berhenti = 5.349 ms | Audio diputar setelah cancel = 0 | Chunk batal dibuang = 1
+  - Ulangan 4: Waktu berhenti = 12.097 ms | Audio diputar setelah cancel = 0 | Chunk batal dibuang = 1
+  - Ulangan 5: Waktu berhenti = 145.373 ms | Audio diputar setelah cancel = 0 | Chunk batal dibuang = 1
+  - Median Waktu Interupsi (5 ulangan)    : 12.097 ms
+  - Maksimum Waktu Interupsi              : 146.119 ms
+  - Total Audio Terdengar Setelah Cancel  : 0 (Wajib 0)
+
+--- BAGIAN D: RAM DAN CPU PROSES UTAMA ENKI SAAT MODEL TERMUAT ---
+Catatan Arsitektur: Engine Supertonic 3 berjalan in-process di proses utama Python
+(ONNX Runtime + stdlib winsound) dan TIDAK memiliki proses anak (jumlah proses anak = 0).
+  - PID Proses Utama                      : 6076
+  - Jumlah Proses Anak (Child Processes)  : 0
+  - Jumlah Logical CPU Cores              : 20
+  - RAM RSS Saat Idle (Model Termuat)     : Rata-rata 583.29 MB | Puncak 583.29 MB
+  - CPU% Saat Idle (Model Termuat)        : Rata-rata 203.64% psutil (10.18% total sistem)
+  - RAM RSS Puncak Saat Sintesis Panjang  : 583.32 MB
+  - CPU% Rata-rata Saat Sintesis Panjang  : 1569.97% psutil (78.50% total sistem)
+  - CPU% Puncak Saat Sintesis Panjang     : 2414.50% psutil (120.72% total sistem)
+
+--- BAGIAN E: SONDA 6 STRING ANGKA/SIMBOL (PIPELINE PEMBERSIHAN ASLI ENKI) ---
+  [1] String Asli          : 'Python 3.14 sudah terpasang.'
+      Setelah clean_text   : 'Python 3.14 sudah terpasang.'
+      Teks Masuk Engine    : 'Python 3.14 sudah terpasang.'
+      File WAV             : D:\ENKI\tts_test2\out4c\sonda_1.wav (264,236 bytes, durasi 2.93s, synth 1.8063s)
+  [2] String Asli          : 'Versi ENKI sekarang v3.0.'
+      Setelah clean_text   : 'Versi ENKI sekarang v3.0.'
+      Teks Masuk Engine    : 'Versi Enki sekarang v3.0.'
+      File WAV             : D:\ENKI\tts_test2\out4c\sonda_2.wav (227,372 bytes, durasi 2.55s, synth 1.9893s)
+  [3] String Asli          : 'Hasilnya 118 tes, 115 lulus.'
+      Setelah clean_text   : 'Hasilnya 118 tes, 115 lulus.'
+      Teks Masuk Engine    : 'Hasilnya 118 tes, 115 lulus.'
+      File WAV             : D:\ENKI\tts_test2\out4c\sonda_3.wav (301,100 bytes, durasi 3.38s, synth 2.2180s)
+  [4] String Asli          : 'Commit 81e6b7a sudah masuk.'
+      Setelah clean_text   : 'Commit 81e6b7a sudah masuk.'
+      Teks Masuk Engine    : 'Commit 81e6b7a sudah masuk.'
+      File WAV             : D:\ENKI\tts_test2\out4c\sonda_4.wav (276,524 bytes, durasi 3.12s, synth 3.6126s)
+  [5] String Asli          : 'Memakai 2,6 GB VRAM pada suhu 45,5 derajat.'
+      Setelah clean_text   : 'Memakai 2,6 GB VRAM pada suhu 45,5 derajat.'
+      Teks Masuk Engine    : 'Memakai 2,6 GB VRAM pada suhu 45,5 derajat.'
+      File WAV             : D:\ENKI\tts_test2\out4c\sonda_5.wav (466,988 bytes, durasi 5.24s, synth 4.0982s)
+  [6] String Asli          : 'Buka file enki/audio/tts.py lalu jalankan /test.'
+      Setelah clean_text   : 'Buka file enki/audio/tts.py lalu jalankan /test.'
+      Teks Masuk Engine    : 'Buka file enki/audio/tts.py lalu jalankan /test.'
+      File WAV             : D:\ENKI\tts_test2\out4c\sonda_6.wav (313,388 bytes, durasi 3.55s, synth 3.3599s)
+
+--- RINGKASAN EVALUASI KRITERIA TERUKUR (K5, K6, K7) ---
+  - K5 (Interupsi <= 300 ms & 0 bocor)        : Median 12.097 ms, bocor=0 -> LULUS
+  - K6 (TTFA 3 kata <= 4,0 s saat Ollama gen) : Median 1.3811 s (1381.11 ms) -> LULUS
+  - K7 (Gap <= 500 ms saat Ollama gen)        : Median 0.912 ms (Gap 1->2: 0.968 ms, Gap 2->3: 0.717 ms) -> LULUS
+========================================================================================

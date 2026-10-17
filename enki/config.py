@@ -1,3 +1,4 @@
+import copy
 import json
 from pathlib import Path
 from typing import Any, Dict
@@ -31,7 +32,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ollama_url": "http://127.0.0.1:11434",
     "is_muted": True,
     "passive_recall": False,
+    "tts_engine": "supertonic",
     "tts_voice": "Microsoft Andika",
+    "tts_voice_supertonic": "M4",
+    "tts_model_dir": str(Path.home() / ".cache" / "supertonic3"),
+    "tts_pronunciation": {"ENKI": "Enki"},
     "workspace_root": str(Path(__file__).resolve().parent.parent)
 }
 
@@ -42,17 +47,19 @@ class AppConfig:
 
     def _load(self) -> Dict[str, Any]:
         if not self.config_path.exists():
-            self._save(DEFAULT_CONFIG)
-            return DEFAULT_CONFIG.copy()
+            default_copy = copy.deepcopy(DEFAULT_CONFIG)
+            self._save(default_copy)
+            return default_copy
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 # Pastikan key default tersedia
                 for k, v in DEFAULT_CONFIG.items():
-                    data.setdefault(k, v)
+                    if k not in data:
+                        data[k] = copy.deepcopy(v)
                 return data
         except Exception:
-            return DEFAULT_CONFIG.copy()
+            return copy.deepcopy(DEFAULT_CONFIG)
 
     def _save(self, data: Dict[str, Any]) -> None:
         with open(self.config_path, "w", encoding="utf-8") as f:
@@ -83,12 +90,31 @@ class AppConfig:
         return bool(self._data.get("passive_recall", False))
 
     @property
+    def tts_engine(self) -> str:
+        return str(self._data.get("tts_engine", "supertonic"))
+
+    @property
     def tts_voice(self) -> str:
         return self._data.get("tts_voice", "")
 
     def set_tts_voice(self, voice_name: str) -> None:
         self._data["tts_voice"] = voice_name
         self._save(self._data)
+
+    @property
+    def tts_voice_supertonic(self) -> str:
+        return str(self._data.get("tts_voice_supertonic", "M4"))
+
+    @property
+    def tts_model_dir(self) -> str:
+        return str(self._data.get("tts_model_dir", str(Path.home() / ".cache" / "supertonic3")))
+
+    @property
+    def tts_pronunciation(self) -> Dict[str, str]:
+        val = self._data.get("tts_pronunciation", {"ENKI": "Enki"})
+        if isinstance(val, dict):
+            return dict(val)
+        return {"ENKI": "Enki"}
 
     @property
     def workspace_root(self) -> Path:
@@ -104,4 +130,5 @@ class AppConfig:
         self._save(self._data)
 
     def to_dict(self) -> Dict[str, Any]:
-        return self._data.copy()
+        return copy.deepcopy(self._data)
+

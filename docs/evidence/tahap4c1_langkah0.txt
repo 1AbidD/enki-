@@ -1,0 +1,3 @@
+LANGKAH 0 SUITE SUMMARY
+discovered=119 recorded=119 diff=0
+testsRun=119 successes=116 skipped=3 failures=0 errors=0 duration=18.037s
