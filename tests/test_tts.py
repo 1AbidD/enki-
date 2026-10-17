@@ -310,7 +310,29 @@ class TestTahap4BTTS(unittest.TestCase):
             mgr.wait_done(timeout=2.0)
             self.assertGreaterEqual(len(fake_engine.spoken_chunks), 1)
 
+    def test_g1_sentence_level_clean_text_for_tts(self):
+        """G1: Tes tetap tingkat kalimat untuk clean_text_for_tts (minimal 6 kasus multi-identifier)."""
+        sentence_cases = [
+            ("Panggil read_file lalu list_dir di app/main.py", "Panggil read_file lalu list_dir di app/main.py"),
+            ("Gunakan snake_case_name dan other_name_here", "Gunakan snake_case_name dan other_name_here"),
+            ("File __init__.py dan __main__.py ada", "File __init__.py dan __main__.py ada"),
+            ("Ini _miring_ asli", "Ini miring asli"),
+            ("Variabel max_value * 2 * min_value", "Variabel max_value * 2 * min_value"),
+            ("Total 3 * 4 * 5 sama dengan 60", "Total 3 * 4 * 5 sama dengan 60"),
+        ]
+
+        self.assertGreaterEqual(len(sentence_cases), 6)
+
+        for raw_sentence, expected_sentence in sentence_cases:
+            cleaned = clean_text_for_tts(raw_sentence)
+            self.assertEqual(
+                cleaned,
+                expected_sentence,
+                f"G1 gagal untuk kalimat {raw_sentence!r}: dihasilkan {cleaned!r}, diharapkan {expected_sentence!r}"
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

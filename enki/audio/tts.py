@@ -41,10 +41,10 @@ def clean_text_for_tts(text: str) -> str:
     # 4b. Italic: *teks* (bukan operasi aritmetika seperti 2 * 3 * 4)
     cleaned = re.sub(r"(?<![\w*])\*(?!\s)([^*]+?)(?<!\s)\*(?![\w*])", r"\1", cleaned)
 
-    # 4c. Bold / Italic dengan underscore: HANYA jika dipisahkan spasi/tanda baca,
-    # BUKAN bagian dari identifier snake_case (read_file, snake_case_name), dunder (__init__.py), atau private (_private).
-    cleaned = re.sub(r"(?<!\S)__([^_]+?)__(?!\S)", r"\1", cleaned)
-    cleaned = re.sub(r"(?<!\S)_([^_]+?)_(?!\S)", r"\1", cleaned)
+    # 4c. Italic dengan underscore tunggal: _teks_
+    # HANYA jika diawali dan diakhiri batas non-kata/non-underscore (CommonMark),
+    # sehingga tidak merusak snake_case (read_file), dunder (__init__), atau private (_private).
+    cleaned = re.sub(r"(?<![\w_])_(?![\s_])([^_\n]+?)(?<![\s_])_(?![\w_])", r"\1", cleaned)
 
     # 5. Bersihkan bullet points dan nomor list di awal baris
     lines = []
