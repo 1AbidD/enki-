@@ -1,0 +1,13 @@
+On branch master
+nothing to commit, working tree clean
+
+5131cdd plan tahap 4B-2 results
+3f47869 tahap 4B-2 evidence
+b95fd3b tahap 4B-2 implementation
+7213bc5 plan tahap 4B-2 criteria
+c6464d3 tahap 4B-1 final status
+fb249ca plan tahap 4B-1 results
+b4f65a7 tahap 4B-1 evidence
+6a86c8a tahap 4B-1 implementation
+899689c plan tahap 4B-1 criteria
+6b6f721 tahap 4B final status
