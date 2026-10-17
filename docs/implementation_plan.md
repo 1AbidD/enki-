@@ -1,6 +1,6 @@
 # Rencana Implementasi: ENKI (Local AI Assistant) - v2.9
 
-*Ringkasan Perubahan v2.9: kriteria perbaikan Tahap 4B-1 (preservasi identifier/path, koreksi batas CPU SAPI5, default mute, dan telemetri child process).*
+*Ringkasan Perubahan v2.9: hasil kelulusan Tahap 4B-1 (preservasi identifier/path, koreksi batas CPU SAPI5, default mute, dan telemetri child process).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -529,7 +529,7 @@ Status Tahap 4B resmi: **LULUS** (seluruh kriteria T1–T6 mencapai 100%, T7 smo
 #### Langkah Selanjutnya:
 Tahap 4B-1: Perbaikan Inti TTS (preservasi identifier/path, koreksi batas CPU, default mute, dan telemetri child process), disusul Tahap 4C (integrasi suara id-ID).
 
-### Tahap 4B-1: Perbaikan Inti TTS & Preservasi Teks (DIRENCANAKAN)
+### Tahap 4B-1: Perbaikan Inti TTS & Preservasi Teks (LULUS)
 
 #### Koreksi & Catatan Desain (F5 & F6):
 - **Koreksi T4 (Beban CPU SAPI5 - F6):** Variabel lingkungan `OMP_NUM_THREADS` adalah konfigurasi untuk pustaka komputasi numerik OpenMP (misalnya Torch/NumPy) dan secara faktual **tidak berpengaruh** pada arsitektur Windows Speech API (SAPI5) atau subprocess PowerShell `System.Speech`. Hasil pengukuran T4 sebelumnya tetap dicatat sebagai bukti kepatuhan konfigurasi thread worker, namun pengukuran beban CPU yang sah dan representatif untuk SAPI5 dilakukan langsung terhadap proses anak PowerShell (`powershell.exe`) menggunakan `psutil` (kriteria F3).
@@ -552,6 +552,19 @@ Tahap 4B-1: Perbaikan Inti TTS (preservasi identifier/path, koreksi batas CPU, d
 - **F5 (Default is_muted True):** Nilai default `is_muted` pada `DEFAULT_CONFIG` diset ke `True` sampai suara id-ID tersedia di Tahap 4C.
 - **F6 (Koreksi Dokumentasi T4 di Plan):** Koreksi T4 dicantumkan secara jujur di plan bahwa `OMP_NUM_THREADS` tidak berdampak pada SAPI5/PowerShell dan metrik CPU yang valid adalah F3.
 - **F7 (Integritas Suite & test_ids.txt):** Seluruh suite pengujian lulus, tidak ada test lama yang diubah, dan `docs/test_ids.txt` cocok 100% dengan hasil discovery.
+
+#### Hasil Evaluasi Tahap 4B-1:
+Status Tahap 4B-1 resmi: **LULUS** (seluruh kriteria F1–F7 mencapai 100%).
+- **F1 (Ollama Aktif & Suite Penuh):** **100% LULUS** (daemon Ollama aktif, `ollama ps` berjalan tanpa error; seluruh suite pengujian dieksekusi dengan `testsRun: 117`, `successes: 114`, `skipped: 3` [hanya 3 suite frozen benchmark Set 2, Set 3, Set 4]; `test_llm_indirect_prompt_injection_safety` berjalan penuh dan lulus 100%).
+- **F2 (Preservasi Identifier & Formula):** **100% LULUS** (8 kasus uji tetap diuji pada `test_f2_clean_text_preserves_identifiers_and_paths`: `read_file`, `list_dir`, `snake_case_name`, `app/main.py`, `__init__.py`, `_private`, `2 * 3 * 4` dipertahankan 100% tanpa ada underscore yang terhapus; `**tebal**` serta `*miring*` tetap dibersihkan menjadi `tebal` dan `miring`).
+- **F3 (Telemetri Child Process & Time-to-First-Audio):** **100% SUKSES** (`docs/evidence/tahap4b1_smoke.txt`: proses anak `powershell.exe` terukur via `psutil`: rata-rata TTFA terpisah sebesar 364.27 ms, total playback rata-rata 8278.58 ms / kalimat, puncak RAM proses anak 100.12 MB, puncak CPU proses anak 102.6% [~1 core], interupsi instan 54.12 ms, zero-cost mute 0.0014 ms, 0 crash).
+- **F4 (Perintah /mute dan /unmute):** **100% LULUS** (diverifikasi lewat `test_f4_f5_mute_unmute_config_and_speak_behavior`: `/mute` mengeset `is_muted: True`, `/unmute` mengeset `is_muted: False`, perubahan tersimpan ke berkas konfigurasi, dan saat mute fungsi `speak()` menghasilkan 0 panggilan engine audio).
+- **F5 (Default is_muted True):** **100% LULUS** (`DEFAULT_CONFIG["is_muted"]` diset `True` di `enki/config.py`; berkas `config.json` pengguna di disk tidak diubah paksa).
+- **F6 (Koreksi Dokumentasi T4 di Plan):** **SELESAI** (koreksi dicantumkan secara jujur pada catatan desain v2.9 bahwa `OMP_NUM_THREADS` tidak berdampak pada SAPI5/PowerShell dan metrik CPU yang valid adalah F3).
+- **F7 (Integritas Suite & test_ids.txt):** **100% LULUS** (117 test discovered, 117 recorded in `docs/test_ids.txt`, selisih 0 ID, 0 test lama diubah, 0 failure, 0 error).
+
+#### Langkah Selanjutnya:
+Tahap 4C: Integrasi Suara Bahasa Indonesia (id-ID) menunggu pengguna memasang paket suara id-ID di Windows dan hasil evaluasi `survey_tts.py`.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
