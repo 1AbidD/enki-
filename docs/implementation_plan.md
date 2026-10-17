@@ -599,6 +599,30 @@ Status Tahap 4B-2 resmi: **LULUS** (seluruh kriteria G1–G4 mencapai 100%).
 #### Langkah Selanjutnya:
 Tahap 4C: Integrasi Suara Bahasa Indonesia (id-ID) menunggu pengguna memasang suara id-ID di Windows dan hasil evaluasi `survey_tts.py`.
 
+### Kandidat suara 4C: Supertonic 3
+- **Status Uji Kelayakan:** **LULUS UJI KELAYAKAN (OFFLINE & CPU-ONLY)** (diuji terisolasi pada `D:\ENKI\tts_test2`, Python `3.12.10`, `supertonic==1.3.1`, `onnxruntime==1.31.0`, `HF_HUB_OFFLINE=1`, 0 error dari 15 berkas WAV).
+- **Verifikasi Repo & Paket Resmi:**
+  - Kartu Model Hugging Face: `https://huggingface.co/Supertone/supertonic-3` (repo resmi `Supertone/supertonic-3`, pinned commit SHA `724fb5abbf5502583fb520898d45929e62f02c0b`).
+  - Tautan PyPI (`https://pypi.org/project/supertonic/`) dan GitHub (`https://github.com/supertone-inc/supertonic`, SDK Python `https://github.com/supertone-inc/supertonic-py`) terverifikasi cocok dua arah dengan tautan pada kartu model `Supertone/supertonic-3`.
+- **Lisensi:**
+  - Kode (`supertonic` SDK): **MIT License** (`Copyright (c) 2025 Supertone Inc.`).
+  - Bobot Model (`Supertone/supertonic-3`): **BigScience Open RAIL-M License** (dated August 18, 2022) dengan pembatasan penggunaan pada *Attachment A (Use Restrictions)* (larangan pelanggaran hukum, eksploitasi anak di bawah umur, penyebaran disinformasi/PII berbahaya, penyamaran/deepfake tanpa izin, pembuatan konten tanpa pelabelan mesin, keputusan otomatis yang merugikan hak hukum, diskriminasi, nasihat medis, serta penegakan hukum/prediksi kriminal).
+- **Daftar Preset Suara (10 Preset, 44.100 Hz):**
+  - **Pria (Male):** `M1` (*Lively, upbeat*), `M2` (*Deep, robust, calm*), `M3` (*Polished, authoritative*), `M4` (*Soft, neutral, friendly*), `M5` (*Warm, soft-spoken, storytelling*).
+  - **Wanita (Female):** `F1` (*Calm, low tone*), `F2` (*Bright, cheerful*), `F3` (*Clear, announcer-style*), `F4` (*Crisp, confident*), `F5` (*Kind, gentle*).
+- **Hasil Pengukuran CPU (`device="cpu"`, `CPUExecutionProvider`, `lang="id"`, 1x Warmup Dibuang + Median 3x Ulang):**
+  - **Waktu Muat Model (CPU):** `2,1825 detik` (`2.182,54 ms`).
+  - **Ukuran Berkas Model di Disk (`~/.cache/supertonic3`):** `401.297.141 bytes` (`382,71 MB`).
+  - **RAM Proses:** Awal `52,94 MB` $\rightarrow$ Setelah Muat `466,52 MB` $\rightarrow$ **RAM Puncak Keseluruhan `562,90 MB`** (0 MiB VRAM GPU).
+  - **Bukti Mode Offline (`HF_HUB_OFFLINE=1` + Socket Guard):** **LULUS** (`0` percobaan koneksi jaringan saat muat model maupun sintesis).
+  - **Waktu Generate (Median 3x), Durasi Audio, dan Real-Time Factor (RTF) per Suara Pria (`M1`–`M5`):**
+    - `M1`: Kalimat 1 (3 kata) = `2,1459 s` / durasi `1,85 s` (`RTF 1,1592x`); Kalimat 2 (10 kata) = `3,0953 s` / durasi `4,50 s` (`RTF 0,6874x`); Kalimat 3 (25 kata) = `5,0811 s` / durasi `13,49 s` (`RTF 0,3768x`).
+    - `M2`: Kalimat 1 (3 kata) = `2,2698 s` / durasi `1,83 s` (`RTF 1,2435x`); Kalimat 2 (10 kata) = `2,8594 s` / durasi `4,42 s` (`RTF 0,6474x`); Kalimat 3 (25 kata) = `4,8181 s` / durasi `13,21 s` (`RTF 0,3648x`).
+    - `M3`: Kalimat 1 (3 kata) = `2,0066 s` / durasi `1,70 s` (`RTF 1,1776x`); Kalimat 2 (10 kata) = `2,7920 s` / durasi `3,93 s` (`RTF 0,7097x`); Kalimat 3 (25 kata) = `4,2444 s` / durasi `11,12 s` (`RTF 0,3817x`).
+    - `M4`: Kalimat 1 (3 kata) = `1,9007 s` / durasi `1,79 s` (`RTF 1,0623x`); Kalimat 2 (10 kata) = `2,6874 s` / durasi `4,25 s` (`RTF 0,6316x`); Kalimat 3 (25 kata) = `4,6483 s` / durasi `12,66 s` (`RTF 0,3671x`).
+    - `M5`: Kalimat 1 (3 kata) = `2,2682 s` / durasi `1,85 s` (`RTF 1,2274x`); Kalimat 2 (10 kata) = `2,8593 s` / durasi `4,49 s` (`RTF 0,6363x`); Kalimat 3 (25 kata) = `5,0466 s` / durasi `13,46 s` (`RTF 0,3749x`).
+  - **Ringkasan Rentang Sintesis:** Median waktu generate `1,9007 s – 5,0811 s` (rata-rata `3,2482 s`); RTF `0,3648x – 1,2435x` (rata-rata `0,7365x`; kalimat sedang–panjang berjalan `1,41x – 2,74x` lebih cepat dari real-time di CPU).
+
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
 * Komparasi langsung Windows Media OCR vs RapidOCR pada layar VS Code.
