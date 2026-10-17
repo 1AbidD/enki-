@@ -1,0 +1,45 @@
+================================================================================
+SMOKE TEST TAHAP 4B: CORE VOICE OUTPUT (TTS SAPI5 NYATA)
+================================================================================
+Waktu UTC         : 2026-10-17T07:18:08.178981+00:00
+Git Head          : 5845a952a70ed61ec5e5a48eed0108721b2dc59f
+Git Dirty         : True
+Workspace Root    : D:\ENKI\ENKI
+Host OS           : Windows (SAPI5 System.Speech)
+Total CPU Cores   : 20 (Physical: 14)
+================================================================================
+
+--- Sintesis 3 Kalimat (Suara: Microsoft David Desktop) ---
+
+[Kalimat #1]
+Teks Asli: Halo, saya ENKI. Ini adalah uji coba sistem keluaran suara menggunakan engine SAPI5.
+Chunks (2): ['Halo, saya ENKI.', 'Ini adalah uji coba sistem keluaran suara menggunakan engine SAPI5.']
+Hasil: SUKSES | Latensi: 9714.38 ms | RAM: 19.88 MB (Delta: 0.09 MB) | CPU: 12.9%
+
+[Kalimat #2]
+Teks Asli: Sistem ini menggunakan batas pemakaian CPU maksimal dua core dan mendukung interupsi instan.
+Chunks (1): ['Sistem ini menggunakan batas pemakaian CPU maksimal dua core dan mendukung interupsi instan.']
+Hasil: SUKSES | Latensi: 7524.66 ms | RAM: 19.88 MB (Delta: 0.0 MB) | CPU: 16.0%
+
+[Kalimat #3]
+Teks Asli: Nilai pi adalah 3.14 dan informasi lebih lanjut dapat dilihat pada tautan dokumentasi.
+Chunks (1): ['Nilai pi adalah 3.14 dan informasi lebih lanjut dapat dilihat pada tautan dokumentasi.']
+Hasil: SUKSES | Latensi: 7540.34 ms | RAM: 19.88 MB (Delta: 0.0 MB) | CPU: 12.7%
+
+--- Uji Pembatalan / Interupsi Instan ---
+Pembatalan Berhasil | Latensi Cancel: 52.49 ms | Antrean Bersih: True
+
+--- Uji Zero-Cost Mute ---
+Mute Berhasil | Latensi Speak Muted: 0.0014 ms (Beban: 0%)
+
+================================================================================
+REKAPITULASI SMOKE TEST TAHAP 4B
+================================================================================
+Total Kalimat Diuji   : 3
+Status Sintesis       : 100% SUKSES
+Total Crashes         : 0
+Total Waktu Eksekusi  : 24.78 detik
+Rata-rata Latensi     : 8259.79 ms / kalimat
+Puncak Pemakaian RAM  : 19.88 MB
+Puncak Beban CPU      : 16.0%
+================================================================================
