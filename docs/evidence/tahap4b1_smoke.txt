@@ -1,0 +1,46 @@
+================================================================================
+SMOKE TEST TAHAP 4B-1: VERIFIKASI TTS & METRIK PROSES ANAK POWERSHELL
+================================================================================
+Waktu UTC         : 2026-10-17T07:30:02.224149+00:00
+Git Head          : 6a86c8a67baf76ff0eb0d97511f5248366d9f768
+Git Dirty         : True
+Workspace Root    : D:\ENKI\ENKI
+Host OS           : Windows (SAPI5 System.Speech via PowerShell)
+Total CPU Cores   : 20 (Physical: 14)
+================================================================================
+
+--- Sintesis 3 Kalimat (Suara: Microsoft David Desktop) ---
+
+[Kalimat #1]
+Teks Asli: Halo, saya ENKI. Ini adalah uji coba sistem keluaran suara menggunakan engine SAPI5.
+Chunks (2): ['Halo, saya ENKI.', 'Ini adalah uji coba sistem keluaran suara menggunakan engine SAPI5.']
+Hasil: SUKSES | TTFA: 383.39 ms | Total Playback: 9734.53 ms | Anak RAM: 98.77 MB | Anak CPU: 102.6%
+
+[Kalimat #2]
+Teks Asli: Sistem ini menggunakan batas pemakaian CPU maksimal dua core dan mendukung interupsi instan.
+Chunks (1): ['Sistem ini menggunakan batas pemakaian CPU maksimal dua core dan mendukung interupsi instan.']
+Hasil: SUKSES | TTFA: 369.43 ms | Total Playback: 7534.45 ms | Anak RAM: 98.37 MB | Anak CPU: 51.8%
+
+[Kalimat #3]
+Teks Asli: Nilai pi adalah 3.14 dan informasi lebih lanjut dapat dilihat pada tautan dokumentasi.
+Chunks (1): ['Nilai pi adalah 3.14 dan informasi lebih lanjut dapat dilihat pada tautan dokumentasi.']
+Hasil: SUKSES | TTFA: 340.0 ms | Total Playback: 7566.76 ms | Anak RAM: 100.12 MB | Anak CPU: 102.6%
+
+--- Uji Pembatalan / Interupsi Instan ---
+Pembatalan Berhasil | Latensi Cancel: 54.12 ms | Antrean Bersih: True
+
+--- Uji Zero-Cost Mute ---
+Mute Berhasil | Latensi Speak Muted: 0.0014 ms (Beban: 0%)
+
+================================================================================
+REKAPITULASI SMOKE TEST TAHAP 4B-1
+================================================================================
+Total Kalimat Diuji        : 3
+Status Sintesis            : 100% SUKSES
+Total Crashes              : 0
+Total Waktu Eksekusi       : 24.84 detik
+Rata-rata TTFA (Audio In)  : 364.27 ms
+Rata-rata Total Playback   : 8278.58 ms / kalimat
+Puncak RAM Proses Anak     : 100.12 MB (powershell.exe)
+Puncak CPU Proses Anak     : 102.6%
+================================================================================
