@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v2.9
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.0
 
-*Ringkasan Perubahan v2.9: hasil kelulusan Tahap 4B-1 (preservasi identifier/path, koreksi batas CPU SAPI5, default mute, dan telemetri child process).*
+*Ringkasan Perubahan v3.0: kriteria perbaikan Tahap 4B-2 (uji kalimat ber-underscore ganda, dokumentasi metodologi TTFA, dan koreksi atribusi metrik T7).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -524,7 +524,7 @@ Status Tahap 4B resmi: **LULUS** (seluruh kriteria T1–T6 mencapai 100%, T7 smo
 - **T4 (Batas Beban CPU):** **100% LULUS** (`OMP_NUM_THREADS=2` terpasang di worker thread, `apply_cpu_affinity(2)` mengembalikan `True` pada host Windows 20 core).
 - **T5 (Keamanan Injeksi):** **100% LULUS** (6 payload injeksi berbahaya: kutip ganda, `$()`, `;`, backtick, newline, SQL injection tidak pernah masuk ke argumen proses `powershell`; teks dikirim aman sebagai stream stdin UTF-8 murni).
 - **T6 (Integritas Suite Penuh):** **100% LULUS** (115 unit test terdaftar, 111 lulus, 0 failures, 0 errors, 4 skipped: 3 benchmark suite & 1 indirect injection saat Ollama offline; seluruh test lama tidak disentuh; `docs/test_ids.txt` cocok 100% dengan discovery).
-- **T7 (Smoke Suara Real SAPI5 & Telemetri):** **100% SUKSES** (`docs/evidence/tahap4b_smoke.txt`: 3 kalimat disintesis dengan `Microsoft David Desktop`, 0 crash, rata-rata latensi 8259.79 ms / kalimat, puncak RAM 19.88 MB, puncak CPU 16.0%, interupsi instan terukur 52.49 ms, zero-cost mute terukur 0.0014 ms / 0% beban).
+- **T7 (Smoke Suara Real SAPI5 & Telemetri):** **100% SUKSES** (`docs/evidence/tahap4b_smoke.txt`: 3 kalimat disintesis dengan `Microsoft David Desktop`, 0 crash, rata-rata latensi 8259.79 ms / kalimat, puncak RAM 19.88 MB, puncak CPU 16.0%, interupsi instan terukur 52.49 ms, zero-cost mute terukur 0.0014 ms / 0% beban). *(Catatan Koreksi G3: angka RAM 19.88 MB dan CPU 16.0% pada T7 hanya mengukur proses induk Python saja, bukan proses anak `powershell.exe`; angka beban proses anak yang sah ada pada evaluasi F3 Tahap 4B-1 di bawah).*
 
 #### Langkah Selanjutnya:
 Tahap 4B-1: Perbaikan Inti TTS (preservasi identifier/path, koreksi batas CPU, default mute, dan telemetri child process), disusul Tahap 4C (integrasi suara id-ID).
@@ -564,7 +564,30 @@ Status Tahap 4B-1 resmi: **LULUS** (seluruh kriteria F1–F7 mencapai 100%).
 - **F7 (Integritas Suite & test_ids.txt):** **100% LULUS** (117 test discovered, 117 recorded in `docs/test_ids.txt`, selisih 0 ID, 0 test lama diubah, 0 failure, 0 error).
 
 #### Langkah Selanjutnya:
-Tahap 4C: Integrasi Suara Bahasa Indonesia (id-ID) menunggu pengguna memasang paket suara id-ID di Windows dan hasil evaluasi `survey_tts.py`.
+Tahap 4B-2: Perbaikan dan uji tingkat kalimat ber-identifier jamak, disusul Tahap 4C (integrasi suara id-ID).
+
+### Tahap 4B-2: Pengujian Kalimat Multi-Identifier & Dokumentasi Metodologi TTFA (DIRENCANAKAN)
+
+#### Dokumentasi Metodologi Pengukuran `time_to_first_audio_ms` (G2):
+- **Cara Pengukuran (Titik Awal ke Titik Akhir):**
+  - *Titik Awal (`t0`):* Stempel waktu (`time.time()`) di proses Python tepat sebelum memanggil `subprocess.Popen(["powershell", ...])` untuk meluncurkan proses anak PowerShell dan mengirimkan teks melalui `stdin`.
+  - *Event / Penanda:* Di dalam skrip PowerShell `System.Speech.Synthesis.SpeechSynthesizer`, dipasang event handler `.NET` `$synth.add_SpeakStarted({...})` yang langsung menulis baris penanda `"EVENT_SPEAK_STARTED"` ke `stdout` dan melakukan `Flush()` begitu engine SAPI5 mulai memproses operasi `Speak`.
+  - *Titik Akhir (`t_first`):* Stempel waktu (`time.time()`) di proses Python tepat saat `proc.stdout.readline()` selesai menerima baris `"EVENT_SPEAK_STARTED"` dari pipe `stdout`. Selisih `(t_first - t0) * 1000` dicatat sebagai `time_to_first_audio_ms` (mencakup waktu cold-start proses PowerShell, pemuatan assembly `System.Speech`, inisialisasi synthesizer, pembacaan `stdin`, hingga pemicuan event `SpeakStarted`).
+- **Apa yang TIDAK Diukur:**
+  - Metrik ini mengukur waktu hingga *software event* `SpeakStarted` dipicu oleh SAPI5 di level aplikasi/.NET, **bukan** waktu keluarnya gelombang akustik/bunyi fisik pertama dari perangkat keras speaker, dan tidak mengukur latensi buffer internal driver audio WASAPI/DirectSound/hardware DAC ataupun *leading silence* pada awal sampel fonem suara.
+
+#### Kriteria Kelulusan Tahap 4B-2 (Deterministik, Wajib 100%):
+- **G1 (Tes Tingkat Kalimat Multi-Identifier pada `clean_text_for_tts`):** Tambah tes tetap tingkat kalimat dengan minimal 6 kasus:
+  1. `"Panggil read_file lalu list_dir di app/main.py"` -> `"Panggil read_file lalu list_dir di app/main.py"`
+  2. `"Gunakan snake_case_name dan other_name_here"` -> `"Gunakan snake_case_name dan other_name_here"`
+  3. `"File __init__.py dan __main__.py ada"` -> `"File __init__.py dan __main__.py ada"`
+  4. `"Ini _miring_ asli"` -> `"Ini miring asli"`
+  5. `"Variabel max_value * 2 * min_value"` -> `"Variabel max_value * 2 * min_value"`
+  6. `"Total 3 * 4 * 5 sama dengan 60"` -> `"Total 3 * 4 * 5 sama dengan 60"`
+  Identifier tidak boleh kehilangan underscore. Jika ada kasus yang gagal pada kode lama, perbaiki `clean_text_for_tts` (bukan tesnya).
+- **G2 (Dokumentasi Metodologi TTFA):** Berkas `docs/evidence/tahap4b1_smoke.txt` tidak diubah; penjelasan metodologi `time_to_first_audio_ms` (event/penanda, titik ukur, dan batasan yang tidak diukur) ditulis secara eksplisit di plan.
+- **G3 (Catatan Koreksi T7 Tahap 4B):** Baris hasil T7 pada Tahap 4B diberi catatan koreksi bahwa RAM 19.88 MB dan CPU 16.0% hanya mengukur proses Python induk, sedangkan angka proses anak PowerShell yang sah ada di Tahap 4B-1 (F3).
+- **G4 (Integritas Suite Penuh dengan Ollama Aktif):** Seluruh suite pengujian lulus dengan daemon Ollama aktif, test lama tidak diubah, dan `docs/test_ids.txt` cocok 100% dengan hasil discovery.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
