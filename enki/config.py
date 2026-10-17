@@ -29,7 +29,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "num_ctx": 8192,
     "temperature": 0.2,
     "ollama_url": "http://127.0.0.1:11434",
-    "is_muted": False,
+    "is_muted": True,
     "passive_recall": False,
     "tts_voice": "",
     "workspace_root": str(Path(__file__).resolve().parent.parent)

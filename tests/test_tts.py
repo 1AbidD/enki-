@@ -235,6 +235,82 @@ class TestTahap4BTTS(unittest.TestCase):
         mgr.wait_done(timeout=2.0)
         self.assertFalse(mgr.is_busy())
 
+    def test_f2_clean_text_preserves_identifiers_and_paths(self):
+        """F2: clean_text_for_tts tidak boleh merusak nama ber-underscore atau path (minimal 8 kasus tetap)."""
+        cases = [
+            ("read_file", "read_file"),
+            ("list_dir", "list_dir"),
+            ("snake_case_name", "snake_case_name"),
+            ("app/main.py", "app/main.py"),
+            ("__init__.py", "__init__.py"),
+            ("_private", "_private"),
+            ("2 * 3 * 4", "2 * 3 * 4"),
+            ("Ini adalah teks **tebal** dan ini *miring*.", "Ini adalah teks tebal dan ini miring."),
+        ]
+
+        for raw_inp, expected in cases:
+            cleaned = clean_text_for_tts(raw_inp)
+            self.assertEqual(
+                cleaned,
+                expected,
+                f"F2 gagal untuk input {raw_inp!r}: dihasilkan {cleaned!r}, diharapkan {expected!r}"
+            )
+            # Pastikan underscore di dalam kata tidak terhapus
+            if "_" in raw_inp:
+                self.assertIn("_", cleaned, f"Underscore hilang pada {raw_inp!r} -> {cleaned!r}")
+
+    def test_f4_f5_mute_unmute_config_and_speak_behavior(self):
+        """F4 & F5: Verifikasi default is_muted=True pada config baru, /mute dan /unmute mengubah config,
+
+        dan speak() tidak memanggil engine saat is_muted=True.
+        """
+        import tempfile
+        import json
+        from pathlib import Path
+        from enki.config import AppConfig, DEFAULT_CONFIG
+
+        # F5: Verifikasi default is_muted adalah True
+        self.assertTrue(DEFAULT_CONFIG["is_muted"], "DEFAULT_CONFIG['is_muted'] harus bernilai True")
+
+        # Uji AppConfig dengan berkas sementara terisolasi
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_cfg_file = Path(tmp_dir) / "config.json"
+            cfg = AppConfig(config_path=tmp_cfg_file)
+
+            # Default pada config baru harus True
+            self.assertTrue(cfg.is_muted)
+            self.assertTrue(tmp_cfg_file.exists())
+            with open(tmp_cfg_file, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                self.assertTrue(saved["is_muted"])
+
+            # Uji set_mute(False) (ekuivalen /unmute)
+            cfg.set_mute(False)
+            self.assertFalse(cfg.is_muted)
+            with open(tmp_cfg_file, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                self.assertFalse(saved["is_muted"])
+
+            # Uji set_mute(True) (ekuivalen /mute)
+            cfg.set_mute(True)
+            self.assertTrue(cfg.is_muted)
+            with open(tmp_cfg_file, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                self.assertTrue(saved["is_muted"])
+
+            # Verifikasi speak() tidak memanggil engine saat is_muted=True
+            fake_engine = FakeEngine()
+            speak("Kalimat tes mute.", is_muted=cfg.is_muted, engine=fake_engine)
+            self.assertEqual(len(fake_engine.spoken_chunks), 0)
+
+            # Verifikasi speak() memanggil engine saat is_muted=False
+            cfg.set_mute(False)
+            mgr = TTSManager()
+            mgr.speak("Kalimat tes unmute.", engine=fake_engine)
+            mgr.wait_done(timeout=2.0)
+            self.assertGreaterEqual(len(fake_engine.spoken_chunks), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -34,11 +34,17 @@ def clean_text_for_tts(text: str) -> str:
     # 3. Buang backtick inline code
     cleaned = re.sub(r"`([^`]+)`", r"\1", cleaned)
 
-    # 4. Buang formatting bold / italic markdown
-    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", cleaned)
-    cleaned = re.sub(r"__([^_]+)__", r"\1", cleaned)
-    cleaned = re.sub(r"\*([^*]+)\*", r"\1", cleaned)
-    cleaned = re.sub(r"_([^_]+)_", r"\1", cleaned)
+    # 4. Buang formatting bold / italic markdown secara aman
+    # 4a. Bold: **teks**
+    cleaned = re.sub(r"\*\*(?!\s)([^*]+?)(?<!\s)\*\*", r"\1", cleaned)
+
+    # 4b. Italic: *teks* (bukan operasi aritmetika seperti 2 * 3 * 4)
+    cleaned = re.sub(r"(?<![\w*])\*(?!\s)([^*]+?)(?<!\s)\*(?![\w*])", r"\1", cleaned)
+
+    # 4c. Bold / Italic dengan underscore: HANYA jika dipisahkan spasi/tanda baca,
+    # BUKAN bagian dari identifier snake_case (read_file, snake_case_name), dunder (__init__.py), atau private (_private).
+    cleaned = re.sub(r"(?<!\S)__([^_]+?)__(?!\S)", r"\1", cleaned)
+    cleaned = re.sub(r"(?<!\S)_([^_]+?)_(?!\S)", r"\1", cleaned)
 
     # 5. Bersihkan bullet points dan nomor list di awal baris
     lines = []
