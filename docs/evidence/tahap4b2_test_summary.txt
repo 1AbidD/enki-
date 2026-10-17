@@ -1,0 +1,24 @@
+================================================================================
+RINGKASAN RUNNER UNITTEST PROGRAMATIK TAHAP 4B-2
+================================================================================
+Total Discovered Test IDs : 118
+Total Recorded in test_ids: 118
+Selisih ID                : 0
+
+--- Hasil Eksekusi Suite ---
+testsRun   : 118
+successes  : 115
+skipped    : 3
+failures   : 0
+errors     : 0
+wasSuccessful: True
+
+--- Daftar Test yang Di-skip ---
+  - test_react_benchmark_set2.TestReActBenchmarkSet2.test_run_3_iterations_benchmark: Benchmark suite - run explicitly via python tests/test_react_benchmark_set2.py
+  - test_react_benchmark_set3.TestReActBenchmarkSet3.test_run_3_iterations_benchmark_set3: Benchmark suite - run explicitly via python tests/test_react_benchmark_set3.py
+  - test_react_benchmark_set4.TestReActBenchmarkSet4.test_run_set4_benchmark: Benchmark suite - run explicitly via python tests/test_react_benchmark_set4.py
+
+--- Baris Status Unittest Runner ---
+Ran 118 tests in 12.753s
+OK (skipped=3)
+================================================================================
