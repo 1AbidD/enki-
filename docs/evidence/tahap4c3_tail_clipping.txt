@@ -1,0 +1,65 @@
+============================================================================================
+LAPORAN LANGKAH 2 TAHAP 4C-3 (KRITERIA M8): UKUR ULANG TAIL CLIPPING SECARA INDEPENDEN
+============================================================================================
+Timestamp (UTC)             : 2026-10-18T01:45:16.314677+00:00
+Python Executable           : D:\ENKI\ENKI\venv\Scripts\python.exe (v3.14.4)
+Engine & Suara              : Supertonic 3 (voice='M4', lang='id', HF_HUB_OFFLINE=1)
+Lokasi Berkas WAV Sementara : D:\ENKI\tts_test2\out4c\indep_1.wav .. indep_6.wav
+Tail Padding Engine Tetap   : 0.287208 s (287.21 ms) [TIDAK DIUBAH]
+============================================================================================
+
+--- TABEL PER FILE (6 WAV BARU INDEPENDEN, DURASI 2-12 DETIK) ---
+Definisi Residu = (waktu_tunggu_engine_dipakai - lama_blokir_winsound_sinkron) dalam ms.
+Residu negatif berarti engine selesai menunggu sebelum winsound sinkron selesai (arah terpotong).
+
+  [1] indep_1.wav (5 kata, 28 karakter):
+      Teks                 : 'Pagi ini cuaca sangat cerah.'
+      Durasi Audio (WAV)   : 2.2988 s
+      Waktu Tunggu Engine  : 2.5860 s (durasi + 287.21 ms)
+      Blokir PlaySound Sync: 2.5177 s (overhang mentah: +218.88 ms)
+      Residu               : +68.33 ms (|residu| = 68.33 ms)
+
+  [2] indep_2.wav (10 kata, 66 karakter):
+      Teks                 : 'Pembaruan kode sumber telah berhasil diuji pada ruang kerja lokal.'
+      Durasi Audio (WAV)   : 4.6672 s
+      Waktu Tunggu Engine  : 4.9544 s (durasi + 287.21 ms)
+      Blokir PlaySound Sync: 4.8148 s (overhang mentah: +147.56 ms)
+      Residu               : +139.65 ms (|residu| = 139.65 ms)
+
+  [3] indep_3.wav (13 kata, 96 karakter):
+      Teks                 : 'Setiap fungsi utama dalam modul antarmuka konsol memiliki cakupan pengujian otomatis yang ketat.'
+      Durasi Audio (WAV)   : 6.6873 s
+      Waktu Tunggu Engine  : 6.9746 s (durasi + 287.21 ms)
+      Blokir PlaySound Sync: 6.8050 s (overhang mentah: +117.61 ms)
+      Residu               : +169.60 ms (|residu| = 169.60 ms)
+
+  [4] indep_4.wav (17 kata, 135 karakter):
+      Teks                 : 'Pengelolaan basis data riwayat percakapan menggunakan indeks pencarian teks penuh agar pengambilan catatan masa lalu berlangsung cepat.'
+      Durasi Audio (WAV)   : 8.8468 s
+      Waktu Tunggu Engine  : 9.1340 s (durasi + 287.21 ms)
+      Blokir PlaySound Sync: 9.0054 s (overhang mentah: +158.64 ms)
+      Residu               : +128.56 ms (|residu| = 128.56 ms)
+
+  [5] indep_5.wav (19 kata, 156 karakter):
+      Teks                 : 'Ketika perintah pembatalan dikirimkan oleh pengguna di tengah pembacaan kalimat, antrean pemutaran segera dikosongkan dan sisa jawaban langsung ditampilkan.'
+      Durasi Audio (WAV)   : 10.1007 s
+      Waktu Tunggu Engine  : 10.3879 s (durasi + 287.21 ms)
+      Blokir PlaySound Sync: 10.2481 s (overhang mentah: +147.44 ms)
+      Residu               : +139.77 ms (|residu| = 139.77 ms)
+
+  [6] indep_6.wav (25 kata, 190 karakter):
+      Teks                 : 'Pengujian ketahanan sistem dilakukan secara menyeluruh dengan memadukan beban generasi model bahasa alami di kartu grafis serta pemrosesan gelombang suara di prosesor utama secara bersamaan.'
+      Durasi Audio (WAV)   : 12.4691 s
+      Waktu Tunggu Engine  : 12.7563 s (durasi + 287.21 ms)
+      Blokir PlaySound Sync: 12.5489 s (overhang mentah: +79.74 ms)
+      Residu               : +207.47 ms (|residu| = 207.47 ms)
+
+--- RINGKASAN STATISTIK TAIL CLIPPING INDEPENDEN (M8) ---
+  - Residu per File (ms)       : [68.33, 139.65, 169.6, 128.56, 139.77, 207.47]
+  - Median Residu              : +139.71 ms
+  - Median Absolut Residu      : 139.71 ms (Batas M8: <= 50.00 ms)
+  - Rentang Residu (Min..Maks) : +68.33 ms s.d. +207.47 ms
+  - Jumlah Residu < -50 ms     : 0 dari 6 file
+  - Jumlah Residu < -100 ms    : 0 dari 6 file (Batas M8: 0)
+  - Status Kriteria M8         : GAGAL
+============================================================================================

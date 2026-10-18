@@ -15,7 +15,8 @@ from enki.core.react_loop import ReActCoordinator
 from enki.cli.memory_commands import handle_memory_command, handle_reflect_command
 from enki.cli.explicit_commands import handle_explicit_command, EXPLICIT_COMMANDS
 from enki.cli.command_hints import get_command_hints
-from enki.audio.tts import speak, cancel
+from enki.audio.tts import speak, cancel, run_synced_speech_stream
+import queue
 
 def get_vram_info() -> str:
     """Mengambil status VRAM saat ini via nvidia-smi."""
@@ -46,6 +47,26 @@ class EnkiConsole:
         )
         self.history: List[Dict[str, str]] = []
         self.seen_hint_commands: set = set()
+        self._queued_inputs: queue.Queue = queue.Queue()
+        self.tts_engine_override = None
+        self.tts_manager_override = None
+
+    def submit_mid_reply_input(self, text: str) -> None:
+        """Mengirimkan input baru atau perintah (misal '/mute') di tengah balasan untuk interupsi seketika."""
+        self._queued_inputs.put(text)
+
+    def _poll_mid_reply_interrupt(self):
+        try:
+            cmd_or_inp = self._queued_inputs.get_nowait()
+        except queue.Empty:
+            return None
+        stripped = cmd_or_inp.strip()
+        if stripped.lower() == "/mute":
+            self.config.set_mute(True)
+            return "/mute"
+        # Kembalikan input baru ke antrean agar langsung diproses sebagai giliran berikutnya setelah cancel
+        self._queued_inputs.put(cmd_or_inp)
+        return f"input_baru:{stripped}"
 
     def check_startup_reflection(self):
         """Memeriksa apakah ada sesi lampau yang belum direfleksi dan menampilkan status usulan pending."""
@@ -114,7 +135,10 @@ class EnkiConsole:
 
         while True:
             try:
-                user_input = input("\nUser > ").lstrip("\ufeff").strip()
+                if not self._queued_inputs.empty():
+                    user_input = self._queued_inputs.get_nowait().lstrip("\ufeff").strip()
+                else:
+                    user_input = input("\nUser > ").lstrip("\ufeff").strip()
             except (KeyboardInterrupt, EOFError):
                 print("\nKeluar dari ENKI. Sampai jumpa!")
                 break
@@ -281,31 +305,89 @@ class EnkiConsole:
             print("\n[Jawaban]")
             content_chunks = []
             final_metrics = {}
-            try:
-                for chunk, metrics in self.coordinator.run_react_turn(
-                    user_input=user_input,
-                    session_id=self.session_id,
-                    history=self.history,
-                    model=self.config.model,
-                    recall_content=recall_content,
-                    num_ctx=self.config.num_ctx,
-                    temperature=self.config.temperature,
-                    trace_callback=trace_cb,
-                    enable_tools=False
-                ):
-                    if chunk:
-                        print(chunk, end="", flush=True)
-                        content_chunks.append(chunk)
-                    if metrics:
-                        final_metrics = metrics
-                print()
-            except Exception as e:
-                print(f"\n[Error Inferensi] {e}")
-                continue
+            use_synced_supertonic = (
+                not self.config.is_muted
+                and self.config.tts_engine.lower().strip() == "supertonic"
+            )
 
-            content = "".join(content_chunks).strip()
+            if not use_synced_supertonic:
+                # Jalur tampilan streaming lama (M3: saat mute atau engine bukan supertonic)
+                try:
+                    for chunk, metrics in self.coordinator.run_react_turn(
+                        user_input=user_input,
+                        session_id=self.session_id,
+                        history=self.history,
+                        model=self.config.model,
+                        recall_content=recall_content,
+                        num_ctx=self.config.num_ctx,
+                        temperature=self.config.temperature,
+                        trace_callback=trace_cb,
+                        enable_tools=False
+                    ):
+                        if chunk:
+                            print(chunk, end="", flush=True)
+                            content_chunks.append(chunk)
+                        if metrics:
+                            final_metrics = metrics
+                    print()
+                except Exception as e:
+                    print(f"\n[Error Inferensi] {e}")
+                    continue
 
-            # 5. Catat turn assistant ke DB secara deterministik
+                content = "".join(content_chunks).strip()
+                if content and not self.config.is_muted:
+                    try:
+                        speak(
+                            text=content,
+                            is_muted=self.config.is_muted,
+                            voice=self.config.tts_voice,
+                            engine=self.tts_engine_override,
+                            pronunciation_map=self.config.tts_pronunciation,
+                            gapless_start=False,
+                        )
+                    except Exception as e:
+                        print(f"[Peringatan TTS] Gagal memutar audio: {e}")
+            else:
+                # Langkah 4 Tahap 4C-3: Tampilan teks sinkron dengan suara Supertonic
+                try:
+                    react_gen = self.coordinator.run_react_turn(
+                        user_input=user_input,
+                        session_id=self.session_id,
+                        history=self.history,
+                        model=self.config.model,
+                        recall_content=recall_content,
+                        num_ctx=self.config.num_ctx,
+                        temperature=self.config.temperature,
+                        trace_callback=trace_cb,
+                        enable_tools=False
+                    )
+                    sync_res = run_synced_speech_stream(
+                        token_stream=react_gen,
+                        out_stream=sys.stdout,
+                        is_muted=self.config.is_muted,
+                        tts_engine_name=self.config.tts_engine,
+                        voice=self.config.tts_voice_supertonic,
+                        pronunciation_map=self.config.tts_pronunciation,
+                        gapless_start=self.config.tts_gapless_start,
+                        max_start_delay=self.config.tts_max_start_delay,
+                        mgr=self.tts_manager_override,
+                        engine=self.tts_engine_override,
+                        interrupt_poll_fn=self._poll_mid_reply_interrupt,
+                    )
+                    print()
+                    if sync_res.get("interrupt_reason") == "/mute":
+                        print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
+                    content = str(sync_res.get("full_text", "")).strip()
+                    final_metrics = sync_res.get("metrics") or {}
+                except KeyboardInterrupt:
+                    cancel()
+                    print()
+                    continue
+                except Exception as e:
+                    print(f"\n[Error Inferensi] {e}")
+                    continue
+
+            # 5. Catat turn assistant ke DB secara deterministik (selalu balasan LENGKAP)
             self.db.add_turn(self.session_id, "assistant", content)
 
             # 5b. Cetak Petunjuk Perintah Eksplisit (Tahap 3B-1) SETELAH balasan model
@@ -315,23 +397,6 @@ class EnkiConsole:
                     print(hint_line)
                     self.seen_hint_commands.add(cmd_key)
 
-            # 5c. Output Suara TTS (Tahap 4B / 4C-1)
-            if content and not self.config.is_muted:
-                try:
-                    active_voice = (
-                        self.config.tts_voice
-                        if self.config.tts_engine.lower() == "sapi5"
-                        else self.config.tts_voice_supertonic
-                    )
-                    speak(
-                        text=content,
-                        is_muted=self.config.is_muted,
-                        voice=active_voice,
-                        pronunciation_map=self.config.tts_pronunciation,
-                    )
-                except Exception as e:
-                    print(f"[Peringatan TTS] Gagal memutar audio: {e}")
-
             # 6. Telemetri Eksekusi & Anggaran Context Riil
             prompt_eval = final_metrics.get("prompt_eval_count", 0)
             eval_count = final_metrics.get("eval_count", 0)
@@ -340,7 +405,7 @@ class EnkiConsole:
 
             print(f"\n-- Telemetri: Prompt: {prompt_eval} tok | Generate: {eval_count} tok ({speed} tok/s) | Sisa Context: {remaining_dyn}/{self.config.num_ctx} tok --")
 
-            # Update history memori sesi aktif
+            # Update history memori sesi aktif (selalu balasan LENGKAP)
             self.history.append({"role": "user", "content": user_input})
             self.history.append({"role": "assistant", "content": content})
 

@@ -215,6 +215,7 @@ class SupertonicEngine(BaseTTSEngine):
             "duration_sec": duration_sec,
             "wav_frames_sec": dur_frames,
             "synth_time_sec": synth_time_sec,
+            "ready_at": time.perf_counter(),
             "text": text,
             "voice": target_voice,
         }

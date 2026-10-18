@@ -42,6 +42,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "tts_audio_d0": 0.596618,
     "tts_audio_d1": 0.061480,
     "tts_chars_per_sec": 16.265423,
+    "tts_gapless_start": True,
+    "tts_max_start_delay": 6.0,
     "workspace_root": str(Path(__file__).resolve().parent.parent)
 }
 
@@ -140,6 +142,14 @@ class AppConfig:
     @property
     def tts_chars_per_sec(self) -> float:
         return float(self._data.get("tts_chars_per_sec", 16.265423))
+
+    @property
+    def tts_gapless_start(self) -> bool:
+        return bool(self._data.get("tts_gapless_start", True))
+
+    @property
+    def tts_max_start_delay(self) -> float:
+        return float(self._data.get("tts_max_start_delay", 6.0))
 
     @property
     def workspace_root(self) -> Path:

@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.2
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.3
 
-*Ringkasan Perubahan v3.2: verifikasi Tahap 4C-1 (Langkah 0), pemodelan regresi waktu sintesis & durasi audio Supertonic M4, perancangan chunker bertahap (ramp), serta kriteria preregistrasi dan pengukuran jeda adversarial Tahap 4C-2.*
+*Ringkasan Perubahan v3.3: pencatatan status akhir & temuan audit Tahap 4C-2 (Langkah 0), aturan penggantian token hash heksadesimal untuk TTS, pengukuran ulang tail clipping secara independen, mekanisme mulai tertunda tanpa jeda (gapless-by-delay), tampilan teks sinkron per segmen dengan suara, serta kriteria preregistrasi M1–M9 Tahap 4C-3.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -809,8 +809,108 @@ Status Tahap 4C-1 resmi: **LULUS** (seluruh kriteria K1–K8 mencapai **LULUS**;
     - Perbaikan di `SupertonicEngine`: Menambahkan `tail_padding_sec` sebesar selisih terukur serta menggunakan `max(dur_model, dur_frames_wav)` pada `wait_timeout`.
     - Setelah perbaikan: Median selisih residu `(engine_wait - blokir_sinkron)` = **`+15,41 ms`** (median absolut **`33,56 ms`** $\le 50\text{ ms}$; rincian: `[-94,05 ms, +25,17 ms, +15,41 ms, +33,56 ms, -82,50 ms]`), dan jumlah pemutaran terpotong = **`0`** (`clipped_playbacks_count == 0`).
 
-#### Langkah Berikutnya (Tahap 4C-3):
-- **Tahap 4C-3:** Teks tampil per segmen sinkron dengan suara (hanya saat tidak mute; sisa teks langsung ditampilkan penuh saat interupsi atau `/mute`; riwayat percakapan selalu menyimpan balasan lengkap).
+#### 4. Status Akhir Tahap 4C-2 & Temuan Audit (Langkah 0 Tahap 4C-3):
+- **Status Tahap 4C-2:** **DITERIMA dengan satu kriteria GAGAL terbuka: L4 Bentuk C (3 kata + 1 kalimat 28 kata), median jeda 4298 ms (`4298,297 ms`)**.
+  - **Alasan Teknis Kegagalan L4 Bentuk C:** Biaya tetap waktu sintesis per chunk $c_0 = 1,6\text{ s}$ (`1,599501 s`) lebih besar dari durasi audio Chunk 1 $\approx 1,9\text{ s}$ (`1,64–1,91 s`) dikurangi margin aman (`0,3 s`, sehingga anggaran tersisa $\le 1,6\text{ s}$ bahkan sebelum menambahkan porsi proporsional $c_1 \times \text{durasi\_audio}(\text{Chunk 2})$ untuk kalimat kedua 28 kata yang membutuhkan total waktu sintesis $\approx 6\text{ s}$). Akibatnya, sintesis Chunk 2 tidak mungkin selesai sebelum pemutaran Chunk 1 berakhir jika pemutaran Chunk 1 dimulai seketika tanpa tunda.
+- **Dua Temuan Audit Tahap 4C-2 (Ditangani di Tahap 4C-3):**
+  1. **(a) Kalibrasi Tail Padding Dalam-Sampel (*In-Sample*) & Residu Negatif:** Padding tail `270,67 ms` pada skrip evaluasi 4C-2 dikalibrasi dari 5 WAV (`sonda_1.wav` s.d. `sonda_5.wav`) yang sama dengan yang dipakai untuk mengujinya (dalam-sampel), dan 2 dari 5 residu bernilai **`-94,05 ms`** (`sonda_1.wav`) serta **`-82,50 ms`** (`sonda_5.wav`) yang berada pada arah terpotong (*clipping*). Di **Tahap 4C-3 (Langkah 2 & M8)**, tail clipping diukur ulang secara independen menggunakan **6 WAV baru** dari 6 teks berbeda (durasi bervariasi `2–12 detik`) tanpa mengubah padding.
+  2. **(b) Statistik Median Menyembunyikan Run Tunggal Berjeda Tinggi:** Penggunaan median pada 4C-2 menyembunyikan adanya run tunggal dengan jeda **`196,518 ms` s.d. `1082,591 ms`** (`978,352 ms` pada warmup & `196,518 ms` pada Ulangan 2 Bentuk A; `1082,591 ms` pada Ulangan 1 Bentuk D — yakni 1 dari 4 run di Bentuk A dan D). Di **Tahap 4C-3 (Langkah 3 & M5)**, diterapkan mekanisme **mulai tertunda tanpa jeda (*gapless-by-delay*)** dan kriteria **M5** mewajibkan pelaporan **SEMUA run** dengan batas ganda: median $\le 500\text{ ms}$ **DAN** maksimum run tunggal $\le 1000\text{ ms}$.
+
+---
+
+### Tahap 4C-3: Teks Tampil Sinkron dengan Suara + Mulai Tertunda Tanpa Jeda + Aturan Hash (SELESAI — 8/9 LULUS, M8 GAGAL; L4-Bentuk C 4C-2 DITUTUP)
+
+#### 1. Rancangan Teknis Tahap 4C-3:
+1. **Langkah 1: Aturan Hash (Hanya pada Teks untuk Suara):**
+   - Token yang cocok dengan regex `\b(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b` (huruf kecil heksadesimal, panjang 7–40 karakter, wajib mengandung minimal satu angka `0-9` dan minimal satu huruf `a-f`) diganti dengan `"kode hash"` pada teks untuk suara (`replace_hex_hashes_for_tts` di dalam `clean_text_for_tts`), **SEBELUM** proses *chunking* (`prepare_tts_chunks`).
+   - Teks yang dicetak ke layar tetap menampilkan hash penuh apa adanya (tidak berubah).
+   - Unit test tetap (`test_m7_hex_hash_replacement_and_screen_unchanged`) menguji minimal 8 kasus:
+     1. `"Commit 81e6b7a sudah masuk."` $\rightarrow$ `"Commit kode hash sudah masuk."`
+     2. Hash 40 karakter (`"c838839c5b19a073e9874ae20262326302ea32ad"`) $\rightarrow$ `"kode hash"`
+     3. `"2026"` (kurang dari 7 karakter & angka murni) $\rightarrow$ tidak berubah
+     4. `"decade"` (huruf murni `a-f` tanpa angka) $\rightarrow$ tidak berubah
+     5. `"v3.0"` (bukan hex 7–40) $\rightarrow$ tidak berubah (`"versi 3.0"` setelah kamus pelafalan)
+     6. `"1234567"` (angka murni 7 digit tanpa huruf `a-f`) $\rightarrow$ tidak berubah
+     7. Path `"enki/audio/tts.py"` $\rightarrow$ tidak berubah oleh aturan hash
+     8. Dua hash dalam satu kalimat (`"Bandingkan 922e628 dengan c838839 sekarang."`) $\rightarrow$ keduanya menjadi `"kode hash"`
+2. **Langkah 2: Ukur Ulang Tail Clipping Secara Independen:**
+   - Menghasilkan **6 WAV BARU** lewat `SupertonicEngine` (`voice="M4"`, `lang="id"`) dari 6 teks baru yang berbeda dari `sonda_1..5` dan berbeda dari 12 teks kalibrasi Langkah 1 4C-2, dengan panjang durasi bervariasi antara **2 s.d. 12 detik** (disimpan sementara di `D:\ENKI\tts_test2\out4c\`).
+   - **Tidak mengubah padding** (`DEFAULT_WINSOUND_TAIL_PADDING_SEC` tetap `0,287208 s` seperti 4C-2).
+   - Memutar masing-masing WAV dengan `winsound.PlaySound(path, SND_FILENAME)` sinkron dan membandingkan lama blokir sinkron dengan waktu tunggu engine yang sebenarnya dipakai (`durasi_audio + tail_padding_sec`), lalu melaporkan residu per file (`engine_wait - blokir_sinkron`), median, median absolut, dan jumlah residu $< -50\text{ ms}$. Jika median absolut $> 50\text{ ms}$ atau ada residu $< -100\text{ ms}$, dilaporkan **GAGAL** tanpa mengubah padding.
+3. **Langkah 3: Mulai Tertunda Tanpa Jeda (*Gapless-by-Delay*):**
+   - Menambahkan konfigurasi di `enki/config.py`: `tts_gapless_start: bool = True` dan `tts_max_start_delay: float = 6.0` detik.
+   - Teks dipecah menggunakan chunker bertahap 4C-2 (`prepare_tts_chunks`) yang **SAMA PERSIS** (tidak diubah).
+   - Sebelum memutar Chunk 1, pipeline disimulasikan secara berurutan memakai konstanta regresi Langkah 1 4C-2 (`c0=1.599501`, `c1=0.329724`, `d0=0.596618`, `d1=0.061480`):
+     - Untuk setiap chunk ke-$i$ ($i = 1, \dots, N$) dengan panjang karakter $L_i$:
+       $$\text{durasi\_audio}_i = d_0 + d_1 \times L_i, \qquad \text{waktu\_sintesis}_i = c_0 + c_1 \times \text{durasi\_audio}_i$$
+     - Karena sintesis berjalan berurutan sejak $t = 0$:
+       $$\text{waktu\_siap}(\text{chunk}_{k+1}) = \sum_{i=1}^{k+1} \text{waktu\_sintesis}_i, \qquad \text{waktu\_mulai\_putar\_chunk1\_tanpa\_tunda} = \text{waktu\_sintesis}_1$$
+     - Defisit waktu pada transisi $k \rightarrow k+1$ tanpa tunda:
+       $$D = \max\left(0,\ \max_{1 \le k < N}\left(\text{waktu\_siap}(\text{chunk}_{k+1}) - \left(\text{waktu\_mulai\_putar\_chunk1\_tanpa\_tunda} + \sum_{j=1}^k \text{durasi\_audio}(\text{chunk}_j)\right)\right)\right)$$
+     - Pemutaran Chunk 1 ditunda selama $D_{\text{applied}} = \min(D, \text{tts\_max\_start\_delay})$ (dikurangi waktu yang sudah berlalu sejak Chunk 1 selesai disintesis). Selama masa tunda ini, worker sintesis terus menyintesis Chunk $2, 3, \dots$ di latar belakang dan segera terputus jika `cancel()` dipanggil. Jika `tts_gapless_start=False`, perilaku identik dengan 4C-2 ($D_{\text{applied}} = 0$).
+4. **Langkah 4: Tampilan Teks Sinkron dengan Suara:**
+   - **Kondisi Aktif:** Hanya aktif jika `not is_muted` **DAN** engine aktif adalah `SupertonicEngine` (`tts_engine == "supertonic"` dan inisialisasi Supertonic berhasil); jika `is_muted=True`, engine `sapi5` (atau fallback otomatis ke `sapi5`), atau terjadi error TTS, jalur tampilan streaming lama berjalan **tanpa perubahan**.
+   - **Alur Streaming & Perencanaan Chunk:**
+     - Saat giliran dimulai, tampilkan satu baris status sementara `"[menyiapkan suara...]"` (tanpa newline permanen) yang dihapus bersih (`\r` + spasi + `\r`) tepat sebelum segmen teks pertama dicetak ke layar.
+     - Token LLM dikumpulkan ke buffer tanpa langsung dicetak ke layar.
+     - Begitu kalimat pertama lengkap terdeteksi pada stream token LLM (atau stream selesai untuk balasan 1 kalimat pendek), Chunk 1 langsung dipotong sesuai aturan chunk pertama 4C-2 dan **sintesis Chunk 1 segera dimulai di latar belakang** tanpa menunggu seluruh balasan LLM selesai.
+     - Rencana chunk berikutnya (`Chunk 2..k`) dan perhitungan tunda $D$ dibuat segera setelah **stream LLM selesai** ATAU **maksimum `3,0 detik` setelah Chunk 1 siap**, mana yang tercapai lebih dulu, memakai teks yang tersedia saat itu; apabila stream LLM masih berlanjut setelah batas `3,0 detik` tersebut, sisa teks yang masuk menyusul secara bertahap dengan aturan ramp 4C-2 yang sama.
+   - **Pemetaan Segmen Teks Asli (*Byte-for-Byte Fidelity*) & Callback `on_before_play`:**
+     - Fungsi `align_raw_segments_to_chunks(raw_text, chunks)` memetakan setiap chunk suara kembali ke rentang indeks karakter aslinya di `raw_text` (`raw_text[p_i : p_{i+1}]` dengan $p_0 = 0$ dan $p_M = \text{len}(\text{raw\_text})$) di luar blok kode berpagar (` ```...``` `).
+     - Segmen yang tidak terbaca oleh TTS (blok kode berpagar, baris simbol/markdown murni, URL di ujung kalimat) digabungkan bersama segmen terbaca di depannya (di dalam slice `raw_text[p_i : p_{i+1}]` milik chunk ke-$i$, bukan ditahan untuk chunk berikutnya) sehingga tidak menahan layar. Jika balasan diawali blok kode sebelum kalimat terbaca pertama, blok kode pembuka tersebut tercetak bersama segmen Chunk 1.
+     - Tepat ketika audio chunk ke-$i$ hendak diputar (`on_before_play(chunk_idx)` pada engine), segmen teks asli `raw_segments[i]` (utuh beserta blok kode, URL, daftar markdown, identifier ber-underscore, kata `"ENKI"`, dan hash 7–40 karakter apa adanya) dicetak ke layar (`flush=True`).
+   - **Interupsi (`cancel()`, `/mute`, atau Input Baru di Tengah Balasan):**
+     - Saat `cancel()`, `/mute`, atau input baru diterima ketika balasan sedang berlangsung, pemutaran suara dihentikan seketika (`0` audio dari chunk yang dibatalkan setelah `cancel`) dan **SELURUH sisa teks asli yang belum tampil (`raw_text[printed_offset:]`) langsung dicetak utuh ke layar dalam $\le 200\text{ ms}$** (tidak ada karakter yang hilang, gabungan seluruh segmen yang tampil tetap `== raw_text` byte per byte).
+   - **Penyimpanan Riwayat & Memori:**
+     - `self.history` dan `self.db.add_turn(self.session_id, "assistant", content)` selalu menyimpan balasan lengkap (`full_reply`), terlepas dari apakah pemutaran suara selesai normal atau diinterupsi di tengah jalan.
+
+#### 2. Kriteria Lulus Tahap 4C-3 (Final Sebelum Kode) & Hasil Evaluasi Terukur:
+- **M1 Fidelity:** gabungan semua segmen yang tampil == balasan asli persis (byte per byte) untuk 6 balasan tetap (berisi blok kode, URL, daftar markdown, identifier ber-underscore, kata ENKI, dan hash), termasuk saat dipaksa interupsi di tengah. Riwayat menyimpan balasan lengkap $\rightarrow$ **LULUS**
+  - Bukti: `test_m1_fidelity_six_fixed_complex_replies_and_interrupted` di `tests/test_tts.py` & `docs/evidence/tahap4c3_bench.txt`:
+    - `"".join(displayed_segments) == raw_reply` bernilai `True` (100% identik byte per byte) pada seluruh 6 balasan kompleks tetap baik saat pemutaran selesai normal maupun saat diinterupsi paksa di tengah Chunk 1 (`cancel()`, `/mute`, dan input baru), serta pada seluruh 20 run benchmark Bentuk A–E dan 3 run interupsi nyata (`Fidelity = True`).
+    - `history` dan `db.get_recent_turns()` menyimpan `raw_reply` secara utuh.
+- **M2 Sinkron:** selisih waktu tampil segmen terhadap `on_before_play` chunk-nya (event perangkat lunak, bukan suara fisik): median $\le 100\text{ ms}$ dan maksimum $\le 300\text{ ms}$, saat Ollama sedang generasi nyata $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c3_bench.txt` Bagian 2 (diukur pada 52 segmen lintas seluruh run Bentuk A–E saat Ollama `qwen2.5:3b` aktif men-stream `42.028 token` @ `73,47 tok/s`):
+    - Median selisih waktu tampil terhadap `on_before_play` = **`0,0078 ms`** ($\le 100,0\text{ ms}$).
+    - Maksimum selisih waktu tampil terhadap `on_before_play` = **`0,0147 ms`** ($\le 300,0\text{ ms}$).
+- **M3 Jalur lama utuh:** mute, fallback SAPI5, atau error TTS $\rightarrow$ tampilan streaming lama tidak berubah (tes lama tetap lulus; tambah 3 tes baru untuk tiga kondisi ini) $\rightarrow$ **LULUS**
+  - Bukti: `test_m3_1_legacy_streaming_when_muted`, `test_m3_2_legacy_streaming_when_fallback_sapi5`, dan `test_m3_3_legacy_streaming_when_tts_error` di `tests/test_tts.py` semuanya `OK`; seluruh tes lama `test_console.py` dan `test_tts.py` tetap lulus tanpa perubahan perilaku.
+- **M4 Interupsi:** saat cancel, `/mute`, atau input baru di tengah balasan, sisa teks tercetak $\le 200\text{ ms}$ dan 0 suara dari chunk yang dibatalkan setelah cancel; M1 tetap terpenuhi $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c3_bench.txt` Bagian 3 (saat Ollama sedang generasi nyata) & `test_m4_interruption_cancel_mute_and_new_input_flush_le_200ms`:
+    - Trigger `cancel`: waktu cetak sisa teks = **`43,299 ms`** ($\le 200\text{ ms}$), suara bocor setelah cancel = **`0`**, M1 Fidelity = **`True`**.
+    - Trigger `/mute`: waktu cetak sisa teks = **`30,471 ms`** ($\le 200\text{ ms}$), suara bocor setelah cancel = **`0`**, M1 Fidelity = **`True`**.
+    - Trigger `input_baru`: waktu cetak sisa teks = **`117,274 ms`** ($\le 200\text{ ms}$), suara bocor setelah cancel = **`0`**, M1 Fidelity = **`True`**.
+- **M5 Tanpa jeda:** pada Bentuk A, B, C, D (sama seperti 4C-2) ditambah Bentuk E (balasan 1 kalimat 3 kata + 1 kalimat 28 kata, sama dengan C tetapi total $\le 250$ karakter): median jeda antar-chunk $\le 500\text{ ms}$ dan maksimum run tunggal $\le 1000\text{ ms}$ (3 ulangan, 1 pemanasan dibuang, Ollama generasi nyata). Laporkan SEMUA run, bukan hanya median $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c3_bench.txt` Bagian 1 (seluruh run dilaporkan):
+    - **Bentuk A (5 chunk, $D = 0,0000\text{ s}$):** Warmup `[0.854, 46.945, 0.582, 0.897] ms`; Ulangan 1 `[0.864, 0.998, 0.723, 0.661] ms`; Ulangan 2 `[0.913, 0.691, 0.673, 0.717] ms`; Ulangan 3 `[0.66, 3.088, 0.627, 1.093] ms` $\rightarrow$ Median 3 Ulangan = **`0,720 ms`** ($\le 500\text{ ms}$), Maks Run Tunggal = **`3,088 ms`** (termasuk warmup: **`46,945 ms`**, $\le 1000\text{ ms}$) $\rightarrow$ **LULUS**.
+    - **Bentuk B (2 chunk, $D = 0,0000\text{ s}$):** Warmup `[0.572] ms`; Ulangan 1 `[0.667] ms`; Ulangan 2 `[0.552] ms`; Ulangan 3 `[0.729] ms` $\rightarrow$ Median 3 Ulangan = **`0,667 ms`** ($\le 500\text{ ms}$), Maks Run Tunggal = **`0,729 ms`** ($\le 1000\text{ ms}$) $\rightarrow$ **LULUS**.
+    - **Bentuk C (2 chunk, $D = 5,0405\text{ s}$):** Warmup `[0.650] ms`; Ulangan 1 `[0.533] ms`; Ulangan 2 `[0.504] ms`; Ulangan 3 `[0.534] ms` $\rightarrow$ Median 3 Ulangan = **`0,533 ms`** ($\le 500\text{ ms}$), Maks Run Tunggal = **`0,534 ms`** (termasuk warmup: **`0,650 ms`**, $\le 1000\text{ ms}$) $\rightarrow$ **LULUS**.
+    - **Bentuk D (3 chunk, $D = 0,0000\text{ s}$):** Warmup `[1.065, 0.692] ms`; Ulangan 1 `[0.861, 0.779] ms`; Ulangan 2 `[1.128, 0.913] ms`; Ulangan 3 `[0.867, 0.516] ms` $\rightarrow$ Median 3 Ulangan = **`0,864 ms`** ($\le 500\text{ ms}$), Maks Run Tunggal = **`1,128 ms`** ($\le 1000\text{ ms}$) $\rightarrow$ **LULUS**.
+    - **Bentuk E (1 chunk, $D = 0,0000\text{ s}$):** Warmup `[] ms` (`0 ms`); Ulangan 1 `[] ms` (`0 ms`); Ulangan 2 `[] ms` (`0 ms`); Ulangan 3 `[] ms` (`0 ms`) $\rightarrow$ Median 3 Ulangan = **`0,000 ms`**, Maks Run Tunggal = **`0,000 ms`** $\rightarrow$ **LULUS**.
+  - **Status L4-Bentuk C dari Tahap 4C-2:** **DITUTUP (TERATASI)**. Dengan mekanisme *gapless-by-delay* ($D = 5,0405\text{ s}$ pada Bentuk C 2-chunk dan $D = 0,0000\text{ s}$ pada Bentuk E 1-chunk), median jeda Bentuk C turun dari `4298,297 ms` menjadi **`0,533 ms`** (maksimum run tunggal `0,650 ms`) dan Bentuk E memiliki jeda **`0,000 ms`**, keduanya dengan latensi total di bawah batas `8,0 detik` (`M6`).
+- **M6 Latensi total:** median waktu dari token LLM pertama sampai teks pertama tampil $\le 8,0\text{ detik}$ untuk Bentuk C dan D saat Ollama generasi. Laporkan juga $D$ (tunda) tiap bentuk $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c3_bench.txt` Bagian 1 & Bagian 4:
+    - **Bentuk C:** $D = \mathbf{5,0405\text{ s}}$, Median Latensi (Token Pertama $\rightarrow$ Teks Pertama Tampil) = **`6,9097 detik`** ($\le 8,0\text{ s}$; Warmup `6,8279 s`, Ulangan: `[6,9097 s, 6,9788 s, 6,8632 s]`).
+    - **Bentuk D:** $D = \mathbf{0,0000\text{ s}}$, Median Latensi (Token Pertama $\rightarrow$ Teks Pertama Tampil) = **`3,1740 detik`** ($\le 8,0\text{ s}$; Warmup `3,1193 s`, Ulangan: `[3,3291 s, 3,0415 s, 3,1740 s]`).
+    - *(Tunda $D$ bentuk lainnya: Bentuk A $D = 0,0000\text{ s}$ [median latensi `2,2039 s`], Bentuk B $D = 0,0000\text{ s}$ [median latensi `3,2245 s`], Bentuk E $D = 0,0000\text{ s}$ [median latensi `5,1537 s`]).*
+- **M7 Hash (Langkah 1):** semua kasus lulus; layar menampilkan hash penuh $\rightarrow$ **LULUS**
+  - Bukti: `test_m7_hex_hash_replacement_and_screen_unchanged` di `tests/test_tts.py` (`OK`): seluruh 8 kasus tetap (`81e6b7a`, 40-char SHA-1, `2026`, `decade`, `v3.0`, `1234567`, path `enki/audio/tts.py`, dan 2 hash dalam 1 kalimat) menghasilkan teks suara dan teks layar yang sesuai spesifikasi.
+- **M8 Tail clipping independen (Langkah 2):** median absolut $\le 50\text{ ms}$ dan 0 residu $< -100\text{ ms}$; jika gagal, laporkan, jangan ubah padding $\rightarrow$ **GAGAL** *(Syarat kedua `0 residu < -100 ms` LULUS [`0 dari 6 file < -50 ms` dan `0 dari 6 file < -100 ms`, tidak ada pemutaran yang terpotong], namun syarat pertama `median absolut <= 50 ms` GAGAL karena `median absolut = 139,71 ms > 50 ms`)*
+  - Bukti: `docs/evidence/tahap4c3_tail_clipping.txt` (6 WAV independen baru `indep_1.wav` s.d. `indep_6.wav` di `D:\ENKI\tts_test2\out4c\`, durasi `2,2988 s` s.d. `12,4691 s`, dengan `DEFAULT_WINSOUND_TAIL_PADDING_SEC = 0,287208 s` tidak diubah):
+    - Residu `(waktu_tunggu_engine - blokir_PlaySound_sinkron)` per file: **`[+68,33 ms, +139,65 ms, +169,60 ms, +128,56 ms, +139,77 ms, +207,47 ms]`**.
+    - Median Residu = **`+139,71 ms`**; Median Absolut Residu = **`139,71 ms`** ($> 50,00\text{ ms}$).
+    - Jumlah Residu $< -50\text{ ms}$ = **`0 dari 6 file`**; Jumlah Residu $< -100\text{ ms}$ = **`0 dari 6 file`**.
+    - *Analisis Teknis (Dilaporkan Apa Adanya Tanpa Mengubah Padding):* Pada 6 kalimat baru ini, overhang penutupan perangkat `winsound.PlaySound` sinkron terhadap durasi WAV aktual berkisar antara `+79,74 ms` s.d. `+218,88 ms` (median `+147,50 ms`), lebih kecil daripada kalibrasi pada 5 kalimat `sonda_1..5` di 4C-2 (`287,21 ms`). Akibatnya, seluruh 6 residu bernilai positif (`+68,33 ms` s.d. `+207,47 ms`): tidak ada satu pun sampel yang terpotong (`0` residu negatif), tetapi engine menunggu ekstra rata-rata `~140 ms` setelah `PlaySound` sinkron selesai sehingga `|residu|` melampaui `50 ms`. Sesuai aturan SOP Langkah 2/M8, nilai padding tidak diubah.
+- **M9 Suite penuh lulus, skip 3, `test_ids` sinkron** $\rightarrow$ **LULUS**
+  - Bukti: `docs/evidence/tahap4c3_test_summary.txt`: `Discovered IDs = 136`, `Recorded IDs = 136`, `Selisih ID = 0`, `testsRun = 136`, `successes = 133`, `skipped = 3` (hanya 3 benchmark lama Set 2, Set 3, Set 4), `failures = 0`, `errors = 0`, `Ran 136 tests in 15.009s — OK (skipped=3)` dengan Ollama aktif.
+  - 7 fungsi tes baru yang ditambahkan di `tests/test_tts.py` dan `docs/test_ids.txt`:
+    1. `test_langkah3_gapless_start_delay_simulation_and_cap`
+    2. `test_m1_fidelity_six_fixed_complex_replies_and_interrupted`
+    3. `test_m3_1_legacy_streaming_when_muted`
+    4. `test_m3_2_legacy_streaming_when_fallback_sapi5`
+    5. `test_m3_3_legacy_streaming_when_tts_error`
+    6. `test_m4_interruption_cancel_mute_and_new_input_flush_le_200ms`
+    7. `test_m7_hex_hash_replacement_and_screen_unchanged`
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
@@ -821,3 +921,4 @@ Status Tahap 4C-1 resmi: **LULUS** (seluruh kriteria K1–K8 mencapai **LULUS**;
 * Implementasi `web_fetch` (trafilatura + requests) dengan sanitasi tag injection.
 * Integrasi `open_url` aman.
 * Pengujian integrasi ujung ke ujung seluruh kapabilitas ENKI.
+

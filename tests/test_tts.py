@@ -688,6 +688,566 @@ class TestTahap4BTTS(unittest.TestCase):
                 self.assertGreaterEqual(rec["actual_play_sec"], dur_sec)
                 self.assertEqual(mock_play.call_count, 1)
 
+    def test_m7_hex_hash_replacement_and_screen_unchanged(self):
+        """M7 (Langkah 1): Token hex hash (7-40 chars, >=1 angka & >=1 huruf a-f) diganti 'kode hash'
+        sebelum chunking hanya pada teks untuk suara, sedangkan layar menampilkan hash penuh.
+        """
+        import io
+        from enki.audio.tts import (
+            align_raw_segments_to_chunks,
+            clean_text_for_tts,
+            prepare_tts_chunks,
+            replace_hex_hashes_for_tts,
+            run_synced_speech_stream,
+        )
+
+        # Minimal 8 kasus tetap sesuai spesifikasi Langkah 1
+        fixed_cases = [
+            # 1. Hash pendek 7 karakter
+            ("Commit 81e6b7a sudah masuk.", "Commit kode hash sudah masuk."),
+            # 2. Hash penuh 40 karakter (SHA-1)
+            (
+                "Revisi c838839c5b19a073e9874ae20262326302ea32ad telah diverifikasi.",
+                "Revisi kode hash telah diverifikasi.",
+            ),
+            # 3. Tahun 4 digit "2026" tidak berubah
+            ("Tahun 2026 sistem berjalan lokal.", "Tahun 2026 sistem berjalan lokal."),
+            # 4. Kata huruf a-f murni tanpa angka ("decade") tidak berubah
+            ("Satu decade perkembangan perangkat lunak.", "Satu decade perkembangan perangkat lunak."),
+            # 5. String versi "v3.0" tidak berubah
+            ("Dokumen rencana versi v3.0 sudah siap.", "Dokumen rencana versi v3.0 sudah siap."),
+            # 6. Angka murni 7 digit ("1234567") tidak berubah
+            ("Nomor tiket 1234567 sedang diproses.", "Nomor tiket 1234567 sedang diproses."),
+            # 7. Path berkas "enki/audio/tts.py" tidak berubah
+            ("Periksa berkas enki/audio/tts.py sekarang.", "Periksa berkas enki/audio/tts.py sekarang."),
+            # 8. Dua hash dalam satu kalimat
+            (
+                "Bandingkan commit 922e628 dengan c838839c5b19a073 sekarang.",
+                "Bandingkan commit kode hash dengan kode hash sekarang.",
+            ),
+        ]
+
+        self.assertGreaterEqual(len(fixed_cases), 7)
+
+        for raw_inp, expected_clean in fixed_cases:
+            self.assertEqual(
+                replace_hex_hashes_for_tts(raw_inp),
+                expected_clean,
+                f"replace_hex_hashes_for_tts gagal untuk {raw_inp!r}",
+            )
+            self.assertEqual(
+                clean_text_for_tts(raw_inp),
+                expected_clean,
+                f"clean_text_for_tts gagal untuk {raw_inp!r}",
+            )
+            chunks = prepare_tts_chunks(raw_inp)
+            self.assertEqual(" ".join(chunks), expected_clean)
+
+        # Pastikan layar menampilkan hash penuh apa adanya sementara suara mengucapkan 'kode hash'
+        raw_reply = (
+            "Commit 81e6b7a dan revisi c838839c5b19a073e9874ae20262326302ea32ad "
+            "pada enki/audio/tts.py tahun 2026 versi v3.0 decade 1234567 sudah masuk."
+        )
+        chunks = prepare_tts_chunks(raw_reply)
+        segs = align_raw_segments_to_chunks(raw_reply, chunks)
+        self.assertEqual("".join(segs), raw_reply)
+        self.assertIn("81e6b7a", "".join(segs))
+        self.assertIn("c838839c5b19a073e9874ae20262326302ea32ad", "".join(segs))
+        for c in chunks:
+            self.assertNotIn("81e6b7a", c)
+            self.assertNotIn("c838839c5b19a073e9874ae20262326302ea32ad", c)
+            self.assertIn("kode hash", c)
+
+    def test_langkah3_gapless_start_delay_simulation_and_cap(self):
+        """Langkah 3: Verifikasi simulasi pipeline D dengan konstanta Langkah 1 4C-2 (c0, c1, d0, d1),
+        tts_gapless_start=True vs False, dan batas atas tts_max_start_delay = 6.0 detik.
+        """
+        from enki.audio.tts import compute_gapless_start_delay, prepare_tts_chunks
+
+        bentuk_c = (
+            "Halo, saya ENKI. "
+            "Pemeriksaan menyeluruh terhadap konfigurasi aplikasi asisten kecerdasan buatan lokal ini "
+            "menunjukkan bahwa seluruh komponen pemrosesan bahasa alami dan manajemen memori percakapan "
+            "berjalan sangat stabil sesuai rancangan arsitektur sistem."
+        )
+        chunks_c = prepare_tts_chunks(bentuk_c)
+        self.assertEqual(len(chunks_c), 2)
+
+        info_true = compute_gapless_start_delay(chunks_c, gapless_start=True, max_start_delay=6.0)
+        self.assertGreater(info_true["raw_delay_sec"], 4.5)
+        self.assertLessEqual(info_true["applied_delay_sec"], 6.0)
+        self.assertAlmostEqual(info_true["applied_delay_sec"], info_true["raw_delay_sec"], places=5)
+        self.assertFalse(info_true["exceeded_cap"])
+
+        info_false = compute_gapless_start_delay(chunks_c, gapless_start=False, max_start_delay=6.0)
+        self.assertGreater(info_false["raw_delay_sec"], 4.5)
+        self.assertEqual(info_false["applied_delay_sec"], 0.0)
+
+        # Uji jika D melebihi batas max_start_delay: dipotong ke max_start_delay dan residu dicatat
+        info_capped = compute_gapless_start_delay(chunks_c, gapless_start=True, max_start_delay=3.0)
+        self.assertEqual(info_capped["applied_delay_sec"], 3.0)
+        self.assertTrue(info_capped["exceeded_cap"])
+        self.assertAlmostEqual(
+            info_capped["residual_deficit_sec"],
+            info_capped["raw_delay_sec"] - 3.0,
+            places=5,
+        )
+
+    def test_m1_fidelity_six_fixed_complex_replies_and_interrupted(self):
+        """M1: Gabungan semua segmen yang tampil == balasan asli persis (byte per byte) untuk 6 balasan tetap
+        (berisi blok kode, URL, daftar markdown, identifier ber-underscore, kata ENKI, dan hash),
+        termasuk saat dipaksa interupsi di tengah, serta riwayat menyimpan balasan lengkap.
+        """
+        import io
+        from enki.audio.tts import TTSManager, run_synced_speech_stream
+
+        class PipelinedTestEngine(BaseTTSEngine):
+            def __init__(self, play_delay: float = 0.04):
+                self.play_delay = play_delay
+                self._stop = threading.Event()
+                self.spoken_chunks = []
+
+            def reset_for_new_utterance(self):
+                self._stop.clear()
+
+            def _ensure_loaded(self):
+                return True
+
+            def synthesize_chunk(self, text, voice=None, cancel_check=None):
+                if cancel_check and cancel_check():
+                    return None
+                return {
+                    "mode": "supertonic_wav",
+                    "text": text,
+                    "duration_sec": self.play_delay,
+                    "synth_time_sec": 0.005,
+                    "ready_at": time.perf_counter(),
+                }
+
+            def discard_synthesized(self, item, count_as_cancelled=True):
+                pass
+
+            def play_synthesized(self, item, cancel_check=None, on_before_play=None, on_after_play=None):
+                if (cancel_check and cancel_check()) or self._stop.is_set():
+                    return False
+                if on_before_play:
+                    on_before_play(item)
+                self.spoken_chunks.append(item.get("text", ""))
+                stopped = self._stop.wait(timeout=self.play_delay)
+                if on_after_play:
+                    on_after_play(item, stopped)
+                return not stopped
+
+            def speak_chunk(self, text, voice=None):
+                return True
+
+            def stop(self):
+                self._stop.set()
+
+        six_fixed_replies = [
+            # Balasan 1: Blok kode Python di tengah + __init__ + ENKI + hash 7 karakter
+            (
+                "Halo, saya ENKI pada commit 81e6b7a. Berikut implementasi `__init__` di modul utama:\n"
+                "```python\nclass Agent:\n    def __init__(self, read_file_fn):\n        self.read_file = read_file_fn\n```\n"
+                "Fungsi `read_file` di atas dipanggil secara aman. Sistem berjalan stabil tanpa jaringan luar."
+            ),
+            # Balasan 2: URL HTTPS + daftar bernomor + hash 40 karakter
+            (
+                "Dokumentasi resmi ENKI tersedia di https://huggingface.co/Supertone/supertonic-3. "
+                "Silakan ikuti langkah verifikasi berikut:\n"
+                "1. Periksa hash c838839c5b19a073e9874ae20262326302ea32ad pada repositori.\n"
+                "2. Jalankan fungsi `list_dir` dan `_private_helper` di terminal lokal.\n"
+                "3. Pastikan mode luring aktif sepanjang pengujian."
+            ),
+            # Balasan 3: Blok kode di awal balasan + bullet markdown + italic & bold
+            (
+                "```bash\nD:\\ENKI\\ENKI\\venv\\Scripts\\python.exe main.py\n```\n"
+                "Perintah di atas menjalankan **ENKI** dengan _konfigurasi_ lokal:\n"
+                "- Modul `enki/audio/tts.py` menangani revisi 922e628.\n"
+                "- Fungsi `__main__` dan `snake_case_var` tetap utuh di layar.\n"
+                "* Kunjungi https://github.com/Supertone/supertonic untuk rincian lisensi."
+            ),
+            # Balasan 4: Dua blok kode + dua hash + aritmetika 2 * 3 * 4
+            (
+                "Perbandingan antara commit 81e6b7a dan commit 922e62849cef pada sistem ENKI menunjukkan "
+                "perhitungan 2 * 3 * 4 tetap akurat.\n"
+                "```json\n{\"tts_engine\": \"supertonic\", \"voice\": \"M4\"}\n```\n"
+                "Selanjutnya periksa skrip kedua di bawah ini:\n"
+                "```python\nprint('uji_sinkron_suara')\n```\n"
+                "Seluruh pemeriksaan di `enki/cli/console.py` telah selesai dengan sukses."
+            ),
+            # Balasan 5: Kalimat pertama panjang (>20 kata dengan koma) + URL + daftar campuran
+            (
+                "Ketika pengguna menjalankan asisten kecerdasan buatan ENKI pada komputer pribadi, "
+                "seluruh sintesis suara diproses di prosesor utama untuk menghemat memori grafis. "
+                "Lihat panduan di http://localhost:11434/api/tags untuk memeriksa model:\n"
+                "+ Parameter `tts_gapless_start` bernilai aktif pada commit a1b2c3d4.\n"
+                "+ Metode `__call__` dan `parse_token_stream` menjaga ketepatan byte demi byte."
+            ),
+            # Balasan 6: Balasan kompleks dengan baris kosong ganda, karakter khusus markdown, dan blok kode di akhir
+            (
+                "Laporan audit ENKI untuk revisi f0e1d2c3b4a59687:\n\n"
+                "1. Penanganan `_miring_`, **tebal**, serta identifier `max_value_limit` berjalan mulus.\n"
+                "2. Tautan referensi https://example.org/docs/v3.0?mode=offline&lang=id telah diuji.\n\n"
+                "Berikut ringkasan keluarannya:\n"
+                "```text\nSTATUS: LULUS\nHASH: f0e1d2c3b4a59687\n```"
+            ),
+        ]
+
+        self.assertEqual(len(six_fixed_replies), 6)
+
+        mgr = TTSManager()
+        for idx, reply_text in enumerate(six_fixed_replies, 1):
+            # A. Penyelesaian normal (tanpa interupsi)
+            eng_norm = PipelinedTestEngine(play_delay=0.015)
+            out_norm = io.StringIO()
+            tokens = [( ch, None) for ch in reply_text.splitlines(keepends=True)]
+            res_norm = run_synced_speech_stream(
+                token_stream=tokens,
+                out_stream=out_norm,
+                is_muted=False,
+                tts_engine_name="supertonic",
+                voice="M4",
+                gapless_start=False,
+                mgr=mgr,
+                engine=eng_norm,
+                status_text="",
+            )
+            self.assertEqual(
+                "".join(res_norm["printed_segments"]),
+                reply_text,
+                f"M1 normal gagal (printed_segments) pada balasan #{idx}",
+            )
+            self.assertEqual(
+                out_norm.getvalue(),
+                reply_text,
+                f"M1 normal gagal (out_stream) pada balasan #{idx}",
+            )
+
+            # B. Dipaksa interupsi di tengah pemutaran chunk 1
+            eng_intr = PipelinedTestEngine(play_delay=0.15)
+            out_intr = io.StringIO()
+            polled_once = {"done": False}
+
+            def _poll_cancel():
+                if len(eng_intr.spoken_chunks) >= 1 and not polled_once["done"]:
+                    polled_once["done"] = True
+                    return "cancel_mid_reply"
+                return None
+
+            res_intr = run_synced_speech_stream(
+                token_stream=tokens,
+                out_stream=out_intr,
+                is_muted=False,
+                tts_engine_name="supertonic",
+                voice="M4",
+                gapless_start=False,
+                mgr=mgr,
+                engine=eng_intr,
+                status_text="",
+                interrupt_poll_fn=_poll_cancel,
+            )
+            self.assertTrue(res_intr["interrupted"], f"Balasan #{idx} harus tercatat terinterupsi")
+            self.assertEqual(
+                "".join(res_intr["printed_segments"]),
+                reply_text,
+                f"M1 interupsi gagal (printed_segments) pada balasan #{idx}",
+            )
+            self.assertEqual(
+                out_intr.getvalue(),
+                reply_text,
+                f"M1 interupsi gagal (out_stream) pada balasan #{idx}",
+            )
+            # Riwayat menyimpan balasan lengkap
+            self.assertEqual(res_intr["full_text"], reply_text)
+
+    def test_m3_1_legacy_streaming_when_muted(self):
+        """M3(1): Saat is_muted=True, jalur tampilan streaming lama tidak berubah dan 0 panggilan TTS."""
+        import io
+        from enki.audio.tts import TTSManager, run_synced_speech_stream
+
+        fake_engine = FakeEngine()
+        mgr = TTSManager()
+        out_buf = io.StringIO()
+        stream_tokens = [("Halo ", None), ("saya ENKI ", None), ("dalam mode mute.", {"eval_count": 6})]
+
+        res = run_synced_speech_stream(
+            token_stream=stream_tokens,
+            out_stream=out_buf,
+            is_muted=True,
+            tts_engine_name="supertonic",
+            mgr=mgr,
+            engine=fake_engine,
+        )
+        self.assertEqual(res["mode"], "legacy_mute")
+        self.assertEqual(out_buf.getvalue(), "Halo saya ENKI dalam mode mute.")
+        self.assertEqual(res["printed_segments"], ["Halo ", "saya ENKI ", "dalam mode mute."])
+        self.assertEqual(len(fake_engine.spoken_chunks), 0)
+
+    def test_m3_2_legacy_streaming_when_fallback_sapi5(self):
+        """M3(2): Saat Supertonic fallback ke SAPI5 (atau engine='sapi5'), jalur streaming lama dipakai."""
+        import io
+        import tempfile
+        from pathlib import Path
+        from enki.audio.sapi5 import SAPI5Engine
+        from enki.audio.supertonic import SupertonicEngine
+        from enki.audio.tts import TTSManager, run_synced_speech_stream
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bad_dir = str(Path(tmp_dir) / "model_tidak_ada")
+            st_fallback = SupertonicEngine(model_dir=bad_dir, default_voice="M4")
+            mgr = TTSManager()
+            out_buf = io.StringIO()
+            stream_tokens = [
+                ("Kalimat pertama tampil langsung. ", None),
+                ("Kalimat kedua menyusul.", {"eval_count": 8}),
+            ]
+
+            with patch.object(SAPI5Engine, "speak_chunk", return_value=True) as mock_sapi:
+                res = run_synced_speech_stream(
+                    token_stream=stream_tokens,
+                    out_stream=out_buf,
+                    is_muted=False,
+                    tts_engine_name="supertonic",
+                    mgr=mgr,
+                    engine=st_fallback,
+                )
+                mgr.wait_done(timeout=2.0)
+
+                self.assertEqual(res["mode"], "legacy_fallback_sapi5")
+                self.assertEqual(
+                    out_buf.getvalue(),
+                    "Kalimat pertama tampil langsung. Kalimat kedua menyusul.",
+                )
+                self.assertEqual(
+                    res["printed_segments"],
+                    ["Kalimat pertama tampil langsung. ", "Kalimat kedua menyusul."],
+                )
+                self.assertGreaterEqual(mock_sapi.call_count, 1)
+
+    def test_m3_3_legacy_streaming_when_tts_error(self):
+        """M3(3): Saat terjadi error pada inisialisasi/eksekusi TTS, jalur streaming lama tetap menampilkan
+        seluruh teks tanpa crash.
+        """
+        import io
+        from enki.audio.tts import TTSManager, run_synced_speech_stream
+
+        class BrokenInitEngine(BaseTTSEngine):
+            def _ensure_loaded(self):
+                raise RuntimeError("Simulasi kegagalan fatal ONNX device")
+
+            def synthesize_chunk(self, text, voice=None, cancel_check=None):
+                raise RuntimeError("Simulasi error synth")
+
+            def play_synthesized(self, item, cancel_check=None, on_before_play=None, on_after_play=None):
+                raise RuntimeError("Simulasi error play")
+
+            def speak_chunk(self, text, voice=None):
+                raise RuntimeError("Simulasi error speak_chunk")
+
+            def stop(self):
+                pass
+
+        mgr = TTSManager()
+        out_buf = io.StringIO()
+        stream_tokens = [("Teks tetap ", None), ("tampil utuh ", None), ("meski TTS gagal.", {"eval_count": 7})]
+
+        res = run_synced_speech_stream(
+            token_stream=stream_tokens,
+            out_stream=out_buf,
+            is_muted=False,
+            tts_engine_name="supertonic",
+            mgr=mgr,
+            engine=BrokenInitEngine(),
+        )
+        self.assertEqual(res["mode"], "legacy_tts_error")
+        self.assertIn("Teks tetap tampil utuh meski TTS gagal.", out_buf.getvalue())
+        self.assertIn("[Peringatan TTS]", out_buf.getvalue())
+        self.assertEqual(res["full_text"], "Teks tetap tampil utuh meski TTS gagal.")
+
+    def test_m4_interruption_cancel_mute_and_new_input_flush_le_200ms(self):
+        """M4: Saat cancel, /mute, atau input baru di tengah balasan, sisa teks tercetak <= 200 ms,
+        0 suara dari chunk yang dibatalkan setelah cancel, dan M1 tetap terpenuhi.
+        """
+        import io
+        import tempfile
+        from pathlib import Path
+        from enki.audio.tts import TTSManager, run_synced_speech_stream
+        from enki.cli.console import EnkiConsole
+
+        class TimedPipedEngine(BaseTTSEngine):
+            def __init__(self, chunk_play_sec: float = 0.25):
+                self.chunk_play_sec = chunk_play_sec
+                self._stop = threading.Event()
+                self.played_chunks = []
+                self.played_after_stop = []
+                self.discarded_count = 0
+                self.chunk1_started_evt = threading.Event()
+
+            def reset_for_new_utterance(self):
+                self._stop.clear()
+                self.chunk1_started_evt.clear()
+
+            def _ensure_loaded(self):
+                return True
+
+            def synthesize_chunk(self, text, voice=None, cancel_check=None):
+                if (cancel_check and cancel_check()) or self._stop.is_set():
+                    self.discarded_count += 1
+                    return None
+                return {
+                    "mode": "supertonic_wav",
+                    "text": text,
+                    "duration_sec": self.chunk_play_sec,
+                    "synth_time_sec": 0.005,
+                    "ready_at": time.perf_counter(),
+                }
+
+            def discard_synthesized(self, item, count_as_cancelled=True):
+                if count_as_cancelled:
+                    self.discarded_count += 1
+
+            def play_synthesized(self, item, cancel_check=None, on_before_play=None, on_after_play=None):
+                if (cancel_check and cancel_check()) or self._stop.is_set():
+                    self.discarded_count += 1
+                    return False
+                if on_before_play:
+                    on_before_play(item)
+                if self._stop.is_set():
+                    self.played_after_stop.append(item.get("text", ""))
+                    return False
+                self.played_chunks.append(item.get("text", ""))
+                if len(self.played_chunks) == 1:
+                    self.chunk1_started_evt.set()
+                stopped = self._stop.wait(timeout=self.chunk_play_sec)
+                if on_after_play:
+                    on_after_play(item, stopped)
+                return not stopped
+
+            def speak_chunk(self, text, voice=None):
+                return True
+
+            def stop(self):
+                self._stop.set()
+
+        long_reply = (
+            "Asisten lokal ENKI sedang membacakan kalimat pertama pada commit 81e6b7a. "
+            "Kalimat kedua berisi penjelasan panjang mengenai arsitektur memori lokal yang aman. "
+            "Kalimat ketiga memastikan fungsi `read_file` dan `__init__` tetap tercetak utuh di layar. "
+            "Kalimat keempat menutup penjelasan dengan tautan https://huggingface.co/Supertone/supertonic-3."
+        )
+        tokens = [(part + " ", None) for part in long_reply.split(" ")]
+        tokens[-1] = (tokens[-1][0].rstrip(" "), {"eval_count": 42})
+
+        mgr = TTSManager()
+
+        # 1. Uji interupsi via cancel() langsung dari thread lain saat chunk 1 sedang diputar
+        eng1 = TimedPipedEngine(chunk_play_sec=0.30)
+        out1 = io.StringIO()
+
+        def _trigger_cancel():
+            eng1.chunk1_started_evt.wait(timeout=2.0)
+            time.sleep(0.02)
+            mgr.cancel()
+
+        t_c = threading.Thread(target=_trigger_cancel, daemon=True)
+        t_c.start()
+        res1 = run_synced_speech_stream(
+            token_stream=tokens,
+            out_stream=out1,
+            is_muted=False,
+            tts_engine_name="supertonic",
+            gapless_start=False,
+            mgr=mgr,
+            engine=eng1,
+        )
+        t_c.join(timeout=1.0)
+        self.assertTrue(res1["interrupted"])
+        self.assertLessEqual(res1["interrupt_flush_ms"], 200.0)
+        self.assertEqual(len(eng1.played_chunks), 1)
+        self.assertEqual(len(eng1.played_after_stop), 0)
+        self.assertEqual("".join(res1["printed_segments"]), long_reply)
+
+        # 2. Uji interupsi via /mute di tengah balasan pada EnkiConsole
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with patch.dict(
+                os.environ,
+                {"ENKI_DATA_DIR": str(Path(tmp_dir) / "data"), "ENKI_LOG_DIR": str(Path(tmp_dir) / "logs")},
+            ):
+                console = EnkiConsole()
+                try:
+                    console.config._data["is_muted"] = False
+                    console.config._data["tts_engine"] = "supertonic"
+                    eng2 = TimedPipedEngine(chunk_play_sec=0.30)
+                    console.tts_engine_override = eng2
+                    console.tts_manager_override = mgr
+
+                    def _trigger_mute():
+                        eng2.chunk1_started_evt.wait(timeout=2.0)
+                        time.sleep(0.02)
+                        console.submit_mid_reply_input("/mute")
+
+                    t_m = threading.Thread(target=_trigger_mute, daemon=True)
+                    t_m.start()
+                    out2 = io.StringIO()
+                    res2 = run_synced_speech_stream(
+                        token_stream=tokens,
+                        out_stream=out2,
+                        is_muted=console.config.is_muted,
+                        tts_engine_name=console.config.tts_engine,
+                        gapless_start=False,
+                        mgr=mgr,
+                        engine=eng2,
+                        interrupt_poll_fn=console._poll_mid_reply_interrupt,
+                    )
+                    t_m.join(timeout=1.0)
+                    self.assertTrue(res2["interrupted"])
+                    self.assertEqual(res2["interrupt_reason"], "/mute")
+                    self.assertTrue(console.config.is_muted)
+                    self.assertLessEqual(res2["interrupt_flush_ms"], 200.0)
+                    self.assertEqual(len(eng2.played_chunks), 1)
+                    self.assertEqual(len(eng2.played_after_stop), 0)
+                    self.assertEqual("".join(res2["printed_segments"]), long_reply)
+
+                    # Simpan ke DB dan history sebagaimana alur EnkiConsole dan pastikan tersimpan LENGKAP
+                    console.db.add_turn(console.session_id, "assistant", res2["full_text"])
+                    console.history.append({"role": "assistant", "content": res2["full_text"]})
+                    self.assertEqual(console.history[-1]["content"], long_reply)
+
+                    # 3. Uji interupsi via input baru di tengah balasan
+                    console.config._data["is_muted"] = False
+                    eng3 = TimedPipedEngine(chunk_play_sec=0.30)
+
+                    def _trigger_new_input():
+                        eng3.chunk1_started_evt.wait(timeout=2.0)
+                        time.sleep(0.02)
+                        console.submit_mid_reply_input("Pertanyaan baru menyela")
+
+                    t_n = threading.Thread(target=_trigger_new_input, daemon=True)
+                    t_n.start()
+                    out3 = io.StringIO()
+                    res3 = run_synced_speech_stream(
+                        token_stream=tokens,
+                        out_stream=out3,
+                        is_muted=console.config.is_muted,
+                        tts_engine_name=console.config.tts_engine,
+                        gapless_start=False,
+                        mgr=mgr,
+                        engine=eng3,
+                        interrupt_poll_fn=console._poll_mid_reply_interrupt,
+                    )
+                    t_n.join(timeout=1.0)
+                    self.assertTrue(res3["interrupted"])
+                    self.assertIn("Pertanyaan baru menyela", str(res3["interrupt_reason"]))
+                    self.assertLessEqual(res3["interrupt_flush_ms"], 200.0)
+                    self.assertEqual(len(eng3.played_chunks), 1)
+                    self.assertEqual(len(eng3.played_after_stop), 0)
+                    self.assertEqual("".join(res3["printed_segments"]), long_reply)
+                    # Pastikan input baru masih tersimpan di antrean untuk diproses giliran berikutnya
+                    self.assertEqual(console._queued_inputs.get_nowait(), "Pertanyaan baru menyela")
+                finally:
+                    console.db.close()
+
 
 if __name__ == "__main__":
     unittest.main()

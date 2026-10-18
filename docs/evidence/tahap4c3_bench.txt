@@ -1,0 +1,122 @@
+============================================================================================
+LAPORAN BENCHMARK TAHAP 4C-3: TAMPILAN SINKRON (M2), INTERUPSI (M4), TANPA JEDA (M5), LATENSI (M6)
+============================================================================================
+Timestamp (UTC)                : 2026-10-18T01:54:48.383690+00:00
+Python Executable              : D:\ENKI\ENKI\venv\Scripts\python.exe (v3.14.4)
+Model TTS                      : Supertonic 3 (voice='M4', lang='id', HF_HUB_OFFLINE=1)
+Waktu Muat Model (CPU)         : 4.2229 s (4222.93 ms)
+Konstanta Regresi Langkah 1    : c0=1.599501, c1=0.329724, d0=0.596618, d1=0.06148
+Konfigurasi Gapless-by-Delay   : tts_gapless_start=True, tts_max_start_delay=6.0 s
+Durasi Loop Generasi Ollama    : 572.07 detik (model='qwen2.5:3b')
+Total Token Dihasilkan LLM     : 42028 token (73.47 tok/s)
+Jumlah Request Stream LLM      : 49 request (Errors: 0)
+============================================================================================
+
+--- BAGIAN 1: PENGUKURAN BENTUK A, B, C, D, E (KRITERIA M2, M5, M6) ---
+Metode: 1x pemanasan dibuang + 3x ulangan per bentuk saat Ollama sedang generasi nyata.
+SEMUA run (Warmup + Ulangan 1, 2, 3) dilaporkan secara lengkap di bawah ini.
+
+============================================================================================
+BENTUK: Bentuk A (6 kata + >250 chars [4 kalimat])
+============================================================================================
+  - Jumlah Chunk             : 5
+    * Chunk 1 (42 karakter, 6 kata): 'Asisten lokal ini berjalan tanpa jaringan.'
+    * Chunk 2 (68 karakter, 9 kata): 'Seluruh proses sintesis suara dijalankan di prosesor utama komputer.'
+    * Chunk 3 (82 karakter, 12 kata): 'Pendekatan ini menjaga memori kartu grafis tetap hemat dan stabil sepanjang waktu.'
+    * Chunk 4 (89 karakter, 12 kata): 'Antrean berpipa menyiapkan kalimat berikutnya di latar belakang saat suara masih diputar.'
+    * Chunk 5 (89 karakter, 13 kata): 'Pengguna dapat bekerja dengan tenang tanpa takut kebocoran data pribadi ke jaringan luar.'
+  - Tunda Mulai (D) Simulasi : D_raw = 0.0000 s | D_applied = 0.0000 s (batas=6.0s)
+  - Warmup (dibuang)         : FirstTok->FirstText = 2.0658 s | Jeda Antar-Chunk = [0.854, 46.945, 0.582, 0.897] ms | Sync Delta = [0.01, 0.009, 0.008, 0.004, 0.01] ms | Fidelity = True
+  - Ulangan 1                : FirstTok->FirstText = 2.2039 s | Jeda Antar-Chunk = [0.864, 0.998, 0.723, 0.661] ms | Sync Delta = [0.015, 0.006, 0.013, 0.005, 0.006] ms | Fidelity = True
+  - Ulangan 2                : FirstTok->FirstText = 2.2321 s | Jeda Antar-Chunk = [0.913, 0.691, 0.673, 0.717] ms | Sync Delta = [0.007, 0.006, 0.006, 0.005, 0.006] ms | Fidelity = True
+  - Ulangan 3                : FirstTok->FirstText = 2.0777 s | Jeda Antar-Chunk = [0.66, 3.088, 0.627, 1.093] ms | Sync Delta = [0.008, 0.006, 0.007, 0.005, 0.008] ms | Fidelity = True
+  - Median FirstTok->FirstTxt: 2.2039 s (Maks 3 Ulangan: 2.2321 s)
+  - Median Jeda (3 Ulangan)  : 0.720 ms (Maks Run Tunggal 3 Ulangan: 3.088 ms | Maks Termasuk Warmup: 46.945 ms)
+  - Evaluasi M5 Bentuk Ini   : LULUS
+
+============================================================================================
+BENTUK: Bentuk B (14 kata + 3 kalimat)
+============================================================================================
+  - Jumlah Chunk             : 2
+    * Chunk 1 (109 karakter, 14 kata): 'Sistem asisten kecerdasan buatan lokal ini dirancang untuk membantu pengguna memeriksa dokumen proyek harian.'
+    * Chunk 2 (245 karakter, 35 kata): 'Semua berkas konfigurasi disimpan secara aman di dalam ruang kerja lokal. Mesin suara mengubah balasan teks menjadi gelombang audio secara efisien di prosesor. Interaksi terasa lebih alami karena jeda antar potongan kalimat dijaga tetap singkat.'
+  - Tunda Mulai (D) Simulasi : D_raw = 0.0000 s | D_applied = 0.0000 s (batas=6.0s)
+  - Warmup (dibuang)         : FirstTok->FirstText = 3.2998 s | Jeda Antar-Chunk = [0.572] ms | Sync Delta = [0.009, 0.007] ms | Fidelity = True
+  - Ulangan 1                : FirstTok->FirstText = 3.4712 s | Jeda Antar-Chunk = [0.667] ms | Sync Delta = [0.009, 0.007] ms | Fidelity = True
+  - Ulangan 2                : FirstTok->FirstText = 3.0637 s | Jeda Antar-Chunk = [0.552] ms | Sync Delta = [0.008, 0.006] ms | Fidelity = True
+  - Ulangan 3                : FirstTok->FirstText = 3.2245 s | Jeda Antar-Chunk = [0.729] ms | Sync Delta = [0.009, 0.008] ms | Fidelity = True
+  - Median FirstTok->FirstTxt: 3.2245 s (Maks 3 Ulangan: 3.4712 s)
+  - Median Jeda (3 Ulangan)  : 0.667 ms (Maks Run Tunggal 3 Ulangan: 0.729 ms | Maks Termasuk Warmup: 0.729 ms)
+  - Evaluasi M5 Bentuk Ini   : LULUS
+
+============================================================================================
+BENTUK: Bentuk C (3 kata + 1 kalimat 28 kata [total >250 chars -> 2 chunk])
+============================================================================================
+  - Jumlah Chunk             : 2
+    * Chunk 1 (16 karakter, 3 kata): 'Halo, saya Enki.'
+    * Chunk 2 (238 karakter, 28 kata): 'Pemeriksaan menyeluruh terhadap konfigurasi aplikasi asisten kecerdasan buatan lokal ini menunjukkan bahwa seluruh komponen pemrosesan bahasa alami dan manajemen memori percakapan berjalan sangat stabil sesuai rancangan arsitektur sistem.'
+  - Tunda Mulai (D) Simulasi : D_raw = 5.0405 s | D_applied = 5.0405 s (batas=6.0s)
+  - Warmup (dibuang)         : FirstTok->FirstText = 6.8279 s | Jeda Antar-Chunk = [0.65] ms | Sync Delta = [0.012, 0.005] ms | Fidelity = True
+  - Ulangan 1                : FirstTok->FirstText = 6.9097 s | Jeda Antar-Chunk = [0.533] ms | Sync Delta = [0.011, 0.004] ms | Fidelity = True
+  - Ulangan 2                : FirstTok->FirstText = 6.9788 s | Jeda Antar-Chunk = [0.504] ms | Sync Delta = [0.013, 0.005] ms | Fidelity = True
+  - Ulangan 3                : FirstTok->FirstText = 6.8632 s | Jeda Antar-Chunk = [0.534] ms | Sync Delta = [0.014, 0.006] ms | Fidelity = True
+  - Median FirstTok->FirstTxt: 6.9097 s (Maks 3 Ulangan: 6.9788 s)
+  - Median Jeda (3 Ulangan)  : 0.533 ms (Maks Run Tunggal 3 Ulangan: 0.534 ms | Maks Termasuk Warmup: 0.650 ms)
+  - Evaluasi M5 Bentuk Ini   : LULUS
+
+============================================================================================
+BENTUK: Bentuk D (25 kata dengan koma + 3 kalimat)
+============================================================================================
+  - Jumlah Chunk             : 3
+    * Chunk 1 (91 karakter, 11 kata): 'Ketika pengguna menjalankan aplikasi asisten kecerdasan buatan lokal pada komputer pribadi,'
+    * Chunk 2 (198 karakter, 26 kata): 'seluruh proses sintesis suara dijalankan sepenuhnya di prosesor utama tanpa memerlukan koneksi jaringan luar. Pendekatan ini menjaga memori kartu grafis tetap longgar untuk menjalankan model bahasa.'
+    * Chunk 3 (185 karakter, 24 kata): 'Potongan kalimat berikutnya langsung disiapkan di latar belakang saat suara pertama diputar. Dengan arsitektur ini pengalaman percakapan terasa jauh lebih responsif dan nyaman didengar.'
+  - Tunda Mulai (D) Simulasi : D_raw = 0.0000 s | D_applied = 0.0000 s (batas=6.0s)
+  - Warmup (dibuang)         : FirstTok->FirstText = 3.1193 s | Jeda Antar-Chunk = [1.065, 0.692] ms | Sync Delta = [0.007, 0.012, 0.009] ms | Fidelity = True
+  - Ulangan 1                : FirstTok->FirstText = 3.3291 s | Jeda Antar-Chunk = [0.861, 0.779] ms | Sync Delta = [0.008, 0.01, 0.008] ms | Fidelity = True
+  - Ulangan 2                : FirstTok->FirstText = 3.0415 s | Jeda Antar-Chunk = [1.128, 0.913] ms | Sync Delta = [0.008, 0.008, 0.008] ms | Fidelity = True
+  - Ulangan 3                : FirstTok->FirstText = 3.1740 s | Jeda Antar-Chunk = [0.867, 0.516] ms | Sync Delta = [0.008, 0.007, 0.007] ms | Fidelity = True
+  - Median FirstTok->FirstTxt: 3.1740 s (Maks 3 Ulangan: 3.3291 s)
+  - Median Jeda (3 Ulangan)  : 0.864 ms (Maks Run Tunggal 3 Ulangan: 1.128 ms | Maks Termasuk Warmup: 1.128 ms)
+  - Evaluasi M5 Bentuk Ini   : LULUS
+
+============================================================================================
+BENTUK: Bentuk E (3 kata + 1 kalimat 28 kata [total <=250 chars -> 1 chunk])
+============================================================================================
+  - Jumlah Chunk             : 1
+    * Chunk 1 (211 karakter, 31 kata): 'Halo, saya Enki. Pada pengujian hari ini seluruh modul asisten lokal berjalan sangat lancar di prosesor utama sehingga memori kartu grafis tetap longgar untuk melayani permintaan model bahasa alami dengan cepat.'
+  - Tunda Mulai (D) Simulasi : D_raw = 0.0000 s | D_applied = 0.0000 s (batas=6.0s)
+  - Warmup (dibuang)         : FirstTok->FirstText = 5.2149 s | Jeda Antar-Chunk = [] ms | Sync Delta = [0.011] ms | Fidelity = True
+  - Ulangan 1                : FirstTok->FirstText = 4.9528 s | Jeda Antar-Chunk = [] ms | Sync Delta = [0.009] ms | Fidelity = True
+  - Ulangan 2                : FirstTok->FirstText = 5.2146 s | Jeda Antar-Chunk = [] ms | Sync Delta = [0.009] ms | Fidelity = True
+  - Ulangan 3                : FirstTok->FirstText = 5.1537 s | Jeda Antar-Chunk = [] ms | Sync Delta = [0.008] ms | Fidelity = True
+  - Median FirstTok->FirstTxt: 5.1537 s (Maks 3 Ulangan: 5.2146 s)
+  - Median Jeda (3 Ulangan)  : 0.000 ms (Maks Run Tunggal 3 Ulangan: 0.000 ms | Maks Termasuk Warmup: 0.000 ms)
+  - Evaluasi M5 Bentuk Ini   : LULUS
+
+--- BAGIAN 2: EVALUASI SINKRONISASI TEKS TERHADAP ON_BEFORE_PLAY (KRITERIA M2) ---
+  - Total Segmen Diukur        : 52 segmen (seluruh chunk A-E saat Ollama generasi)
+  - Median Selisih Tampil      : 0.0078 ms (Batas M2: <= 100.0 ms)
+  - Maksimum Selisih Tampil    : 0.0147 ms (Batas M2: <= 300.0 ms)
+  - Status Kriteria M2         : LULUS
+
+--- BAGIAN 3: EVALUASI INTERUPSI NYATA DI TENGAH BALASAN (KRITERIA M4) ---
+  - Trigger cancel       : Flush Sisa Teks = 43.299 ms (<= 200 ms) | Chunk Terputar Sebelum Cancel = 1 | Audio Bocor Setelah Cancel = 0 | M1 Fidelity = True
+  - Trigger /mute        : Flush Sisa Teks = 30.471 ms (<= 200 ms) | Chunk Terputar Sebelum Cancel = 1 | Audio Bocor Setelah Cancel = 0 | M1 Fidelity = True
+  - Trigger input_baru   : Flush Sisa Teks = 117.274 ms (<= 200 ms) | Chunk Terputar Sebelum Cancel = 1 | Audio Bocor Setelah Cancel = 0 | M1 Fidelity = True
+  - Maksimum Waktu Flush M4    : 117.274 ms (Batas M4: <= 200.0 ms)
+  - Total Audio Bocor Cancel   : 0 (Batas M4: 0)
+  - Status Kriteria M4         : LULUS
+
+--- BAGIAN 4: RINGKASAN LATENSI TOTAL TOKEN PERTAMA -> TEKS PERTAMA TAMPIL (KRITERIA M6) ---
+  - Bentuk C: D = 5.0405 s | Median Latensi = 6.9097 s (Ulangan: [6.9097, 6.9788, 6.8632] s) [Batas: <= 8.0 s]
+  - Bentuk D: D = 0.0000 s | Median Latensi = 3.1740 s (Ulangan: [3.3291, 3.0415, 3.174] s) [Batas: <= 8.0 s]
+  - Status Kriteria M6         : LULUS
+
+--- BAGIAN 5: RINGKASAN AKHIR KRITERIA BENCHMARK (M2, M4, M5, M6, M8) ---
+  - M2 (Sinkron <=100ms med, <=300ms max) : LULUS (med=0.0078 ms, max=0.0147 ms)
+  - M4 (Interupsi <=200ms, 0 bocor, M1)   : LULUS (max_flush=117.274 ms, bocor=0)
+  - M5 (Tanpa jeda A-E <=500ms med/1000ms): LULUS
+  - M6 (Latensi C & D <= 8.0 detik)       : LULUS (C=6.9097s, D=3.1740s)
+  - M8 (Tail clipping independen)         : GAGAL (|med|=139.71 ms, <-100ms=0)
+============================================================================================
