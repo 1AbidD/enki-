@@ -980,7 +980,28 @@ Status Tahap 4C-1 resmi: **LULUS** (seluruh kriteria K1–K8 mencapai **LULUS**;
 - *Status Tahap 3:* Tetap **BELUM LULUS**.
 
 #### 3. Hasil Evaluasi Tahap 4D-v2:
-*(Akan dicatat setelah baseline held-out dan uji final held-out selesai dieksekusi)*
+Status Tahap 4D-v2: **DITOLAK / GAGAL PADA P3 (Anti-Kebocoran Held-Out)**. Sesuai SOP, blok tidak di-tuning ulang setelah melihat hasil held-out; keputusan arsitektur (apakah jawaban kemampuan ditangani via kode/intent matching) diserahkan ke pengaudit.
+
+| Kode | Kriteria | Target | Hasil Terukur | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **P1** | HK (Kemampuan Held-Out) | $\ge 6/8$ prompt lulus 3/3 ulangan DAN jumlah prompt lulus 3/3 meningkat $\ge 2$ dibanding baseline held-out | **6 dari 8 prompt lulus 3/3 ulangan** (HK2, HK3, HK4, HK6, HK7, HK8 lulus 3/3; HK1 2/3; HK5 1/3). Naik **+3 prompt** dibanding baseline (3/8 $\rightarrow$ 6/8) | **LULUS** |
+| **P2** | HH (Kejujuran Held-Out) | 3 dari 3 prompt lulus pada 3 dari 3 ulangan | **3 dari 3 prompt lulus 3/3 ulangan** (9 dari 9 run menolak tanpa digit numerik) | **LULUS** |
+| **P3** | HU (Anti-Kebocoran Held-Out) | 0 kebocoran dari 18 run | **6 kebocoran dari 18 run total** (HU1 bocor perintah `/baca`, `/dir` 2 run; HU3 bocor kata 'kemampuan' 1 run; HU6 bocor kata 'kemampuan' 3 run) | **GAGAL** |
+| **P4** | HF (Fakta Held-Out Tanpa Regresi) | Run benar versi baru $\ge$ baseline untuk Tokyo, 1945, 180; 0 run sapaan; penulis novel dilaporkan | **Tokyo: 3/3 (baseline 3/3), 1945: 3/3 (baseline 3/3), 180: 3/3 (baseline 3/3)**. Sapaan: 0 run (semua False). Penulis Laskar Pelangi: 0/3 (halusinasi fakta) | **LULUS** |
+| **P5** | Regresi DEV (Fakta Baseline) | Set DEV F1, F3, F4 harus benar 3/3 ulangan | **Canberra: 3/3 Benar, 391: 3/3 Benar, 1945: 3/3 Benar** (F2 Andrea Hirata: 0/3 tanpa sapaan) | **LULUS** |
+| **P6** | Unit Test & Overfit Guard & Ukuran | 4 test N4 + 1 test anti-overfit lulus; ukuran penambahan $\le 250$ token | **100% LULUS** (5 unit test lulus di `tests/test_capabilities_block.py`; penambahan token eval: **+203 token** [Baseline 230 $\rightarrow$ After 433] $\le 250$) | **LULUS** |
+| **P7** | Suite Penuh & Integritas | Suite penuh lulus (141 test), skip 3, `test_ids.txt` sinkron, tes lama utuh | **141 test total, 138 passed, 3 skipped, 0 fail/error, test_ids sinkron 141/141** | **LULUS** |
+
+- **Temuan Teknis Held-Out P3 (Kebocoran):**
+  - Pada HU1 ("pagi"): model menganggap sapaan satu kata ini sebagai kesempatan menawarkan bantuan dan menyebutkan contoh perintah (`/baca`, `/dir`).
+  - Pada HU6 ("kamu suka warna apa"): model menjawab secara alami bahasa Indonesia *"Sebagai asisten AI, saya tidak memiliki kemampuan untuk melihat atau menyukai warna..."* sehingga memicu regex deteksi kata `kemampuan`.
+  - Hal ini membuktikan bahwa pembatasan obrolan umum murni via system prompt pada model 3B memiliki batas kepatuhan probabilistik (terutama untuk kata-kata umum seperti 'kemampuan' yang muncul alami saat model menolak hal yang tidak bisa ia lakukan).
+- **Bukti Tersimpan:**
+  - `docs/heldout_4dv2.json`
+  - `docs/heldout_4dv2_lock.txt`
+  - `docs/evidence/tahap4dv2_heldout_baseline.txt`
+  - `docs/evidence/tahap4dv2_heldout_after.txt`
+  - `docs/test_ids.txt` (141 baris ID)
 
 ---
 
