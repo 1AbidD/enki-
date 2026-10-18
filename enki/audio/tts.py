@@ -69,14 +69,23 @@ def clean_text_for_tts(text: str) -> str:
     # sehingga tidak merusak snake_case (read_file), dunder (__init__), atau private (_private).
     cleaned = re.sub(r"(?<![\w_])_(?![\s_])([^_\n]+?)(?<![\s_])_(?![\w_])", r"\1", cleaned)
 
-    # 5. Bersihkan bullet points dan nomor list di awal baris
+    # 5. Bersihkan bullet points dan nomor list di awal baris + jeda antar item list (A1 Tahap 4E)
     lines = []
     for line in cleaned.splitlines():
+        is_list = bool(re.match(r"^\s*(?:[-*+]|\d+\.)\s+", line))
         cl = re.sub(r"^\s*[-*+]\s+", "", line)
         cl = re.sub(r"^\s*\d+\.\s+", "", cl)
         cl = cl.strip()
-        if cl:
-            lines.append(cl)
+        if not cl:
+            continue
+        if is_list:
+            has_label_or_cmd = (":" in line or "/" in line or bool(re.match(r"^\s*\d+\.", line)))
+            if cl.startswith("/"):
+                cl = cl[1:]
+            cl = re.sub(r"^([^:\n]{1,50}):(?=\s|$)", r"\1,", cl)
+            if has_label_or_cmd and cl and cl[-1] not in ".,;:!?":
+                cl = cl + "."
+        lines.append(cl)
 
     return "\n".join(lines)
 
@@ -102,6 +111,39 @@ def apply_pronunciation(
         pattern = re.compile(rf"(?<![/\\])\b{re.escape(src)}\b(?![/\\])")
         result = pattern.sub(dst, result)
     return result
+
+
+def _merge_short_labels_and_numbers(sentences: List[str]) -> List[str]:
+    """Menggabungkan kalimat/potongan yang hanya berupa label pendek (<= 4 kata, berakhir ':' atau ',')
+    atau hanya berupa nomor urut ('2.', '3.') dengan awal deskripsi berikutnya (Tahap 4E A2).
+    Kalimat pembuka yang berakhir ':' dengan > 4 kata tetap diizinkan sebagai chunk sendiri.
+    """
+    if not sentences:
+        return []
+
+    merged: List[str] = []
+    i = 0
+    while i < len(sentences):
+        s = sentences[i].strip()
+        if not s:
+            i += 1
+            continue
+
+        words = s.split()
+        is_num_only = bool(re.match(r"^\d+\.?$", s))
+        is_short_label = (len(words) <= 4 and (s.endswith(":") or s.endswith(",")))
+
+        if (is_num_only or is_short_label) and i + 1 < len(sentences):
+            next_s = sentences[i + 1].strip()
+            combined = f"{s} {next_s}".strip()
+            sentences[i + 1] = combined
+            i += 1
+            continue
+
+        merged.append(s)
+        i += 1
+
+    return merged
 
 
 def _split_sentences_from_cleaned(cleaned: str, max_chunk_chars: int = 250) -> List[str]:
@@ -263,7 +305,7 @@ def merge_sentences_for_tts_ramp(
       waktu_sintesis_prediksi(chunk N+1) <= durasi_audio_prediksi(chunk N) - 0.3 detik,
       dengan batas atas 250 karakter dan minimal satu kalimat.
     """
-    work = [s.strip() for s in sentences if s and s.strip()]
+    work = _merge_short_labels_and_numbers([s.strip() for s in sentences if s and s.strip()])
     if not work:
         return []
 
@@ -277,6 +319,9 @@ def merge_sentences_for_tts_ramp(
             for k in range(1, len(clauses)):
                 prefix_candidate = " ".join(clauses[:k]).strip()
                 if len(prefix_candidate.split()) <= max_first_words:
+                    # Jangan potong jika potongan pertama hanya berupa label pendek (<= 4 kata berakhir ':' atau ',')
+                    if len(prefix_candidate.split()) <= 4 and (prefix_candidate.endswith(":") or prefix_candidate.endswith(",")):
+                        continue
                     best_k = k
                 else:
                     break
@@ -316,7 +361,7 @@ def merge_sentences_for_tts_ramp(
                 break
         chunks.append(current)
 
-    return chunks
+    return _merge_short_labels_and_numbers(chunks)
 
 
 def chunk_text(text: str, max_chunk_chars: int = 250) -> List[str]:
@@ -584,6 +629,7 @@ def _clean_and_pronounce_with_offsets(
             l_str = l_str[cut:]
             l_off = l_off[cut:]
 
+        is_list = bool(m_bul or m_num)
         # strip whitespace kiri & kanan
         l_strip_l = len(l_str) - len(l_str.lstrip())
         l_str = l_str.lstrip()
@@ -591,6 +637,20 @@ def _clean_and_pronounce_with_offsets(
         l_strip_r = len(l_str.rstrip())
         l_str = l_str[:l_strip_r]
         l_off = l_off[:l_strip_r]
+
+        if is_list and l_str:
+            has_label_or_cmd = (":" in raw_line or "/" in raw_line or bool(m_num))
+            if l_str.startswith("/"):
+                l_str = l_str[1:]
+                l_off = l_off[1:]
+            m_col = re.match(r"^([^:\n]{1,50}):(?=\s|$)", l_str)
+            if m_col:
+                col_idx = m_col.end() - 1
+                l_str = l_str[:col_idx] + "," + l_str[col_idx + 1 :]
+            if has_label_or_cmd and l_str and l_str[-1] not in ".,;:!?":
+                last_off = l_off[-1] if l_off else 0
+                l_str = l_str + "."
+                l_off = l_off + [last_off]
 
         if l_str:
             line_Texts.append(l_str)
@@ -1268,7 +1328,7 @@ def run_synced_speech_stream(
     max_chunk_chars: int = 250,
     mgr: Optional[TTSManager] = None,
     engine: Optional[BaseTTSEngine] = None,
-    status_text: str = "[menyiapkan suara...]",
+    status_text: str = "",
     interrupt_poll_fn: Optional[Callable[[], Optional[str]]] = None,
 ) -> Dict[str, Any]:
     """Langkah 4 Tahap 4C-3: Menjalankan tampilan teks sinkron dengan suara.

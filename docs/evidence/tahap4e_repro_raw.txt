@@ -1,0 +1,20 @@
+============================================================
+[ENKI] Local AI Personal Assistant (v0.2.0 - Memory Enabled)
+Model: qwen2.5:3b | Context: 8192 | Mute: False
+Sesi Aktif: session_20261018_144048_264170
+VRAM: 433 MiB / 4096 MiB (Free: 3530 MiB)
+Ketik pesan Anda untuk mulai, atau /help untuk melihat perintah.
+============================================================
+
+[Jawaban]
+[menyiapkan suara...]                     Tentu, Aabid. Untuk membantu Anda dengan rekomendasi monitor baru, saya membutuhkan beberapa informasi lebih lanjut:
+
+1. Kapasitas ruang tempat monitor tersebut akan ditempatkan (misalnya, meja kerja, ruang tamu, atau ruang kerja).
+2. Apakah monitor akan digunakan untuk tugas atau hobi tertentu (misalnya, game, desain grafis, video editing)?
+3. Berapa anggaran yang Anda miliki untuk membeli monitor?
+4. Apakah ada spesifikasi tertentu yang Anda cari dalam monitor, seperti bezel tipis, bezel lebar, atau resolusi tinggi?
+
+Semua informasi ini akan sangat membantu dalam memberikan rekomendasi yang lebih akurat.
+
+-- Telemetri: Prompt: 240 tok | Generate: 178 tok (77.0 tok/s) | Sisa Context: 7774/8192 tok --
+Keluar dari ENKI. Sampai jumpa!

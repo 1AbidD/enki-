@@ -257,12 +257,16 @@ class EnkiConsole:
             t_route_start = time.time()
             route_res = route_capability_inquiry(user_input)
             if route_res is not None:
+                t_route_end = time.time()
+                route_lat_ms = (t_route_end - t_route_start) * 1000
                 content = route_res.reply
                 print("\n[Jawaban]")
+                sync_res = None
                 use_synced_supertonic = (
                     not self.config.is_muted
                     and self.config.tts_engine.lower().strip() == "supertonic"
                 )
+                t_audio_start = time.time()
                 if not use_synced_supertonic:
                     print(content)
                     if not self.config.is_muted:
@@ -299,8 +303,6 @@ class EnkiConsole:
                             interrupt_poll_fn=self._poll_mid_reply_interrupt,
                         )
                         print()
-                        if sync_res.get("interrupt_reason") == "/mute":
-                            print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
                     except KeyboardInterrupt:
                         cancel()
                         print()
@@ -308,12 +310,19 @@ class EnkiConsole:
                     except Exception as e:
                         print(f"\n[Peringatan TTS Router] {e}")
 
+                audio_dur_sec = time.time() - t_audio_start
+
                 # Catat turn assistant ke DB secara deterministik
                 self.db.add_turn(self.session_id, "assistant", content)
 
-                # Telemetri router (tanpa LLM)
-                route_lat_ms = (time.time() - t_route_start) * 1000
-                print(f"\n-- Telemetri: router (tanpa LLM) | Intent: {route_res.intent} | Latensi: {route_lat_ms:.2f} ms | Sisa Context: {self.config.num_ctx}/{self.config.num_ctx} tok --")
+                # Telemetri router (tanpa LLM) (Tahap 4E A4)
+                if self.config.is_muted:
+                    print(f"\n-- Telemetri: router (tanpa LLM) | Intent: {route_res.intent} | Router: {route_lat_ms:.2f} ms | Sisa Context: {self.config.num_ctx}/{self.config.num_ctx} tok --")
+                else:
+                    print(f"\n-- Telemetri: router (tanpa LLM) | Intent: {route_res.intent} | Router: {route_lat_ms:.2f} ms | Suara: {audio_dur_sec:.2f} s | Sisa Context: {self.config.num_ctx}/{self.config.num_ctx} tok --")
+
+                if sync_res and sync_res.get("interrupt_reason") == "/mute":
+                    print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
 
                 # Update riwayat memori sesi aktif
                 self.history.append({"role": "user", "content": user_input})
@@ -360,6 +369,7 @@ class EnkiConsole:
             print("\n[Jawaban]")
             content_chunks = []
             final_metrics = {}
+            sync_res = None
             use_synced_supertonic = (
                 not self.config.is_muted
                 and self.config.tts_engine.lower().strip() == "supertonic"
@@ -430,8 +440,6 @@ class EnkiConsole:
                         interrupt_poll_fn=self._poll_mid_reply_interrupt,
                     )
                     print()
-                    if sync_res.get("interrupt_reason") == "/mute":
-                        print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
                     content = str(sync_res.get("full_text", "")).strip()
                     final_metrics = sync_res.get("metrics") or {}
                 except KeyboardInterrupt:
@@ -459,6 +467,8 @@ class EnkiConsole:
             remaining_dyn = max(0, self.config.num_ctx - (prompt_eval + eval_count))
 
             print(f"\n-- Telemetri: Prompt: {prompt_eval} tok | Generate: {eval_count} tok ({speed} tok/s) | Sisa Context: {remaining_dyn}/{self.config.num_ctx} tok --")
+            if sync_res and sync_res.get("interrupt_reason") == "/mute":
+                print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
 
             # Update history memori sesi aktif (selalu balasan LENGKAP)
             self.history.append({"role": "user", "content": user_input})
