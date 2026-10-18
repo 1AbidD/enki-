@@ -1,0 +1,43 @@
+================================================================================
+PROBE JARINGAN TAHAP 6 (LANGKAH 0b)
+Waktu Uji   : 2026-10-18 22:14:44
+TLS Verify  : WAJIB AKTIF (ssl.CERT_REQUIRED & check_hostname=True)
+================================================================================
+
+Target      : example.com
+URL         : https://example.com
+DNS IP      : 104.20.23.154, 172.66.147.243, 2606:4700:10::6814:179a, 2606:4700:10::ac42:93f3 (8.42 ms)
+HTTPS Status: HTTP 200 (121.76 ms)
+Keterjangkau: YA (OK)
+--------------------------------------------------------------------------------
+Target      : id.wikipedia.org (REST summary)
+URL         : https://id.wikipedia.org/api/rest_v1/page/summary/Python
+DNS IP      : 103.102.166.224, 2001:df2:e500:ed1a::1 (8.35 ms)
+HTTPS Status: HTTP 200 (112.14 ms)
+Keterjangkau: YA (OK)
+--------------------------------------------------------------------------------
+Target      : en.wikipedia.org
+URL         : https://en.wikipedia.org/api/rest_v1/page/summary/Python
+DNS IP      : 103.102.166.224, 2001:df2:e500:ed1a::1 (21.06 ms)
+HTTPS Status: HTTP 200 (130.77 ms)
+Keterjangkau: YA (OK)
+--------------------------------------------------------------------------------
+Target      : pypi.org
+URL         : https://pypi.org
+DNS IP      : 151.101.0.223, 151.101.128.223, 151.101.192.223, 151.101.64.223, 2a04:4e42:200::223, 2a04:4e42:400::223, 2a04:4e42:600::223, 2a04:4e42::223 (0.61 ms)
+HTTPS Status: HTTP 200 (126.45 ms)
+Keterjangkau: YA (OK)
+--------------------------------------------------------------------------------
+Target      : github.com
+URL         : https://github.com
+DNS IP      : 20.205.243.166 (8.34 ms)
+HTTPS Status: HTTP 200 (139.03 ms)
+Keterjangkau: YA (OK)
+--------------------------------------------------------------------------------
+
+================================================================================
+RINGKASAN STATUS GERBANG LANGKAH 0b:
+- example.com      : TERJANGKAU (PASS)
+- id.wikipedia.org : TERJANGKAU (PASS)
+STATUS AKHIR: LULUS (Jaringan terjangkau dan TLS valid). Melanjutkan pembangunan Tahap 6.
+================================================================================
