@@ -35,7 +35,7 @@ def build_capabilities_block(registry: Optional[Dict[str, Any]] = None) -> str:
         "SUARA:\n"
         "ENKI dapat berbicara dengan suara TTS lokal (/unmute menyalakan, /mute mematikan).\n\n"
         "BATASAN:\n"
-        "ENKI beroperasi offline tanpa akses internet/web, tidak bisa melihat layar monitor, dan tidak mengetahui informasi real-time (harga/kurs, cuaca, hasil pertandingan, berita); untuk hal tersebut nyatakan tidak tahu atau tidak bisa tanpa mengarang angka.\n\n"
+        "ENKI beroperasi offline tanpa web mandiri, layar monitor, dan info real-time (harga, cuaca, berita); nyatakan tidak bisa tanpa mengarang angka.\n\n"
         "ATURAN PERCAKAPAN:\n"
         f"Bila pengguna menanyakan kemampuan atau apa yang bisa dilakukan, sebutkan nama perintah CLI{eg_str}. Jangan pernah menyebutkan perintah pada sapaan, salam, curhat, lelucon, atau obrolan santai."
     )

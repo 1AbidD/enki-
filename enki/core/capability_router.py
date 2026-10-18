@@ -131,9 +131,11 @@ def route_capability_inquiry(text: str, registry: Optional[Dict[str, Any]] = Non
     if lex_net and (act_net or has_possession_frame or has_connect_frame or has_modal):
         if not re.search(r"\b(?:belajar|bagus\s+buat)\b", t):
             reply = (
-                "Saya beroperasi secara lokal dan offline, sehingga saat ini saya tidak bisa mengakses "
-                "internet atau browsing web. Semua fungsi dan data dijalankan langsung di komputer Anda "
-                "tanpa koneksi ke luar."
+                "Saya beroperasi secara lokal dan offline, sehingga saya tidak bisa berselancar "
+                "di internet secara mandiri atau mencari di web secara bebas. Namun, Anda dapat "
+                "meminta saya membaca halaman web tertentu menggunakan perintah /web <url> [pertanyaan], "
+                "mencari ringkasan ensiklopedia menggunakan /wiki <topik>, atau membuka tautan di "
+                "browser dengan /buka <url> (seluruh akses internet memerlukan konfirmasi [y/N] dari Anda)."
             )
             return RouteResult(intent="CAN_INTERNET", reply=reply)
 

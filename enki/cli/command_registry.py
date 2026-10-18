@@ -29,6 +29,9 @@ COMMAND_REGISTRY: Dict[str, CommandDef] = {
     "/unmute": CommandDef("/unmute", "suara", "mengaktifkan kemampuan berbicara dengan suara TTS"),
     "/status": CommandDef("/status", "status", "melihat status sistem dan model"),
     "/clear": CommandDef("/clear", "bersih", "membersihkan riwayat obrolan sesi"),
+    "/web": CommandDef("/web <url> [tanya]", "web", "mengambil teks web dengan konfirmasi"),
+    "/wiki": CommandDef("/wiki <topik>", "wiki", "mencari ringkasan ensiklopedia Wikipedia"),
+    "/buka": CommandDef("/buka <url>", "buka", "membuka URL di peramban web"),
     "/exit": CommandDef("/exit", "keluar", "keluar dari aplikasi"),
     "/help": CommandDef("/help", "bantuan", "menampilkan panduan bantuan perintah"),
 }

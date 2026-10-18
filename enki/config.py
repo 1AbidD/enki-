@@ -44,6 +44,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "tts_chars_per_sec": 16.265423,
     "tts_gapless_start": True,
     "tts_max_start_delay": 6.0,
+    "web_timeout": 15.0,
+    "web_max_bytes": 1572864,
+    "web_max_chars": 6000,
     "workspace_root": str(Path(__file__).resolve().parent.parent)
 }
 
@@ -150,6 +153,18 @@ class AppConfig:
     @property
     def tts_max_start_delay(self) -> float:
         return float(self._data.get("tts_max_start_delay", 6.0))
+
+    @property
+    def web_timeout(self) -> float:
+        return float(self._data.get("web_timeout", 15.0))
+
+    @property
+    def web_max_bytes(self) -> int:
+        return int(self._data.get("web_max_bytes", 1572864))
+
+    @property
+    def web_max_chars(self) -> int:
+        return int(self._data.get("web_max_chars", 6000))
 
     @property
     def workspace_root(self) -> Path:

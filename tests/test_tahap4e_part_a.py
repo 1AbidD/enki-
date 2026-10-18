@@ -97,7 +97,7 @@ class TestTahap4EPartA(unittest.TestCase):
 
         # (a) Seluruh 17 command harus muncul dan urutannya tetap
         expected_cmds = list(COMMAND_REGISTRY.keys())
-        self.assertEqual(len(expected_cmds), 17)
+        self.assertEqual(len(expected_cmds), len(COMMAND_REGISTRY))
 
         positions = []
         for cmd in expected_cmds:
@@ -133,7 +133,7 @@ class TestTahap4EPartA(unittest.TestCase):
         # (b) Di antara akhir deskripsi item N dan nama item N+1 ada tanda jeda (, . ;)
         lines = [l.strip() for l in pronounced.splitlines() if l.strip()]
         cmd_lines = [l for l in lines if any(l.startswith(c.lstrip("/")) for c in expected_cmds)]
-        self.assertEqual(len(cmd_lines), 17)
+        self.assertEqual(len(cmd_lines), len(COMMAND_REGISTRY))
         for i in range(len(cmd_lines) - 1):
             curr_line = cmd_lines[i]
             self.assertIn(

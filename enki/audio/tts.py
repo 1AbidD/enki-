@@ -37,8 +37,12 @@ def clean_text_for_tts(text: str) -> str:
     if not text:
         return ""
 
+    # 0. Buang baris atribusi Sumber dan URL mandiri dari suara (Tahap 6 W10)
+    cleaned = re.sub(r"(?im)^\s*sumber\s*:.*$", "", text)
+    cleaned = re.sub(r"(?im)^\s*(?:https?://|www\.)[^\s]+\s*$", "", cleaned)
+
     # 1. Lewati/buang blok kode (fenced code block ```...```)
-    cleaned = re.sub(r"```[\s\S]*?```", "", text)
+    cleaned = re.sub(r"```[\s\S]*?```", "", cleaned)
 
     # 2. Gantikan URL panjang dengan kata 'tautan' (jaga tanda baca kalimat di akhir)
     def _url_repl(m):
@@ -534,6 +538,20 @@ def _clean_and_pronounce_with_offsets(
 
     text = raw_text
     offsets = list(range(len(raw_text)))
+
+    # 0. Buang baris atribusi Sumber dan URL mandiri dari suara (Tahap 6 W10)
+    text, offsets = _sub_with_offsets(
+        re.compile(r"(?im)^\s*sumber\s*:.*$"),
+        lambda m: ("", []),
+        text,
+        offsets,
+    )
+    text, offsets = _sub_with_offsets(
+        re.compile(r"(?im)^\s*(?:https?://|www\.)[^\s]+\s*$"),
+        lambda m: ("", []),
+        text,
+        offsets,
+    )
 
     # 1. Buang fenced code block ```...```
     text, offsets = _sub_with_offsets(
