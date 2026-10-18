@@ -1,0 +1,47 @@
+================================================================================
+EVALUASI ROUTER KEMAMPUAN DETERMINISTIK ENKI (Tahap 4E)
+Berkas Input : D:\ENKI\Enki\docs\heldout_4e.tsv (SHA-256: 8baf4459767fd0e81187aea10caf178c210f077e041ed70ae0dd071d19b07235)
+Router Source: D:\ENKI\Enki\enki\core\capability_router.py (SHA-256: c0f663086fea8827b8467049d46f9c56c83ad37d4dfafbf6a242938c03875b0a)
+Git HEAD     : 395fe47a5e0edee3b0853e4faa0148e019546198
+Jumlah Sampel: 26
+================================================================================
+
+[001] [MISS       ] exp: LIST_COMMANDS -> got: NONE            | 'enki, apa aja sih yang bisa lu kerjain'
+[002] [OK         ] exp: LIST_COMMANDS -> got: LIST_COMMANDS   | 'kasih tau dong semua perintah yang tersedia buat gue'
+[003] [OK         ] exp: LIST_COMMANDS -> got: LIST_COMMANDS   | 'sebenernya fitur andalan lu tuh apa'
+[004] [OK         ] exp: CAN_INTERNET -> got: CAN_INTERNET     | 'lu bisa cari info terbaru di internet nggak'
+[005] [OK         ] exp: CAN_INTERNET -> got: CAN_INTERNET     | 'apakah enki sanggup membuka halaman web'
+[006] [OK         ] exp: CAN_SCREEN -> got: CAN_SCREEN         | 'bisa nggak sih kamu ngintip layar laptop gue'
+[007] [OK         ] exp: CAN_SCREEN -> got: CAN_SCREEN         | 'kamu mampu membaca tulisan yang tampil di monitor saya?'
+[008] [OK         ] exp: CAN_READ_FILE -> got: CAN_READ_FILE   | 'kamu dapat membaca isi berkas teks yang aku punya?'
+[009] [OK         ] exp: CAN_READ_FILE -> got: CAN_READ_FILE   | 'bisa nggak kamu ngecek isi dokumen di folder kerja'
+[010] [MISS       ] exp: CAN_READ_FILE -> got: NONE            | 'kamu bisa menampilkan daftar file di direktori ini?'
+[011] [MISS       ] exp: CAN_TEST -> got: NONE                 | 'kamu sanggup ngejalanin unit test buat proyek gue?'
+[012] [MISS       ] exp: CAN_TEST -> got: NONE                 | 'apakah lu bisa ngecek program gue pake unit test'
+[013] [OK         ] exp: CAN_SPEAK -> got: CAN_SPEAK           | 'lu bisa bacain jawaban lu pake suara nggak'
+[014] [OK         ] exp: CAN_SPEAK -> got: CAN_SPEAK           | 'enki dapat berbicara secara lisan?'
+[015] [MISS       ] exp: CAN_REMEMBER -> got: NONE             | 'gimana sih caranya biar lu inget hobi gue'
+[016] [MISS       ] exp: CAN_REMEMBER -> got: NONE             | 'apakah kamu sanggup menyimpan informasi pribadi tentang saya'
+[017] [OK         ] NONE -> NONE                               | 'jelasin bedanya http sama https dong'
+[018] [FALSE-ROUTE] NONE -> got: CAN_SCREEN                    | 'layar laptop gue gelap pas dicolok charger, bisa diperbaiki ga'
+[019] [OK         ] NONE -> NONE                               | 'kamu tau ga cara bikin file zip di windows'
+[020] [OK         ] NONE -> NONE                               | 'bantuin gue bikin unit test buat fungsi login'
+[021] [OK         ] NONE -> NONE                               | 'suara kamu enak banget didenger'
+[022] [OK         ] NONE -> NONE                               | 'aku nggak inget password wifi rumah'
+[023] [OK         ] NONE -> NONE                               | 'kalau file CSV-nya kebesaran, enaknya dipecah gimana'
+[024] [OK         ] NONE -> NONE                               | 'tolong baca ulang kalimat gue tadi dan benerin grammarnya'
+[025] [OK         ] NONE -> NONE                               | 'web hosting murah yang bagus apa ya'
+[026] [OK         ] NONE -> NONE                               | 'besok aku presentasi tentang keamanan internet, kasih outline dong'
+
+--------------------------------------------------------------------------------
+RINGKASAN EVALUASI:
+  Sampel Positif   : 16
+    - Berhasil (OK): 10 (62.5%)
+    - Terlewat (MISS): 6
+    - Salah Intent   : 0
+  Sampel Negatif   : 10
+    - Berhasil (OK): 9 (90.0%)
+    - False-Route  : 1
+--------------------------------------------------------------------------------
+STATUS AKHIR: GAGAL
+================================================================================

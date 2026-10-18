@@ -1,0 +1,26 @@
+LIST_COMMANDS	enki, apa aja sih yang bisa lu kerjain
+LIST_COMMANDS	kasih tau dong semua perintah yang tersedia buat gue
+LIST_COMMANDS	sebenernya fitur andalan lu tuh apa
+CAN_INTERNET	lu bisa cari info terbaru di internet nggak
+CAN_INTERNET	apakah enki sanggup membuka halaman web
+CAN_SCREEN	bisa nggak sih kamu ngintip layar laptop gue
+CAN_SCREEN	kamu mampu membaca tulisan yang tampil di monitor saya?
+CAN_READ_FILE	kamu dapat membaca isi berkas teks yang aku punya?
+CAN_READ_FILE	bisa nggak kamu ngecek isi dokumen di folder kerja
+CAN_READ_FILE	kamu bisa menampilkan daftar file di direktori ini?
+CAN_TEST	kamu sanggup ngejalanin unit test buat proyek gue?
+CAN_TEST	apakah lu bisa ngecek program gue pake unit test
+CAN_SPEAK	lu bisa bacain jawaban lu pake suara nggak
+CAN_SPEAK	enki dapat berbicara secara lisan?
+CAN_REMEMBER	gimana sih caranya biar lu inget hobi gue
+CAN_REMEMBER	apakah kamu sanggup menyimpan informasi pribadi tentang saya
+NONE	jelasin bedanya http sama https dong
+NONE	layar laptop gue gelap pas dicolok charger, bisa diperbaiki ga
+NONE	kamu tau ga cara bikin file zip di windows
+NONE	bantuin gue bikin unit test buat fungsi login
+NONE	suara kamu enak banget didenger
+NONE	aku nggak inget password wifi rumah
+NONE	kalau file CSV-nya kebesaran, enaknya dipecah gimana
+NONE	tolong baca ulang kalimat gue tadi dan benerin grammarnya
+NONE	web hosting murah yang bagus apa ya
+NONE	besok aku presentasi tentang keamanan internet, kasih outline dong

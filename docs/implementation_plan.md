@@ -1037,12 +1037,13 @@ Pada sesi live Abid setelah Tahap 4D-v3, teridentifikasi sejumlah masalah pengal
 3. **Bacaan Suara List Item Nyambung:** Sintesis TTS membaca baris bullet/daftar perintah secara berturutan tanpa jeda karena tidak adanya tanda baca jeda di akhir baris dan titik dua setelah nama perintah tidak dilafalkan dengan jeda koma.
 
 #### 2. Pelaksanaan Bagian A — Suara & Tampilan
-- **A0 Reproduksi & Akar Masalah:**
-  - Diuji pada PowerShell/Windows Terminal riil. Terbukti bahwa:
-    (a) String status sementara `"[menyiapkan suara...]"` yang dihapus dengan `\r` + 21 spasi + `\r` mengalami wrap baris pada terminal sempit, menyebabkan kursor tidak kembali ke baris atas sehingga potongan teks berikutnya menimpa karakter yang sudah tercetak;
-    (b) Notifikasi mode senyap `[Config] Mode senyap AKTIF (/mute)` tercetak sebelum baris `-- Telemetri:`;
-    (c) Solusi: default `status_text=""` pada streaming sinkron, label pendek/nomor list digabung dengan awal deskripsi, dan notifikasi interupsi dipindahkan setelah baris telemetri.
-  - Bukti: `docs/evidence/tahap4e_repro_raw.txt`.
+- **A0 Reproduksi & Investigasi Status Layar:**
+  - Status Jujur Reproduksi: Isu teks dobel/terpotong dan telemetri terpotong yang dilihat Abid **TIDAK berhasil direproduksi** dalam lingkungan pengujian simulasi (simulasi mock 4 mode x 3 seed berjalan tanpa anomali; eksekusi `EnkiConsole` nyata menghasilkan variasi jawaban LLM yang berbeda karena sifat probabilistik model 3B).
+  - Yang terbukti secara teknis hanyalah artefak spasi dari penghapus status `\r` (`"[menyiapkan suara...]"` + 21 spasi + `\r` saat terminal wrap/sempit menyisakan spasi ekstra sebelum teks jawaban).
+  - Perbaikan Tambahan: Penanganan interupsi `/mute` di tengah jawaban yang memotong teks jawaban dipindahkan setelah baris `-- Telemetri:` (dicatat jujur: ini BUKAN yang dilakukan Abid saat sesi live, melainkan perbaikan ketahanan sistem tambahan).
+  - Hasil Retest Live Abid: 1 run live unmuted pada pertanyaan monitor: teks tercetak sekali dan utuh, baris telemetri utuh (1 sampel pengujian, dicatat jujur BUKAN bukti mutlak hilangnya bug secara definitif).
+  - Solusi yang Diterapkan: default `status_text=""` pada streaming sinkron, label pendek/nomor list digabung dengan awal deskripsi, dan notifikasi interupsi dipindahkan setelah baris telemetri.
+  - Bukti Tersimpan: `docs/evidence/tahap4e_repro_raw.txt` dan `docs/evidence/tahap4e_partA_evidence.txt`.
 - **A1 Jeda Antar Item List:**
   - Fungsi `clean_text_for_tts` dan `_clean_and_pronounce_with_offsets` diperbarui: setiap item list yang memuat perintah/label atau nomor list diberi tanda jeda titik (`.`) di akhir baris jika belum berakhir tanda baca, dan titik dua setelah nama perintah/label diganti koma (`,`).
   - Teks yang DITAMPILKAN di layar tetap 100% utuh tanpa perubahan tanda baca.
@@ -1069,9 +1070,10 @@ Pada sesi live Abid setelah Tahap 4D-v3, teridentifikasi sejumlah masalah pengal
   - **Sampel Positif:** 60/60 berhasil ter-route ke intent yang benar (**100.0% akurasi**, 0 MISS, 0 salah intent).
   - **Sampel Negatif:** 36/36 tidak ter-route / diserahkan ke model (**100.0% akurasi**, **0 FALSE-ROUTE**).
   - **Catatan Transparansi Tuning Router:**
-    - Evaluasi pertama dev set pada router lama (4D-v3): 41/60 positif, 35/36 negatif (gagal).
-    - Kode router komposisional v4 pertama kali ditulis: 60/60 positif, 36/36 negatif (lulus).
-    - Terjadi **5 kali edit penyesuaian** pada `enki/core/capability_router.py` untuk menyelaraskan dengan unit test `test_capability_router.py` lama (menambahkan imbuhan formal `menjalankan`, `menyuruh`, `artinya`, `preferensi`, dan memperbaiki regex `cara(?:nya)?`), dengan hasil akhir dev set tetap konsisten 100% positif dan 0 false route.
+    - Evaluasi dev set pada router lama (4D-v3): 41/60 positif, 35/36 negatif (gagal).
+    - Prototipe awal diuji di `scripts/test_compositional_router.py` dan diedit minimal 4 kali terhadap dev set sebelum disalin ke `enki/core/capability_router.py` (prototipe tersebut dihapus dan tidak pernah di-commit).
+    - Ditambah **5 kali edit pasca-evaluasi** pada `enki/core/capability_router.py` untuk menyelaraskan dengan unit test lama (`tests/test_capability_router.py`), sehingga total terdapat **minimal 9 kali edit** sebelum dibekukan.
+    - Klaim "langsung 100%" resmi dihapus.
 - **B2 Overfit Guard Diperkuat (Trigram Check):**
   - Skrip `scripts/check_trigrams.py` memindai seluruh 96 kalimat pada dev dataset terhadap kode sumber `enki/core/capability_router.py`.
   - Hasil: **0 trigram yang cocok** (bersih total dari n-gram 3 kata hafalan dev).
@@ -1086,13 +1088,57 @@ Pada sesi live Abid setelah Tahap 4D-v3, teridentifikasi sejumlah masalah pengal
   - Median latensi router v4 terukur dari 960 eksekusi: **`0,0247 ms`** (jauh di bawah batas $< 1\text{ ms}$).
   - Full suite: **154 tests passed** (151 passed, 3 skipped, 0 fail, 0 error).
   - System prompt hash identik: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`.
+- **B6 Pembekuan Kode Router:**
+  - Commit Freeze: `395fe47` (`"freeze 4E router"`).
+  - Router Source SHA-256: `c0f663086fea8827b8467049d46f9c56c83ad37d4dfafbf6a242938c03875b0a`.
 
-#### 4. Catatan Batasan yang Diketahui (Known Limitations)
-1. **Model Mengaku 'Sudah Mengingatkan':**
+#### 4. Hasil Evaluasi Held-Out 4E: GAGAL
+Pengujian held-out independen dijalankan oleh Abid pada kode router yang dibekukan (`395fe47`):
+- **Berkas Input:** `docs/heldout_4e.tsv` (SHA-256: `8baf4459767fd0e81187aea10caf178c210f077e041ed70ae0dd071d19b07235`, dikunci di `docs/heldout_4e_lock.txt`).
+- **Bukti Evaluasi:** `docs/evidence/tahap4e_heldout_4e.txt`.
+- **Kriteria Kelulusan Pre-registered:** Positif $\ge 13/16$ DAN False Route $0/10$.
+- **Status Akhir Evaluasi:** **GAGAL PADA KEDUA KRITERIA**.
+
+| Parameter Evaluasi | Target Pre-registered | Hasil Pengujian Held-Out | Status |
+| :--- | :--- | :--- | :--- |
+| **Akurasi Positif** | $\ge 13/16$ ($81,25\%$) | **10 dari 16** ($62,5\%$, 6 MISS) | **GAGAL** |
+| **False-Route Negatif** | $0/10$ ($0\%$) | **1 dari 10** ($10,0\%$, 1 FALSE-ROUTE) | **GAGAL** |
+
+- **Rincian 7 Kalimat Bermasalah:**
+  1. `[MISS       ]` #001: `"enki, apa aja sih yang bisa lu kerjain"` (Diharapkan: `LIST_COMMANDS` $\rightarrow$ Hasil: `NONE`)
+  2. `[MISS       ]` #010: `"kamu bisa menampilkan daftar file di direktori ini?"` (Diharapkan: `CAN_READ_FILE` $\rightarrow$ Hasil: `NONE`)
+  3. `[MISS       ]` #011: `"kamu sanggup ngejalanin unit test buat proyek gue?"` (Diharapkan: `CAN_TEST` $\rightarrow$ Hasil: `NONE`)
+  4. `[MISS       ]` #012: `"apakah lu bisa ngecek program gue pake unit test"` (Diharapkan: `CAN_TEST` $\rightarrow$ Hasil: `NONE`)
+  5. `[MISS       ]` #015: `"gimana sih caranya biar lu inget hobi gue"` (Diharapkan: `CAN_REMEMBER` $\rightarrow$ Hasil: `NONE`)
+  6. `[MISS       ]` #016: `"apakah kamu sanggup menyimpan informasi pribadi tentang saya"` (Diharapkan: `CAN_REMEMBER` $\rightarrow$ Hasil: `NONE`)
+  7. `[FALSE-ROUTE]` #018: `"layar laptop gue gelap pas dicolok charger, bisa diperbaiki ga"` (Diharapkan: `NONE` $\rightarrow$ Hasil: `CAN_SCREEN`)
+
+- **Analisis Pola Kegagalan:**
+  - `CAN_TEST`: 0/2 (gagal total menangkap variasi `ngejalanin ... buat proyek gue` dan `ngecek ... pake unit test`).
+  - `CAN_REMEMBER`: 0/2 (gagal total menangkap variasi objek memori `hobi gue` dan `informasi pribadi tentang saya`).
+  - `CAN_READ_FILE`: 1/3 miss pada klausa daftar direktori (`menampilkan daftar file di direktori ini`).
+  - `LIST_COMMANDS`: 1/3 miss pada ragam informal (`bisa lu kerjain`).
+  - 1 False-Route pada keluhan fisik laptop: kalimat troubleshooting daya/layar laptop salah diarahkan ke `CAN_SCREEN` karena kata `layar laptop` lolos memicu leksikon visual tanpa teredam filter negatif kerusakan.
+- **Status Router Saat Ini:**
+  - **DIPAKAI APA ADANYA (best-effort), TIDAK dituning.** Sesuai SOP integritas pengujian, kegagalan gate held-out tidak ditindaklanjuti dengan tuning kode.
+- **Kesimpulan Jujur Arsitektur:**
+  - Generalisasi pendekatan berbasis aturan regex memiliki batas fundamental dalam memetakan semantik bahasa alami Indonesia yang luwes dan ambigu.
+  - Dilarang membuat klaim perbaikan terhadap v3 (skor live lama 3/8 vs held-out ini 10/16 bukan perbandingan apple-to-apple karena set kalimatnya berbeda total).
+- **Status Dataset Held-Out:**
+  - Set `docs/heldout_4e.tsv` sekarang **TERBAKAR** (hanya boleh digunakan sebagai data dev untuk penelitian/percobaan berikutnya, dilarang keras dipakai lagi sebagai held-out). Berkas ini TIDAK digabung ke `docs/dev_4dv4.json`.
+- **Dependensi untuk Tahap 6:**
+  - Balasan `CAN_INTERNET` (yang saat ini menyatakan penolakan mutlak) serta daftar perintah `LIST_COMMANDS` wajib diperbarui ketika kapabilitas web (`/web`, `web_fetch`, `open_url`) diimplementasikan pada Tahap 6.
+
+#### 5. Catatan Batasan yang Diketahui (Known Limitations)
+1. **Layar Diam pada Tunda Gapless (Efek Samping Penonaktifan Status):**
+   Karena string status `[menyiapkan suara...]` dinonaktifkan (`status_text=""`) demi mencegah wrap kursor dan rusaknya fidelity tampilan, pada kasus tunda gapless terburuk (~7 detik pada pola kalimat pembuka pendek diikuti kalimat panjang / Bentuk C), layar terminal akan diam tanpa indikator visual sementara audio awal disintesis di latar belakang.
+2. **Keterbatasan Generalisasi Router Regex:**
+   Router kemampuan masih melewatkan sejumlah pola kalimat alami (seperti variasi `CAN_TEST` dan `CAN_REMEMBER`) serta berisiko mengalami false-route pada keluhan fisik perangkat keras yang memuat kata kunci seperti "layar".
+3. **Model Mengaku 'Sudah Mengingatkan':**
    Pada prompt perintah langsung seperti *"tolong ingetin aku besok ada ujian"*, pesan sengaja tidak dirouting ke router kemampuan (karena merupakan direktif, bukan tanya kemampuan). Model `qwen2.5:3b` merespons *"Baik, saya sudah mengingatkan..."* padahal belum ada sistem penjadwalan alarm/pengingat waktu. Ini merupakan keterbatasan halusinasi model bahasa kecil dan akan ditangani melalui skill/tooling pengingat di masa mendatang.
-2. **Latensi Teks Pertama pada Bentuk C:**
+4. **Latensi Teks Pertama pada Bentuk C:**
    Pada pola kalimat pembuka sangat pendek (3 kata) yang diikuti kalimat sangat panjang (28 kata), mekanisme tunda *gapless-by-delay* membutuhkan waktu kompensasi sintesis $D \approx 5,04\text{ s}$ sehingga teks pertama baru muncul di layar pada detik ke ~6,9.
-3. **M8 Tail Padding Winsound:**
+5. **M8 Tail Padding Winsound:**
    Median residu fisik penutupan audio pada Windows berkisar `+139,71 ms` (audio menunggu sedikit lebih lama demi keamanan agar ekor audio tidak terpotong).
 
 ---

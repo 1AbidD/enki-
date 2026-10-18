@@ -1,0 +1,78 @@
+================================================================================
+BUKTI EMPIRIS TAHAP 4E BAGIAN A (SUARA, TAMPILAN, TELEMETRI)
+Git HEAD     : 395fe47a5e0edee3b0853e4faa0148e019546198
+Skrip Berkas : bench_tahap4e_partA_evidence.py
+Skrip SHA-256: d613d0a97be50170d8beeac3c01472afa4d10bde3d6ec34903d554cde9651fa3
+Waktu Uji    : 2026-10-18 18:35:47
+================================================================================
+
+(I) TEKS TTS UNTUK 17 COMMAND REGISTRI (clean_text_for_tts + apply_pronunciation)
+--------------------------------------------------------------------------------
+[01] baca, membaca isi berkas di workspace.
+[02] dir, melihat daftar berkas dan folder.
+[03] git, menjalankan aksi git aman status/log/diff.
+[04] test, menjalankan unit test sistem Python.
+[05] versi, memeriksa versi sistem Python.
+[06] ingat, mencari catatan masa lalu di memori.
+[07] simpan, menyimpan fakta diri ke profil pengguna.
+[08] memory, mengelola entri memori sistem.
+[09] reflect, melakukan refleksi sesi percakapan.
+[10] coder, beralih ke model khusus coding.
+[11] chat, beralih ke model percakapan utama.
+[12] mute, menonaktifkan suara audio mode senyap.
+[13] unmute, mengaktifkan kemampuan berbicara dengan suara TTS.
+[14] status, melihat status sistem dan model.
+[15] clear, membersihkan riwayat obrolan sesi.
+[16] exit, keluar dari aplikasi.
+[17] help, menampilkan panduan bantuan perintah.
+Total baris perintah terformat: 17/17
+--------------------------------------------------------------------------------
+
+(II) DAFTAR CHUNK TTS & PENANDA LABEL+DESKRIPSI (prepare_tts_chunks)
+--------------------------------------------------------------------------------
+[Fixture 1: Jawaban Rekomendasi Monitor]
+  Chunk #01 [KALIMAT UTUH   ] : Untuk membantu Anda menemukan rekomendasi monitor baru,
+  Chunk #02 [KALIMAT UTUH   ] : saya membutuhkan beberapa informasi lebih lanjut tentang kebutuhan Anda, seperti:
+  Chunk #03 [LABEL+DESKRIPSI] : Ukuran Monitor, Ukuran monitor yang Anda inginkan. Biasanya, ukuran monitor dinyatakan dalam inci (ex: 24 inci, 27 inci, dll). Resolusi, Resolusi yang Anda inginkan.
+  Chunk #04 [LABEL+DESKRIPSI] : Monitor modern biasanya memiliki resolusi 1080p (Full HD) atau 4K (Ultra HD). Tipe Monitor, Apakah Anda membutuhkan monitor standar, monitor gaming, atau monitor dengan fitur khusus lainnya?
+  Chunk #05 [LABEL+DESKRIPSI] : Budget, Berapa anggaran yang Anda miliki untuk beli monitor? Setelah Anda memberikan informasi ini, saya dapat memberikan rekomendasi yang lebih spesifik untuk Anda.
+
+[Fixture 2: Tiga Item Berlabel]
+  Chunk #01 [KALIMAT UTUH   ] : Berikut adalah tiga langkah utama dalam proses instalasi sistem:
+  Chunk #02 [LABEL+DESKRIPSI] : Unduh Paket, Unduh paket instalasi dari repositori resmi proyek.
+  Chunk #03 [LABEL+DESKRIPSI] : Ekstrak Berkas, Ekstrak seluruh isi arsip ke direktori kerja yang ditentukan.
+  Chunk #04 [LABEL+DESKRIPSI] : Jalankan Skrip, Jalankan skrip setup untuk menyelesaikan konfigurasi otomatis.
+--------------------------------------------------------------------------------
+
+(III) FIDELITY TAMPILAN PER FIXTURE X MODE (4 Fixture x 3 Mode = 12 Uji)
+--------------------------------------------------------------------------------
+Fixture: monitor        | Mode: muted          | Status: PASS | Tercetak:  693 char | Asli:  693 char
+Fixture: monitor        | Mode: unmuted        | Status: PASS | Tercetak:  693 char | Asli:  693 char
+Fixture: monitor        | Mode: unmuted+cancel | Status: PASS | Tercetak:  693 char | Asli:  693 char
+Fixture: list_commands  | Mode: muted          | Status: PASS | Tercetak:  925 char | Asli:  925 char
+Fixture: list_commands  | Mode: unmuted        | Status: PASS | Tercetak:  925 char | Asli:  925 char
+Fixture: list_commands  | Mode: unmuted+cancel | Status: PASS | Tercetak:  925 char | Asli:  925 char
+Fixture: three_items    | Mode: muted          | Status: PASS | Tercetak:  310 char | Asli:  310 char
+Fixture: three_items    | Mode: unmuted        | Status: PASS | Tercetak:  310 char | Asli:  310 char
+Fixture: three_items    | Mode: unmuted+cancel | Status: PASS | Tercetak:  310 char | Asli:  310 char
+Fixture: ending_colon   | Mode: muted          | Status: PASS | Tercetak:   84 char | Asli:   84 char
+Fixture: ending_colon   | Mode: unmuted        | Status: PASS | Tercetak:   84 char | Asli:   84 char
+Fixture: ending_colon   | Mode: unmuted+cancel | Status: PASS | Tercetak:   84 char | Asli:   84 char
+Ringkasan Fidelity: 12/12 PASS (100% Identik)
+--------------------------------------------------------------------------------
+
+(IV) CONTOH BARIS TELEMETRI ROUTER DARI JALUR KODE ASLI (console.py)
+--------------------------------------------------------------------------------
+[Mode Muted]
+-- Telemetri: router (tanpa LLM) | Intent: CAN_SPEAK | Router: 3.23 ms | Sisa Context: 8192/8192 tok --
+
+[Mode Unmuted]
+-- Telemetri: router (tanpa LLM) | Intent: CAN_SPEAK | Router: 0.10 ms | Suara: 0.00 s | Sisa Context: 8192/8192 tok --
+--------------------------------------------------------------------------------
+
+(V) VERIFIKASI HASH & INTEGRITAS
+--------------------------------------------------------------------------------
+Git HEAD Commit    : 395fe47a5e0edee3b0853e4faa0148e019546198
+Berkas Skrip       : D:\ENKI\Enki\scripts\bench_tahap4e_partA_evidence.py
+SHA-256 Skrip      : d613d0a97be50170d8beeac3c01472afa4d10bde3d6ec34903d554cde9651fa3
+================================================================================
