@@ -2,6 +2,7 @@
 
 import io
 import json
+import re
 import time
 import unittest
 from pathlib import Path
@@ -247,6 +248,131 @@ class TestCapabilityRouterIntegration(unittest.TestCase):
             20.0,
             f"Median latensi router ({median_lat:.3f} ms) melampaui batas 20 ms!"
         )
+
+    def test_b1_dev_100_percent_positive_and_zero_false_route(self):
+        """B1: 100% positif ter-route ke intent yang benar, 0 false route pada NONE pada dev set."""
+        dev_path = Path("docs/dev_4dv4.json")
+        self.assertTrue(dev_path.exists())
+        with open(dev_path, "r", encoding="utf-8") as f:
+            items = json.load(f)
+
+        for item in items:
+            p = item["prompt"]
+            exp = item["intent"]
+            res = route_capability_inquiry(p)
+            if exp == "NONE":
+                self.assertIsNone(
+                    res,
+                    f"False-route pada prompt negatif '{p}': terdeteksi {res.intent if res else None}"
+                )
+            else:
+                self.assertIsNotNone(
+                    res,
+                    f"Miss pada prompt positif '{p}': diharapkan {exp}, hasil None"
+                )
+                self.assertEqual(
+                    res.intent,
+                    exp,
+                    f"Intent mismatch pada '{p}': diharapkan {exp}, hasil {res.intent}"
+                )
+
+    def test_b2_reinforced_overfit_guard_3gram_all_dev(self):
+        """B2: Tidak boleh ada 3-gram berurutan dari kalimat dev mana pun di sumber router."""
+        dev_path = Path("docs/dev_4dv4.json")
+        self.assertTrue(dev_path.exists())
+        with open(dev_path, "r", encoding="utf-8") as f:
+            items = json.load(f)
+
+        router_path = Path("enki/core/capability_router.py")
+        src = router_path.read_text(encoding="utf-8").lower()
+        clean_src = re.sub(r'""".*?"""', '', src, flags=re.DOTALL)
+        clean_src = re.sub(r"'''.*?'''", '', clean_src, flags=re.DOTALL)
+        clean_src = re.sub(r'\s+', ' ', clean_src)
+
+        for item in items:
+            prompt = item["prompt"].lower()
+            words = re.findall(r'\b\w+\b', prompt)
+            if len(words) >= 3:
+                for i in range(len(words) - 2):
+                    trigram = " ".join(words[i:i+3])
+                    self.assertNotIn(
+                        trigram,
+                        clean_src,
+                        f"Overfit guard B2: Trigram '{trigram}' dari '{prompt}' ditemukan di router source!"
+                    )
+
+    def test_b4_router_replies_accurate_to_registry(self):
+        """B4: Balasan router akurat terhadap registri: nama command valid, CAN_TEST tdk klaim sembarang, CAN_REMEMBER simpan+ingat."""
+        all_intents = [
+            "LIST_COMMANDS", "CAN_INTERNET", "CAN_SCREEN",
+            "CAN_READ_FILE", "CAN_TEST", "CAN_SPEAK", "CAN_REMEMBER"
+        ]
+        sample_prompts = {
+            "LIST_COMMANDS": "perintah apa saja yang ada?",
+            "CAN_INTERNET": "kamu bisa browsing ke internet?",
+            "CAN_SCREEN": "bisa lihat apa yang ada di monitorku?",
+            "CAN_READ_FILE": "bisa baca file?",
+            "CAN_TEST": "bisa jalanin tes?",
+            "CAN_SPEAK": "kamu bisa bersuara?",
+            "CAN_REMEMBER": "kamu bisa nginget hal tentang aku ga?",
+        }
+
+        for intent in all_intents:
+            prompt = sample_prompts[intent]
+            res = route_capability_inquiry(prompt)
+            self.assertIsNotNone(res, f"Gagal routing ke intent {intent}")
+            self.assertEqual(res.intent, intent)
+
+            # 1. Seluruh nama slash command di balasan harus terdaftar di COMMAND_REGISTRY
+            slash_cmds = re.findall(r"(?<![a-zA-Z0-9_])(/[a-zA-Z0-9_]+)", res.reply)
+            for cmd in slash_cmds:
+                self.assertIn(
+                    cmd,
+                    COMMAND_REGISTRY,
+                    f"Command '{cmd}' pada balasan intent {intent} tidak ada di COMMAND_REGISTRY!"
+                )
+
+            # 2. CAN_TEST tidak mengklaim bisa menjalankan sembarang kode
+            if intent == "CAN_TEST":
+                self.assertNotIn("menjalankan kode", res.reply.lower())
+                self.assertNotIn("eksekusi kode", res.reply.lower())
+                self.assertIn("/test", res.reply)
+                self.assertIn("unit test", res.reply.lower())
+
+            # 3. CAN_REMEMBER menunjuk /simpan dan /ingat secara akurat
+            if intent == "CAN_REMEMBER":
+                self.assertIn("/simpan", res.reply)
+                self.assertIn("/ingat", res.reply)
+                self.assertIn("profil", res.reply.lower())
+                self.assertIn("memori", res.reply.lower())
+
+    def test_b5_router_median_latency_under_1ms(self):
+        """B5: Median latensi router harus < 1 ms diukur pada baterai dev."""
+        dev_path = Path("docs/dev_4dv4.json")
+        self.assertTrue(dev_path.exists())
+        with open(dev_path, "r", encoding="utf-8") as f:
+            items = json.load(f)
+
+        # Warmup
+        for item in items:
+            route_capability_inquiry(item["prompt"])
+
+        latencies = []
+        for _ in range(5):
+            for item in items:
+                t0 = time.perf_counter()
+                route_capability_inquiry(item["prompt"])
+                dt = (time.perf_counter() - t0) * 1000
+                latencies.append(dt)
+
+        latencies.sort()
+        median_lat = latencies[len(latencies) // 2]
+        self.assertLess(
+            median_lat,
+            1.0,
+            f"Median latensi router ({median_lat:.4f} ms) melampaui batas 1.0 ms!"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

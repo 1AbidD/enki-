@@ -1026,6 +1026,77 @@ Status Tahap 4D-v3: **LULUS PENUH (100% pada Seluruh Kriteria Q1–Q7)**.
   - `docs/evidence/tahap4dv3_latency.txt`
   - `docs/test_ids.txt` (146 baris ID)
 
+---
+
+### Tahap 4E: Perbaikan Baca-Suara (List/Label), Fidelity Tampilan, dan Router v4 (Generalisasi Komposisional)
+
+#### 1. Konteks & Akar Masalah
+Pada sesi live Abid setelah Tahap 4D-v3, teridentifikasi sejumlah masalah pengalaman pengguna nyata:
+1. **Router Overfit:** Router 4D-v3 hanya menangkap 3 dari 8 variasi kalimat baru karena regex berbasis pencocokan frasa hafalan yang disetel terhadap string yang sudah dilihat sebelumnya.
+2. **Output Rusak pada Mode /unmute:** Pada balasan LLM yang memuat nomor list tebal dan kalimat panjang (fixture monitor), tampilan layar terpotong dan tertimpa (`\r` cursor wrap pada terminal sempit akibat string placeholder status), teks label terpotong menjadi chunk tersendiri, dan notifikasi `/mute` disisipkan di antara jawaban dan telemetri sehingga merusak fidelity tampilan.
+3. **Bacaan Suara List Item Nyambung:** Sintesis TTS membaca baris bullet/daftar perintah secara berturutan tanpa jeda karena tidak adanya tanda baca jeda di akhir baris dan titik dua setelah nama perintah tidak dilafalkan dengan jeda koma.
+
+#### 2. Pelaksanaan Bagian A — Suara & Tampilan
+- **A0 Reproduksi & Akar Masalah:**
+  - Diuji pada PowerShell/Windows Terminal riil. Terbukti bahwa:
+    (a) String status sementara `"[menyiapkan suara...]"` yang dihapus dengan `\r` + 21 spasi + `\r` mengalami wrap baris pada terminal sempit, menyebabkan kursor tidak kembali ke baris atas sehingga potongan teks berikutnya menimpa karakter yang sudah tercetak;
+    (b) Notifikasi mode senyap `[Config] Mode senyap AKTIF (/mute)` tercetak sebelum baris `-- Telemetri:`;
+    (c) Solusi: default `status_text=""` pada streaming sinkron, label pendek/nomor list digabung dengan awal deskripsi, dan notifikasi interupsi dipindahkan setelah baris telemetri.
+  - Bukti: `docs/evidence/tahap4e_repro_raw.txt`.
+- **A1 Jeda Antar Item List:**
+  - Fungsi `clean_text_for_tts` dan `_clean_and_pronounce_with_offsets` diperbarui: setiap item list yang memuat perintah/label atau nomor list diberi tanda jeda titik (`.`) di akhir baris jika belum berakhir tanda baca, dan titik dua setelah nama perintah/label diganti koma (`,`).
+  - Teks yang DITAMPILKAN di layar tetap 100% utuh tanpa perubahan tanda baca.
+- **A2 Penggabungan Label Pendek & Nomor List:**
+  - Fungsi `_merge_short_labels_and_numbers` memastikan tidak ada chunk yang hanya memuat label pendek ($\le 4$ kata berakhir `:`) atau nomor list (`2.`); label digabungkan menjadi satu chunk dengan awal deskripsinya.
+  - Kalimat pembuka $> 4$ kata yang berakhir `:` tetap diizinkan sebagai chunk tersendiri.
+- **A3 Fidelity Tampilan (100% Exact Match):**
+  - Diuji pada 4 fixture (monitor, list commands router, 3 item berlabel tebal, kalimat berakhiran titik dua) dalam 3 mode (muted, unmuted normal, unmuted interupsi cancel di tengah).
+  - Teks di antara `[Jawaban]` dan `-- Telemetri:` persis sama 1 kali dengan teks asli tanpa duplikasi, tanpa terpotong, dan tanpa teks asing.
+- **A4 Format Label Telemetri:**
+  - Pada jawaban router, telemetri memisahkan `Router: x ms` dan `Suara: y s` (durasi pemutaran fisik audio, hanya jika unmuted). Field `Latensi` gabungan resmi ditiadakan. Format telemetri LLM tidak berubah.
+- **A5 Regresi & Commit Bagian A:**
+  - Seluruh 146 test lama lulus, 4 test baru ditambahkan (`tests/test_tahap4e_part_a.py`), total test menjadi 150 (147 passed, 3 skipped).
+  - Hash prompt model tetap identik: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`.
+  - **Commit Bagian A:** `9c6585e` (`"tahap 4E bagian A perbaikan suara dan fidelity"`).
+
+#### 3. Pelaksanaan Bagian B — Router v4 (Generalisasi Komposisional)
+- **Prinsip Arsitektur:**
+  - Menggantikan daftar frasa literal kaku dengan tiga lapisan komposisional:
+    1. *Bingkai Pertanyaan Kemampuan (Ability Framing):* Modalitas (`bisa`, `dapat`, `mampu`, `sanggup`), referensi asisten (`kamu`, `lu`, `anda`, `enki`, `lewat kamu`), konstruksi cara asisten (`cara agar/biar/nyuruh kamu`), dan kata kunci fitur/perintah.
+    2. *Leksikon Topik per Intent:* Variasi akar kata, slang, dan imbuhan bahasa Indonesia untuk 7 intent spesifik (`CAN_INTERNET`, `CAN_SCREEN`, `CAN_READ_FILE`, `CAN_TEST`, `CAN_SPEAK`, `CAN_REMEMBER`, dan `LIST_COMMANDS` untuk pertanyaan kemampuan umum).
+    3. *Filter Negatif Struktural:* Memfilter bingkai penjelasan/cerita/definisi/tips (`jelasin`, `ceritain`, `apa itu`, `apa beda`, `cara kerja`), keluhan orang pertama (`aku ga bisa`, kepemilikan perangkat rusak/error/lemot), dan pertanyaan lingkungan luar (`di linux/windows/postman`), TANPA menaruh kata kondisi spesifik terlarang seperti "retak" atau "suka warna".
+- **B1 Hasil Evaluasi Dev Dataset (`docs/dev_4dv4.json` - 96 sampel):**
+  - **Sampel Positif:** 60/60 berhasil ter-route ke intent yang benar (**100.0% akurasi**, 0 MISS, 0 salah intent).
+  - **Sampel Negatif:** 36/36 tidak ter-route / diserahkan ke model (**100.0% akurasi**, **0 FALSE-ROUTE**).
+  - **Catatan Transparansi Tuning Router:**
+    - Evaluasi pertama dev set pada router lama (4D-v3): 41/60 positif, 35/36 negatif (gagal).
+    - Kode router komposisional v4 pertama kali ditulis: 60/60 positif, 36/36 negatif (lulus).
+    - Terjadi **5 kali edit penyesuaian** pada `enki/core/capability_router.py` untuk menyelaraskan dengan unit test `test_capability_router.py` lama (menambahkan imbuhan formal `menjalankan`, `menyuruh`, `artinya`, `preferensi`, dan memperbaiki regex `cara(?:nya)?`), dengan hasil akhir dev set tetap konsisten 100% positif dan 0 false route.
+- **B2 Overfit Guard Diperkuat (Trigram Check):**
+  - Skrip `scripts/check_trigrams.py` memindai seluruh 96 kalimat pada dev dataset terhadap kode sumber `enki/core/capability_router.py`.
+  - Hasil: **0 trigram yang cocok** (bersih total dari n-gram 3 kata hafalan dev).
+- **B3 Skrip Evaluasi Deterministik:**
+  - `scripts/eval_router.py --file <path> [--save]` diimplementasikan dan diverifikasi; mencetak status per baris, ringkasan, SHA-256 input, SHA-256 router source, dan git HEAD.
+  - Bukti tersimpan di `docs/evidence/tahap4e_dev_4dv4.txt`.
+- **B4 Keakuratan Registri & Batasan:**
+  - Seluruh nama perintah yang disebut dalam balasan terbukti ada di `COMMAND_REGISTRY`.
+  - `CAN_TEST` hanya menyebut unit test sistem Python dan tidak mengklaim bisa mengeksekusi kode bebas.
+  - `CAN_REMEMBER` secara tepat merujuk `/simpan` (profil) dan `/ingat` (memori).
+- **B5 Latensi & Regresi:**
+  - Median latensi router v4 terukur dari 960 eksekusi: **`0,0247 ms`** (jauh di bawah batas $< 1\text{ ms}$).
+  - Full suite: **154 tests passed** (151 passed, 3 skipped, 0 fail, 0 error).
+  - System prompt hash identik: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`.
+
+#### 4. Catatan Batasan yang Diketahui (Known Limitations)
+1. **Model Mengaku 'Sudah Mengingatkan':**
+   Pada prompt perintah langsung seperti *"tolong ingetin aku besok ada ujian"*, pesan sengaja tidak dirouting ke router kemampuan (karena merupakan direktif, bukan tanya kemampuan). Model `qwen2.5:3b` merespons *"Baik, saya sudah mengingatkan..."* padahal belum ada sistem penjadwalan alarm/pengingat waktu. Ini merupakan keterbatasan halusinasi model bahasa kecil dan akan ditangani melalui skill/tooling pengingat di masa mendatang.
+2. **Latensi Teks Pertama pada Bentuk C:**
+   Pada pola kalimat pembuka sangat pendek (3 kata) yang diikuti kalimat sangat panjang (28 kata), mekanisme tunda *gapless-by-delay* membutuhkan waktu kompensasi sintesis $D \approx 5,04\text{ s}$ sehingga teks pertama baru muncul di layar pada detik ke ~6,9.
+3. **M8 Tail Padding Winsound:**
+   Median residu fisik penutupan audio pada Windows berkisar `+139,71 ms` (audio menunggu sedikit lebih lama demi keamanan agar ekor audio tidak terpotong).
+
+---
+
 ### Tahap 6: Web Tools (`open_url`, `web_fetch`) & Evaluasi Menyeluruh (DIUSULKAN MENDAHULUI TAHAP 5)
 * Implementasi `web_fetch` (trafilatura + requests) dengan sanitasi tag injection.
 * Integrasi `open_url` aman.

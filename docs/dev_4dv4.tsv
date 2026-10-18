@@ -1,0 +1,96 @@
+LIST_COMMANDS	kamu tuh sebenernya bisa apa sih
+LIST_COMMANDS	command apa aja yg ada
+LIST_COMMANDS	perintah apa saja yang tersedia
+LIST_COMMANDS	fitur kamu apa aja
+LIST_COMMANDS	apa yang bisa kamu lakukan
+LIST_COMMANDS	kemampuanmu apa aja sih
+LIST_COMMANDS	sebutin semua fitur yang kamu punya
+LIST_COMMANDS	ada command apa di sini
+LIST_COMMANDS	list perintah dong
+CAN_INTERNET	bisakah kamu membuka web internet ?
+CAN_INTERNET	kamu bisa browsing ga
+CAN_INTERNET	lu bisa nyari di google ga
+CAN_INTERNET	apa kamu terhubung ke internet
+CAN_INTERNET	bisa buka link ga
+CAN_INTERNET	kamu bisa akses website?
+CAN_SCREEN	lu bisa liat layar gue ga
+CAN_SCREEN	kamu bisa melihat tampilan monitorku?
+CAN_SCREEN	bisa baca apa yang ada di layar komputerku
+CAN_SCREEN	kamu bisa screenshot ga
+CAN_READ_FILE	bisa ga baca isi file
+CAN_READ_FILE	kamu bisa buka file di folderku?
+CAN_READ_FILE	apakah kamu bisa membaca dokumen
+CAN_READ_FILE	bisa lihat isi folder ga
+CAN_TEST	kamu bisa ngetes kode?
+CAN_TEST	bisa jalanin unit test ga
+CAN_TEST	apakah kamu bisa menguji program saya
+CAN_SPEAK	bisa ngomong ga sih kamu
+CAN_SPEAK	kamu bisa bersuara?
+CAN_SPEAK	bisa ngobrol pake suara ga
+CAN_SPEAK	apa kamu punya suara
+CAN_REMEMBER	cara biar kamu inget namaku gimana
+CAN_REMEMBER	kamu bisa nginget hal tentang aku ga
+CAN_REMEMBER	gimana cara nyimpen fakta tentang gue
+CAN_REMEMBER	apa kamu bisa ingat percakapan kemarin
+NONE	jelasin cara kerja internet
+NONE	aku mau beli monitor baru, rekomendasi dong
+NONE	tolong ingetin aku besok ada ujian
+NONE	gimana cara jalanin program python di laptop
+NONE	ceritain pengalaman paling lucu menurutmu
+NONE	bisa tolong jelasin apa itu TCP
+NONE	bisa bantu aku bikin kalimat bahasa inggris
+NONE	aku ga bisa liat layar hp ku, kenapa ya
+NONE	file excel ku rusak gimana benerinnya
+NONE	suara laptopku kecil banget
+NONE	internet di rumah lemot, ada tips
+NONE	namaku Abid, aku suka kopi
+NONE	kemarin aku lupa nama temanku
+NONE	gimana cara ngetes API di postman
+NONE	bisa ga sih manusia hidup tanpa internet
+NONE	web apa yang bagus buat belajar python
+NONE	kamu suka musik apa
+NONE	kode python ku error terus, bantuin dong
+LIST_COMMANDS	kamu bisa ngapain aja
+LIST_COMMANDS	perintah apa saja yang ada
+CAN_INTERNET	bisakah kamu membuka web internet
+CAN_SCREEN	bisa lihat layar aku?
+CAN_READ_FILE	bisa baca file?
+CAN_TEST	bisa jalanin tes?
+CAN_SPEAK	bisa ngomong?
+CAN_REMEMBER	cara nyimpen sesuatu ke ingatanmu gimana
+NONE	kurs dolar ke rupiah hari ini berapa
+NONE	siapa yang menang pertandingan bola semalam
+NONE	harga emas hari ini
+NONE	pagi
+NONE	jelaskan apa itu array
+NONE	ceritain hal lucu dong
+NONE	hari ini aku lulus ujian
+NONE	makasih ya
+NONE	kamu suka warna apa
+LIST_COMMANDS	ENKI bisa bantu apa aja?
+LIST_COMMANDS	ada command apa aja di sini?
+CAN_INTERNET	kamu punya akses internet nggak?
+CAN_SCREEN	bisa nggak kamu ngelihat isi layarku?
+CAN_READ_FILE	kalau mau kamu buka file di komputerku gimana?
+CAN_TEST	gimana caranya aku jalanin unit test lewat kamu?
+CAN_SPEAK	kamu bisa ngomong pakai suara?
+CAN_REMEMBER	gimana caranya biar kamu inget nama panggilanku?
+NONE	ibu kota Jepang
+NONE	tahun berapa Indonesia merdeka
+NONE	berapa 12 x 15
+NONE	siapa penulis novel Laskar Pelangi
+LIST_COMMANDS	ENKI sebenernya bisa ngapain sih?
+LIST_COMMANDS	daftar fitur kamu apa aja
+LIST_COMMANDS	ada perintah apa saja yang bisa kupakai
+CAN_INTERNET	kamu bisa browsing ke internet?
+CAN_SCREEN	bisa lihat apa yang ada di monitorku?
+CAN_READ_FILE	kamu bisa buka file proyekku?
+CAN_TEST	bisa tolong jalanin test lewat kamu?
+CAN_SPEAK	kamu bisa ngomong nggak?
+CAN_REMEMBER	gimana cara nyuruh kamu inget sesuatu?
+CAN_REMEMBER	bisa gak kamu simpan fakta tentang aku?
+NONE	bisa tolong jelaskan apa itu array?
+NONE	perintah ls di linux fungsinya apa
+NONE	layar laptopku retak, enaknya gimana
+NONE	apa itu internet?
+NONE	aku mau belajar baca file di python

@@ -1,0 +1,482 @@
+[
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "kamu tuh sebenernya bisa apa sih",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "command apa aja yg ada",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "perintah apa saja yang tersedia",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "fitur kamu apa aja",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "apa yang bisa kamu lakukan",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "kemampuanmu apa aja sih",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "sebutin semua fitur yang kamu punya",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "ada command apa di sini",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "list perintah dong",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "bisakah kamu membuka web internet ?",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "kamu bisa browsing ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "lu bisa nyari di google ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "apa kamu terhubung ke internet",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "bisa buka link ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "kamu bisa akses website?",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SCREEN",
+    "prompt": "lu bisa liat layar gue ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SCREEN",
+    "prompt": "kamu bisa melihat tampilan monitorku?",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SCREEN",
+    "prompt": "bisa baca apa yang ada di layar komputerku",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SCREEN",
+    "prompt": "kamu bisa screenshot ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_READ_FILE",
+    "prompt": "bisa ga baca isi file",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_READ_FILE",
+    "prompt": "kamu bisa buka file di folderku?",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_READ_FILE",
+    "prompt": "apakah kamu bisa membaca dokumen",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_READ_FILE",
+    "prompt": "bisa lihat isi folder ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_TEST",
+    "prompt": "kamu bisa ngetes kode?",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_TEST",
+    "prompt": "bisa jalanin unit test ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_TEST",
+    "prompt": "apakah kamu bisa menguji program saya",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SPEAK",
+    "prompt": "bisa ngomong ga sih kamu",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SPEAK",
+    "prompt": "kamu bisa bersuara?",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SPEAK",
+    "prompt": "bisa ngobrol pake suara ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_SPEAK",
+    "prompt": "apa kamu punya suara",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "cara biar kamu inget namaku gimana",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "kamu bisa nginget hal tentang aku ga",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "gimana cara nyimpen fakta tentang gue",
+    "source": "4E_new"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "apa kamu bisa ingat percakapan kemarin",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "jelasin cara kerja internet",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "aku mau beli monitor baru, rekomendasi dong",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "tolong ingetin aku besok ada ujian",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "gimana cara jalanin program python di laptop",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "ceritain pengalaman paling lucu menurutmu",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "bisa tolong jelasin apa itu TCP",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "bisa bantu aku bikin kalimat bahasa inggris",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "aku ga bisa liat layar hp ku, kenapa ya",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "file excel ku rusak gimana benerinnya",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "suara laptopku kecil banget",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "internet di rumah lemot, ada tips",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "namaku Abid, aku suka kopi",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "kemarin aku lupa nama temanku",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "gimana cara ngetes API di postman",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "bisa ga sih manusia hidup tanpa internet",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "web apa yang bagus buat belajar python",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "kamu suka musik apa",
+    "source": "4E_new"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "kode python ku error terus, bantuin dong",
+    "source": "4E_new"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "kamu bisa ngapain aja",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "perintah apa saja yang ada",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "bisakah kamu membuka web internet",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "CAN_SCREEN",
+    "prompt": "bisa lihat layar aku?",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "CAN_READ_FILE",
+    "prompt": "bisa baca file?",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "CAN_TEST",
+    "prompt": "bisa jalanin tes?",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "CAN_SPEAK",
+    "prompt": "bisa ngomong?",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "cara nyimpen sesuatu ke ingatanmu gimana",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "kurs dolar ke rupiah hari ini berapa",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "siapa yang menang pertandingan bola semalam",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "harga emas hari ini",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "pagi",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "jelaskan apa itu array",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "ceritain hal lucu dong",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "hari ini aku lulus ujian",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "makasih ya",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "kamu suka warna apa",
+    "source": "4D_v1"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "ENKI bisa bantu apa aja?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "ada command apa aja di sini?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "kamu punya akses internet nggak?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "CAN_SCREEN",
+    "prompt": "bisa nggak kamu ngelihat isi layarku?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "CAN_READ_FILE",
+    "prompt": "kalau mau kamu buka file di komputerku gimana?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "CAN_TEST",
+    "prompt": "gimana caranya aku jalanin unit test lewat kamu?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "CAN_SPEAK",
+    "prompt": "kamu bisa ngomong pakai suara?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "gimana caranya biar kamu inget nama panggilanku?",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "ibu kota Jepang",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "tahun berapa Indonesia merdeka",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "berapa 12 x 15",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "siapa penulis novel Laskar Pelangi",
+    "source": "4D_v2"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "ENKI sebenernya bisa ngapain sih?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "daftar fitur kamu apa aja",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "LIST_COMMANDS",
+    "prompt": "ada perintah apa saja yang bisa kupakai",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "CAN_INTERNET",
+    "prompt": "kamu bisa browsing ke internet?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "CAN_SCREEN",
+    "prompt": "bisa lihat apa yang ada di monitorku?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "CAN_READ_FILE",
+    "prompt": "kamu bisa buka file proyekku?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "CAN_TEST",
+    "prompt": "bisa tolong jalanin test lewat kamu?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "CAN_SPEAK",
+    "prompt": "kamu bisa ngomong nggak?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "gimana cara nyuruh kamu inget sesuatu?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "CAN_REMEMBER",
+    "prompt": "bisa gak kamu simpan fakta tentang aku?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "bisa tolong jelaskan apa itu array?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "perintah ls di linux fungsinya apa",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "layar laptopku retak, enaknya gimana",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "apa itu internet?",
+    "source": "4D_v3"
+  },
+  {
+    "intent": "NONE",
+    "prompt": "aku mau belajar baca file di python",
+    "source": "4D_v3"
+  }
+]
