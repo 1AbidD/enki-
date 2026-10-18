@@ -1,0 +1,132 @@
+{
+  "positif": [
+    {
+      "code": "R1",
+      "prompt": "ENKI sebenernya bisa ngapain sih?",
+      "intent": "LIST_COMMANDS",
+      "rule": "memuat minimal 5 nama perintah"
+    },
+    {
+      "code": "R2",
+      "prompt": "daftar fitur kamu apa aja",
+      "intent": "LIST_COMMANDS",
+      "rule": "memuat minimal 5 nama perintah"
+    },
+    {
+      "code": "R3",
+      "prompt": "ada perintah apa saja yang bisa kupakai",
+      "intent": "LIST_COMMANDS",
+      "rule": "memuat minimal 5 nama perintah"
+    },
+    {
+      "code": "R4",
+      "prompt": "kamu bisa browsing ke internet?",
+      "intent": "CAN_INTERNET",
+      "rule": "memuat salah satu {tidak, belum}"
+    },
+    {
+      "code": "R5",
+      "prompt": "bisa lihat apa yang ada di monitorku?",
+      "intent": "CAN_SCREEN",
+      "rule": "memuat salah satu {tidak, belum}"
+    },
+    {
+      "code": "R6",
+      "prompt": "kamu bisa buka file proyekku?",
+      "intent": "CAN_READ_FILE",
+      "rule": "memuat '/baca'"
+    },
+    {
+      "code": "R7",
+      "prompt": "bisa tolong jalanin test lewat kamu?",
+      "intent": "CAN_TEST",
+      "rule": "memuat '/test'"
+    },
+    {
+      "code": "R8",
+      "prompt": "kamu bisa ngomong nggak?",
+      "intent": "CAN_SPEAK",
+      "rule": "memuat '/unmute'"
+    },
+    {
+      "code": "R9",
+      "prompt": "gimana cara nyuruh kamu inget sesuatu?",
+      "intent": "CAN_REMEMBER",
+      "rule": "memuat '/simpan' atau '/ingat'"
+    },
+    {
+      "code": "R10",
+      "prompt": "bisa gak kamu simpan fakta tentang aku?",
+      "intent": "CAN_REMEMBER",
+      "rule": "memuat '/simpan' atau '/ingat'"
+    }
+  ],
+  "negatif": [
+    {
+      "code": "N1",
+      "prompt": "bisa tolong jelaskan apa itu array?",
+      "expected_route": null
+    },
+    {
+      "code": "N2",
+      "prompt": "perintah ls di linux fungsinya apa",
+      "expected_route": null
+    },
+    {
+      "code": "N3",
+      "prompt": "layar laptopku retak, enaknya gimana",
+      "expected_route": null
+    },
+    {
+      "code": "N4",
+      "prompt": "apa itu internet?",
+      "expected_route": null
+    },
+    {
+      "code": "N5",
+      "prompt": "ceritain hal lucu dong",
+      "expected_route": null
+    },
+    {
+      "code": "N6",
+      "prompt": "aku mau belajar baca file di python",
+      "expected_route": null
+    },
+    {
+      "code": "N7",
+      "prompt": "kamu suka warna apa",
+      "expected_route": null
+    },
+    {
+      "code": "N8",
+      "prompt": "makasih ya",
+      "expected_route": null
+    }
+  ],
+  "regresi_percakapan": [
+    {
+      "code": "REG1",
+      "prompt": "pagi"
+    },
+    {
+      "code": "REG2",
+      "prompt": "ceritain hal lucu dong"
+    },
+    {
+      "code": "REG3",
+      "prompt": "hari ini aku lulus ujian"
+    },
+    {
+      "code": "REG4",
+      "prompt": "jelaskan apa itu array"
+    },
+    {
+      "code": "REG5",
+      "prompt": "lagi stres nih"
+    },
+    {
+      "code": "REG6",
+      "prompt": "kamu suka warna apa"
+    }
+  ]
+}

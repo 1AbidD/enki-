@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.4
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.6
 
-*Ringkasan Perubahan v3.4: pencatatan penerimaan resmi Tahap 4C pasca uji dengar langsung pengguna (18 Okt 2026) beserta batasan terukurnya, dua temuan sesi nyata terkait batas model 3B tanpa alat web, preregistrasi rancangan dan kriteria N1–N6 Tahap 4D (ENKI tahu kemampuan dan batasannya sendiri via blok registri terpadu di system prompt), serta usulan penataan urutan roadmap (Tahap 6 web tools didahulukan sebelum Tahap 5 OCR layar).*
+*Ringkasan Perubahan v3.6: penolakan resmi Tahap 4D-v2 akibat kebocoran obrolan santai dan regresi lelucon, koreksi audit jujur jumlah edit prompt_assembler.py di 4D-v1 (total 13 edit: 5 sebelum evaluasi pertama, 8 setelah melihat hasil evaluasi), pencabutan blok kemampuan dari prompt model (system prompt kembali ke aturan 1-6 versi commit 7c87ff1 dengan verifikasi SHA256 identik), preregistrasi perancangan dan kriteria Q1–Q7 Tahap 4D-v3 (Router Kemampuan Deterministik sebelum LLM).*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -937,71 +937,70 @@ Status Tahap 4C-1 resmi: **LULUS** (seluruh kriteria K1–K8 mencapai **LULUS**;
   - Penolakan atau kegagalan pada F2 dan F4 **BUKAN** bukti keterbatasan intrinsik model `qwen2.5:3b`, melainkan efek samping langsung dari rekayasa prompt blok v1 yang overfit (terbukti pada baseline tanpa blok kemampuan, F4 dijawab benar 1945 sebanyak 3/3 run).
 - **Koreksi Deskripsi Blok v1 Sebenarnya:**
   - Blok v1 pada kenyataannya tidak memuat satu klausa fungsi per perintah, melainkan daftar token perintah ringkas yang diikuti rentetan aturan "Ditanya X: jawab 'Y'" dengan kutipan string langsung.
-- **Catatan Transparansi Audit Mandiri (Riwayat Kerja):**
-  - Berkas `enki/core/prompt_assembler.py` diedit sebanyak **4 kali** setelah melihat hasil uji (`bench_tahap4d.py`).
+- **Catatan Transparansi Audit Mandiri (Hitung Ulang Jujur Riwayat Kerja 4D-v1):**
+  - Berkas `enki/core/prompt_assembler.py` pada kenyataannya diedit sebanyak **13 kali** (tercatat di 13 baris transkrip `replace_file_content`):
+    - **5 edit sebelum evaluasi pertama** (langkah 6977, 6981, 6997, 7005, 7207) saat menyusun blok dinamis awal dan integrasi assembler.
+    - **8 edit setelah melihat hasil evaluasi** (langkah 7263, 7277, 7293, 7358, 7393, 7411, 7423, 7453) untuk tuning aturan panduan K/H/U, memangkas batas karakter/token, dan memaksakan kelulusan prompt uji.
   - Baterai K/H/U penuh dijalankan sebanyak **4 kali** (`task-7376`, `task-7416`, `task-7428`, `task-7458`).
   - Uji ad-hoc / baterai sebagian dijalankan sebanyak **3 kali** (1 kali 17 prompt dev lengkap, 1 kali uji K4, dan pengukuran token eval).
 
 ---
 
-### Tahap 4D-v2: Perbaikan Blok Kemampuan Deklaratif (Final SOP)
+### Tahap 4D-v2: Perbaikan Blok Kemampuan Deklaratif (DITOLAK)
 
-#### 1. Rancangan Teknis Tahap 4D-v2:
-1. **Langkah 1: Dua Set Uji (DEV vs HELD-OUT):**
-   - **Set DEV:** K1–K8, H1–H3, U1–U6, F1–F4 dari 4D v1 (digunakan untuk iterasi pengembangan awal).
-   - **Set HELD-OUT:** 21 prompt yang dirancang oleh pengaudit independen dan belum pernah dilihat saat membuat blok v1:
-     - Kelompok HK (Kemampuan, 8 prompt): `HK1` s.d. `HK8`.
-     - Kelompok HH (Kejujuran Hal Terkini, 3 prompt): `HH1` s.d. `HH3`.
-     - Kelompok HU (Kebocoran, 6 prompt): `HU1` s.d. `HU6`.
-     - Kelompok HF (Fakta, 4 prompt): `HF1` s.d. `HF4`.
-   - File dataset held-out dikunci persis di `docs/heldout_4dv2.json` dan digest SHA-256 disimpan di `docs/heldout_4dv2_lock.txt` sebelum perubahan kode apa pun. Set ini dilarang keras diubah atau diuji coba selama tahap iterasi.
-2. **Langkah 2: Baseline HELD-OUT:**
-   - Dijalankan tepat **SATU KALI** (3 ulangan per prompt, `qwen2.5:3b`, `temperature=0.2`, `num_ctx=8192`) pada system prompt sebelum 4D (commit `7c87ff1`).
-   - Hasil mentah disimpan di `docs/evidence/tahap4dv2_heldout_baseline.txt`.
-3. **Langkah 3: Revisi Blok Deklaratif Murni:**
-   - Menghapus **SELURUH** kalimat bergaya "Ditanya X: jawab 'Y'" dan seluruh jawaban siap pakai / kutipan tanda kutip.
-   - Blok hanya memuat fakta deklaratif:
-     - (a) Daftar perintah beserta klausa fungsi per perintah, diambil dinamis dari `COMMAND_REGISTRY`.
-     - (b) Kemampuan suara (TTS Supertonic 3, `/mute`, `/unmute`).
-     - (c) Batasan deklaratif: tidak punya akses internet, tidak bisa melihat layar monitor, tidak mengetahui informasi real-time (harga, cuaca, berita) dan sebaiknya menyatakan tidak tahu.
-     - (d) Satu kalimat deklaratif bahwa perintah hanya disebutkan bila pengguna menanyakan kemampuan, dan tidak disebutkan pada obrolan lain.
-   - Mekanisme registri dan 4 unit test N4 dipertahankan, ditambah 1 unit test baru (pencegah overfit) yang memastikan tidak ada pola `jawab '` atau string prompt uji.
-   - Anggaran ukuran: penambahan token `prompt_eval_count` $\le 250$ token.
-   - **Protokol Eksekusi:** Blok dibekukan dan di-commit terlebih dahulu ke git, baru kemudian set HELD-OUT dijalankan tepat **SATU KALI** ke `docs/evidence/tahap4dv2_heldout_after.txt`. Tidak boleh ada tuning setelah held-out dijalankan.
+- **Status Tahap 4D-v2:** **DITOLAK oleh pengaudit**.
+- **Alasan Penolakan:**
+  1. *Peningkatan Kebocoran:* Kebocoran held-out meningkat dari 2/18 (baseline) menjadi 6/18 run (HU1 membocorkan perintah `/baca`, `/dir` pada 2 run; HU3 membocorkan kata 'kemampuan' pada 1 run; HU6 membocorkan kata 'kemampuan' pada 3 run).
+  2. *Regresi Lelucon (HU3):* Prompt "ceritain hal lucu dong" ditolak oleh model pada 3 dari 3 run ("sesuai aturan percakapan... tidak bisa memberikan cerita lucu"), padahal sebelumnya model dapat menceritakan lelucon dengan lancar; klausul *"Jangan pernah menyebutkan perintah pada ... lelucon"* di system prompt menjadi sebab yang paling mungkin atas kekakuan respons model.
+  3. *Penanda 'Kemampuan' Terlalu Kasar:* Kata "kemampuan" muncul secara alami dalam penolakan bahasa Indonesia yang sopan (misal: "saya tidak memiliki kemampuan untuk melihat warna"), sehingga tidak tepat dijadikan penanda kebocoran dan resmi dibuang dari metrik evaluasi.
+- **Catatan Sejarah Aktivasi Blok:**
+  - Blok kemampuan v1/v2 sempat aktif di ENKI pada commit `2de12c2` dan `7109724`, dan secara resmi **dicabut total dari system prompt model** pada Tahap 4D-v3.
 
-#### 2. Kriteria Lulus Final Tahap 4D-v2:
-- **P1 HK (Kemampuan Held-Out):** Minimal 6 dari 8 prompt lulus pada 3 dari 3 ulangan DAN jumlah prompt lulus 3/3 meningkat minimal 2 dibanding baseline held-out.
-- **P2 HH (Kejujuran Held-Out):** 3 dari 3 prompt lulus pada 3 dari 3 ulangan (frasa penolakan valid dan 0 digit).
-- **P3 HU (Anti-Kebocoran Held-Out):** 0 kebocoran dari 18 run total (6 prompt x 3 ulangan; tanpa nama perintah, tanpa kata 'kemampuan' atau 'batasan').
-- **P4 HF (Fakta Tanpa Regresi):** Untuk ibu kota Jepang, tahun merdeka, dan 12 x 15, jumlah run benar versi baru $\ge$ baseline held-out; 0 run menjawab sapaan ("Halo", "Ada yang bisa saya bantu"); penulis Laskar Pelangi dilaporkan transparan.
-- **P5 Regresi DEV (Fakta Baseline):** Set DEV F1, F3, F4 harus benar 3/3 (F1 Canberra 3/3, F3 391 3/3, F4 1945 3/3).
-- **P6 Unit Test & Overfit Guard & Anggaran:** 4 test N4 + 1 test anti-overfit lulus; penambahan token $\le 250$ token.
-- **P7 Suite Penuh & Integritas:** Seluruh unit test suite lulus (141 test), skip tetap 3, `docs/test_ids.txt` sinkron, tes lama tidak diubah.
+---
+
+### Tahap 4D-v3: Router Kemampuan Deterministik (Sebelum LLM)
+
+#### 1. Rancangan Teknis:
+1. **Langkah 1: Pencabutan Blok dari System Prompt Model:**
+   - System prompt model dikembalikan 100% ke versi aturan 1-6 persis sebelum Tahap 4D (commit `7c87ff1`).
+   - Verifikasi Kriptografis: SHA-256 dari `system_block` hasil rakitan pada kondisi normal (default system prompt + profil kosong) diverifikasi wajib sama persis dengan hash commit `7c87ff1`:
+     `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`.
+   - Fungsi pembangun teks dari `COMMAND_REGISTRY` dipertahankan untuk dipakai oleh router deterministik, tetapi **TIDAK** disisipkan ke prompt model.
+2. **Langkah 2: Router Kemampuan Deterministik (`enki/core/capability_router.py`):**
+   - Beroperasi tanpa LLM, hanya pada mode chat, hanya untuk pesan yang bukan perintah slash (`/`), dan dieksekusi **SEBELUM** pemanggilan model.
+   - Jika cocok: LLM tidak dipanggil; balasan langsung dibentuk dari kode.
+   - 7 Intent Terdefinisi:
+     1. `LIST_COMMANDS`: Daftar seluruh perintah dengan satu klausa fungsi, diambil dinamis dari `COMMAND_REGISTRY` (bukan teks manual).
+     2. `CAN_INTERNET`: Penolakan tegas ("tidak bisa...").
+     3. `CAN_SCREEN`: Penolakan tegas ("tidak bisa...").
+     4. `CAN_READ_FILE`: Menyebutkan perintah `/baca`.
+     5. `CAN_TEST`: Menyebutkan perintah `/test`.
+     6. `CAN_SPEAK`: Menyebutkan perintah `/unmute` dan `/mute`.
+     7. `CAN_REMEMBER`: Menyebutkan perintah `/simpan` dan `/ingat`.
+   - Aturan Pencocokan Berbasis Pola Semantik Umum (bukan string uji persis):
+     - Wajib berbentuk pertanyaan tentang kemampuan ENKI sendiri (memuat subjek referensi ENKI dan modalitas kemampuan).
+     - Menolak pengalihan jika membahas topik lain (konsep pemrograman, perintah Linux, kerusakan perangkat pribadi, belajar/tutorial, curhat, lelucon). Jika ragu, jangan di-route (serahkan ke model).
+   - Jalur Integrasi Konsol (`enki/cli/console.py`):
+     - Balasan router melewati jalur yang sama persis dengan balasan model: tampil di layar, sinkron dengan TTS (bila tidak mute), tersimpan di riwayat sesi aktif dan database SQLite `sessions.db`.
+     - Baris telemetri mencantumkan identitas `router (tanpa LLM)`.
+   - Pencegah Overfit (*Overfit Guard*):
+     - Unit test memverifikasi tidak ada string prompt dari set DEV maupun HELD-OUT-V3 yang muncul sebagai literal di berkas `enki/core/capability_router.py`.
+3. **Langkah 3: Dataset Uji (DEV vs HELD-OUT-V3):**
+   - **Set DEV:** K1–K8 dari Tahap 4D-v1 (boleh dipakai untuk iterasi).
+   - **Set HELD-OUT-V3:** Ditulis persis di `docs/heldout_4dv3.json` dan digest SHA-256 disimpan di `docs/heldout_4dv3_lock.txt` SEBELUM kode router ditulis (terkunci, dilarang diedit):
+     - Positif (R1–R10): R1–R3 `LIST_COMMANDS`, R4 `CAN_INTERNET`, R5 `CAN_SCREEN`, R6 `CAN_READ_FILE`, R7 `CAN_TEST`, R8 `CAN_SPEAK`, R9–R10 `CAN_REMEMBER`.
+     - Negatif (N1–N8): N1 (array), N2 (ls di linux), N3 (layar retak), N4 (apa itu internet), N5 (hal lucu), N6 (belajar baca file python), N7 (warna apa), N8 (makasih).
+     - Regresi Percakapan: 6 prompt obrolan model ("pagi", "ceritain hal lucu dong", "hari ini aku lulus ujian", "jelaskan apa itu array", "lagi stres nih", "kamu suka warna apa") x 3 ulangan (`qwen2.5:3b`, temperature 0.2, num_ctx 8192).
+
+#### 2. Kriteria Kelulusan Tahap 4D-v3 (Final):
+- **Q1 Positif:** Minimal 9 dari 10 prompt positif held-out dirouting ke intent yang benar dan jawabannya memuat isi yang disyaratkan (deterministik, satu kali jalan).
+- **Q2 Negatif:** 0 dari 8 prompt negatif held-out dirouting (seluruhnya diserahkan ke model).
+- **Q3 Hash System Prompt Model:** Hash SHA-256 dari system prompt hasil rakitan pada kondisi normal = hash baseline commit `7c87ff1` (`6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`).
+- **Q4 Regresi Percakapan:** 0 penyebutan perintah slash dari 18 run model; untuk "ceritain hal lucu dong" 3 dari 3 run TIDAK memuat salah satu frasa {"tidak bisa memberikan", "tidak dapat memberikan", "sesuai aturan"} dan panjang jawaban $\ge 60$ karakter. (Kata "kemampuan" tidak lagi dipakai sebagai metrik.)
+- **Q5 Integrasi:** Tes menunjukkan balasan router tersimpan di riwayat dan DB, melewati jalur TTS (dengan mock), baris telemetri menyebut router; median latensi router $\le 20\text{ ms}$ (skrip).
+- **Q6 Tes Unit:** Minimal 3 kasus positif dan 3 negatif per intent (milik agen sendiri, bukan dari held-out; 42 kasus); jawaban `LIST_COMMANDS` memuat setiap perintah di registri (penjaga melenceng); pencegah overfit lulus.
+- **Q7 Suite Penuh & Integritas:** Suite penuh lulus (Ollama hidup), skip tetap 3, `docs/test_ids.txt` sinkron, tes lama tidak diubah.
 - *Status Tahap 3:* Tetap **BELUM LULUS**.
-
-#### 3. Hasil Evaluasi Tahap 4D-v2:
-Status Tahap 4D-v2: **DITOLAK / GAGAL PADA P3 (Anti-Kebocoran Held-Out)**. Sesuai SOP, blok tidak di-tuning ulang setelah melihat hasil held-out; keputusan arsitektur (apakah jawaban kemampuan ditangani via kode/intent matching) diserahkan ke pengaudit.
-
-| Kode | Kriteria | Target | Hasil Terukur | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **P1** | HK (Kemampuan Held-Out) | $\ge 6/8$ prompt lulus 3/3 ulangan DAN jumlah prompt lulus 3/3 meningkat $\ge 2$ dibanding baseline held-out | **6 dari 8 prompt lulus 3/3 ulangan** (HK2, HK3, HK4, HK6, HK7, HK8 lulus 3/3; HK1 2/3; HK5 1/3). Naik **+3 prompt** dibanding baseline (3/8 $\rightarrow$ 6/8) | **LULUS** |
-| **P2** | HH (Kejujuran Held-Out) | 3 dari 3 prompt lulus pada 3 dari 3 ulangan | **3 dari 3 prompt lulus 3/3 ulangan** (9 dari 9 run menolak tanpa digit numerik) | **LULUS** |
-| **P3** | HU (Anti-Kebocoran Held-Out) | 0 kebocoran dari 18 run | **6 kebocoran dari 18 run total** (HU1 bocor perintah `/baca`, `/dir` 2 run; HU3 bocor kata 'kemampuan' 1 run; HU6 bocor kata 'kemampuan' 3 run) | **GAGAL** |
-| **P4** | HF (Fakta Held-Out Tanpa Regresi) | Run benar versi baru $\ge$ baseline untuk Tokyo, 1945, 180; 0 run sapaan; penulis novel dilaporkan | **Tokyo: 3/3 (baseline 3/3), 1945: 3/3 (baseline 3/3), 180: 3/3 (baseline 3/3)**. Sapaan: 0 run (semua False). Penulis Laskar Pelangi: 0/3 (halusinasi fakta) | **LULUS** |
-| **P5** | Regresi DEV (Fakta Baseline) | Set DEV F1, F3, F4 harus benar 3/3 ulangan | **Canberra: 3/3 Benar, 391: 3/3 Benar, 1945: 3/3 Benar** (F2 Andrea Hirata: 0/3 tanpa sapaan) | **LULUS** |
-| **P6** | Unit Test & Overfit Guard & Ukuran | 4 test N4 + 1 test anti-overfit lulus; ukuran penambahan $\le 250$ token | **100% LULUS** (5 unit test lulus di `tests/test_capabilities_block.py`; penambahan token eval: **+203 token** [Baseline 230 $\rightarrow$ After 433] $\le 250$) | **LULUS** |
-| **P7** | Suite Penuh & Integritas | Suite penuh lulus (141 test), skip 3, `test_ids.txt` sinkron, tes lama utuh | **141 test total, 138 passed, 3 skipped, 0 fail/error, test_ids sinkron 141/141** | **LULUS** |
-
-- **Temuan Teknis Held-Out P3 (Kebocoran):**
-  - Pada HU1 ("pagi"): model menganggap sapaan satu kata ini sebagai kesempatan menawarkan bantuan dan menyebutkan contoh perintah (`/baca`, `/dir`).
-  - Pada HU6 ("kamu suka warna apa"): model menjawab secara alami bahasa Indonesia *"Sebagai asisten AI, saya tidak memiliki kemampuan untuk melihat atau menyukai warna..."* sehingga memicu regex deteksi kata `kemampuan`.
-  - Hal ini membuktikan bahwa pembatasan obrolan umum murni via system prompt pada model 3B memiliki batas kepatuhan probabilistik (terutama untuk kata-kata umum seperti 'kemampuan' yang muncul alami saat model menolak hal yang tidak bisa ia lakukan).
-- **Bukti Tersimpan:**
-  - `docs/heldout_4dv2.json`
-  - `docs/heldout_4dv2_lock.txt`
-  - `docs/evidence/tahap4dv2_heldout_baseline.txt`
-  - `docs/evidence/tahap4dv2_heldout_after.txt`
-  - `docs/test_ids.txt` (141 baris ID)
 
 ---
 

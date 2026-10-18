@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict
 
 from enki.config import AppConfig
-from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT, estimate_tokens_local, get_default_system_prompt
+from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT, estimate_tokens_local
 from enki.core.ollama_client import OllamaClient
 from enki.memory.database import MemoryDatabase
 from enki.memory.profile_manager import ProfileManager
@@ -17,6 +17,7 @@ from enki.cli.explicit_commands import handle_explicit_command, EXPLICIT_COMMAND
 from enki.cli.command_hints import get_command_hints
 from enki.cli.command_registry import COMMAND_REGISTRY
 from enki.audio.tts import speak, cancel, run_synced_speech_stream
+from enki.core.capability_router import route_capability_inquiry
 import queue
 
 def get_vram_info() -> str:
@@ -39,7 +40,7 @@ class EnkiConsole:
         self.session_id = self.db.create_session()
         self.profile_mgr = ProfileManager()
         self.reflector = ReflectorDaemon()
-        self.assembler = PromptAssembler(system_prompt=get_default_system_prompt(), profile=self.profile_mgr.get_profile_text())
+        self.assembler = PromptAssembler(profile=self.profile_mgr.get_profile_text())
         self.coordinator = ReActCoordinator(
             client=self.client,
             assembler=self.assembler,
@@ -251,6 +252,73 @@ class EnkiConsole:
 
             # 1. Catat turn user ke DB secara deterministik
             self.db.add_turn(self.session_id, "user", user_input)
+
+            # 1b. Router Kemampuan Deterministik (Tahap 4D-v3): SEBELUM pemanggilan model
+            t_route_start = time.time()
+            route_res = route_capability_inquiry(user_input)
+            if route_res is not None:
+                content = route_res.reply
+                print("\n[Jawaban]")
+                use_synced_supertonic = (
+                    not self.config.is_muted
+                    and self.config.tts_engine.lower().strip() == "supertonic"
+                )
+                if not use_synced_supertonic:
+                    print(content)
+                    if not self.config.is_muted:
+                        try:
+                            speak(
+                                text=content,
+                                is_muted=self.config.is_muted,
+                                voice=self.config.tts_voice,
+                                engine=self.tts_engine_override,
+                                pronunciation_map=self.config.tts_pronunciation,
+                                gapless_start=False,
+                            )
+                        except Exception as e:
+                            print(f"[Peringatan TTS] Gagal memutar audio: {e}")
+                else:
+                    def token_stream_for_text(txt: str):
+                        import re
+                        words = re.findall(r'\S+|\s+', txt)
+                        for w in words:
+                            yield w, None
+
+                    try:
+                        sync_res = run_synced_speech_stream(
+                            token_stream=token_stream_for_text(content),
+                            out_stream=sys.stdout,
+                            is_muted=self.config.is_muted,
+                            tts_engine_name=self.config.tts_engine,
+                            voice=self.config.tts_voice_supertonic,
+                            pronunciation_map=self.config.tts_pronunciation,
+                            gapless_start=self.config.tts_gapless_start,
+                            max_start_delay=self.config.tts_max_start_delay,
+                            mgr=self.tts_manager_override,
+                            engine=self.tts_engine_override,
+                            interrupt_poll_fn=self._poll_mid_reply_interrupt,
+                        )
+                        print()
+                        if sync_res.get("interrupt_reason") == "/mute":
+                            print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
+                    except KeyboardInterrupt:
+                        cancel()
+                        print()
+                        continue
+                    except Exception as e:
+                        print(f"\n[Peringatan TTS Router] {e}")
+
+                # Catat turn assistant ke DB secara deterministik
+                self.db.add_turn(self.session_id, "assistant", content)
+
+                # Telemetri router (tanpa LLM)
+                route_lat_ms = (time.time() - t_route_start) * 1000
+                print(f"\n-- Telemetri: router (tanpa LLM) | Intent: {route_res.intent} | Latensi: {route_lat_ms:.2f} ms | Sisa Context: {self.config.num_ctx}/{self.config.num_ctx} tok --")
+
+                # Update riwayat memori sesi aktif
+                self.history.append({"role": "user", "content": user_input})
+                self.history.append({"role": "assistant", "content": content})
+                continue
 
             # 2. Cek Recall: Aktif (Trigger Leksikal) vs Pasif (Ambang Batas Substantif)
             recall_content = None

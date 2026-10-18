@@ -124,8 +124,8 @@ def prune_history(history: List[Dict[str, str]], max_tokens: int) -> List[Dict[s
     return pruned
 
 class PromptAssembler:
-    def __init__(self, system_prompt: Optional[str] = None, profile: str = EMPTY_PROFILE):
-        self.system_prompt = system_prompt if system_prompt is not None else get_default_system_prompt()
+    def __init__(self, system_prompt: str = DEFAULT_SYSTEM_PROMPT, profile: str = EMPTY_PROFILE):
+        self.system_prompt = system_prompt
         self.profile = profile
 
     def calculate_budget(
