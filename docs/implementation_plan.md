@@ -1002,7 +1002,29 @@ Status Tahap 4C-1 resmi: **LULUS** (seluruh kriteria K1–K8 mencapai **LULUS**;
 - **Q7 Suite Penuh & Integritas:** Suite penuh lulus (Ollama hidup), skip tetap 3, `docs/test_ids.txt` sinkron, tes lama tidak diubah.
 - *Status Tahap 3:* Tetap **BELUM LULUS**.
 
----
+#### 3. Hasil Evaluasi Tahap 4D-v3:
+Status Tahap 4D-v3: **LULUS PENUH (100% pada Seluruh Kriteria Q1–Q7)**.
+
+| Kode | Kriteria | Target | Hasil Terukur | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Q1** | Positif Held-Out | $\ge 9$ dari 10 prompt positif dirouting ke intent yang benar dan jawabannya memuat isi yang disyaratkan | **10 dari 10 prompt lulus** (R1–R3 `LIST_COMMANDS`, R4 `CAN_INTERNET`, R5 `CAN_SCREEN`, R6 `CAN_READ_FILE`, R7 `CAN_TEST`, R8 `CAN_SPEAK`, R9–R10 `CAN_REMEMBER` seluruhnya 100% lulus) | **LULUS** |
+| **Q2** | Negatif Held-Out | 0 dari 8 prompt negatif dirouting (harus None) | **0 dari 8 prompt dirouting** (N1–N8 seluruhnya mengembalikan None dan diserahkan ke model) | **LULUS** |
+| **Q3** | Hash System Prompt Model | SHA-256 prompt hasil rakitan = SHA-256 baseline commit `7c87ff1` | **SHA-256 Identik**: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` | **LULUS** |
+| **Q4** | Regresi Percakapan Model | 0 penyebutan perintah slash dari 18 run; untuk "ceritain hal lucu dong" 3/3 run tanpa frasa penolakan kaku & panjang $\ge 60$ karakter | **0/18 kebocoran slash** (0 run menyebut `/baca` dst); lelucon **3/3 lulus** (panjang 445, 350, 309 karakter; 0 frasa penolakan kaku) | **LULUS** |
+| **Q5** | Integrasi & Latensi Router | Balasan tersimpan di riwayat & DB, melewati jalur TTS (mock), telemetri menyebut router; median latensi $\le 20\text{ ms}$ | **Unit test integrasi lulus**; median latensi router terukur dari 180 sampel: **`0,0222 ms`** (jauh di bawah batas $\le 20\text{ ms}$) | **LULUS** |
+| **Q6** | Tes Unit & Overfit Guard | Minimal 3 positif dan 3 negatif per intent (42 kasus milik agen); `LIST_COMMANDS` memuat setiap perintah di registri; pencegah overfit lulus | **42/42 kasus unit test lulus**; 17 perintah registri muncul lengkap di balasan; 0 literal DEV/HELD-OUT muncul di berkas router | **LULUS** |
+| **Q7** | Suite Penuh & Integritas | Suite penuh lulus (Ollama hidup), skip tetap 3, `docs/test_ids.txt` sinkron, tes lama tidak diubah | **Ran 146 tests in 13.182s — OK (skipped=3)** (143 passed, 3 skipped, 0 fail, 0 error); `docs/test_ids.txt` sinkron 146/146 | **LULUS** |
+
+- **Analisis Teknis Keberhasilan Arsitektur Router (vs Blok Prompt):**
+  - Pemisahan tanggung jawab (*separation of concerns*) berhasil menyelesaikan dilema akurasi model kecil (3B).
+  - Model `qwen2.5:3b` tidak lagi dibebani puluhan instruksi aturan meta di system prompt, sehingga respons obrolan santai, lelucon, dan sapaan kembali natural dan luwes tanpa kekakuan template penolakan.
+  - Seluruh pertanyaan kemampuan ENKI dijawab secara deterministik dengan akurasi 100%, latensi sub-milidetik (`0,022 ms`), dan nol konsumsi token inferensi LLM.
+- **Bukti Tersimpan:**
+  - `docs/heldout_4dv3.json`
+  - `docs/heldout_4dv3_lock.txt` (SHA-256: `ab83fb9a40a07687a7ea3f330d454163d1d67539c39fa080b0114441389efc39`)
+  - `docs/evidence/tahap4dv3_heldout.txt`
+  - `docs/evidence/tahap4dv3_latency.txt`
+  - `docs/test_ids.txt` (146 baris ID)
 
 ### Tahap 6: Web Tools (`open_url`, `web_fetch`) & Evaluasi Menyeluruh (DIUSULKAN MENDAHULUI TAHAP 5)
 * Implementasi `web_fetch` (trafilatura + requests) dengan sanitasi tag injection.

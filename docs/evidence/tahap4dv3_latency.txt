@@ -1,0 +1,7 @@
+PENGUKURAN LATENSI ROUTER DETERMINISTIK (Tahap 4D-v3)
+Jumlah Sampel : 180
+Min Latensi   : 0.0011 ms
+Median Latensi: 0.0222 ms (Target <= 20.0 ms)
+P95 Latensi   : 0.0517 ms
+Max Latensi   : 0.1077 ms
+Status Q5     : LULUS
