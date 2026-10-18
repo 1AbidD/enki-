@@ -1,0 +1,24 @@
+================================================================================
+BUKTI EMPIRIS TAHAP 6 — KRITERIA W3 (BATASAN SUMBER DAYA JARINGAN RIIL)
+================================================================================
+Server HTTP Pengujian Aktif di http://127.0.0.1:57531
+
+--- [1/2] PENGUJIAN STREAMING 10 MB (BATAS MAKS 1.5 MB) ---
+URL Target            : http://127.0.0.1:57531/stream_10mb
+Status Sukses         : False (Diharapkan False)
+Pesan Error           : Ukuran konten melebihi batas maksimal 1572864 bytes.
+Byte Diterima Klien   : 1581056 byte
+Batas Maksimal Aman   : 1581056 byte (1.5 MB + 1 chunk)
+Durasi Transaksi      : 208.44 ms
+Hasil Uji Streaming 10 MB: PASS (LULUS)
+
+--- [2/2] PENGUJIAN TIMEOUT RIIL (SERVER LAMBAT 4S, BATAS 1S) ---
+URL Target            : http://127.0.0.1:57531/slow
+Status Sukses         : False (Diharapkan False)
+Pesan Error           : Kesalahan koneksi HTTP: ReadTimeout: HTTPConnectionPool(host='127.0.0.1', port=57531): Read timed out. (read timeout=1.0)
+Durasi Transaksi      : 1.03 detik (Diharapkan ~1 detik, < 2.5s)
+Hasil Uji Timeout Riil   : PASS (LULUS)
+
+================================================================================
+STATUS AKHIR KRITERIA W3 (SUNGGUHAN): LULUS
+================================================================================

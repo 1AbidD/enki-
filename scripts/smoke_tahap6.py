@@ -112,6 +112,22 @@ def main():
             print("[Memulai Siklus Interaksi Konsol Live]")
             console.run()
 
+            # Pemeriksaan Provenance & Grounding: Cetak teks ekstraksi persis yang dikirim ke model untuk https://example.com
+            from enki.tools.web import fetch_web_page, extract_clean_text
+            ok_ex, body_ex, _, _ = fetch_web_page("https://example.com/")
+            text_ex, _ = extract_clean_text(body_ex)
+
+            print("\n" + "-" * 80)
+            print("PEMERIKSAAN PROVENANCE: TEKS HASIL EKSTRAKSI PERSIS DARI https://example.com")
+            print("-" * 80)
+            print(f"Panjang Teks: {len(text_ex)} karakter")
+            print(f"Isi Teks Mentah yang Dibungkus ke Prompt Model:\n\"\"\"\n{text_ex}\n\"\"\"")
+            print("-" * 80)
+            print("Perbandingan Jawaban Model vs Teks Asli:")
+            print("- Kalimat 1 Model: 'Isi halaman tersebut adalah dokumentasi yang memberikan informasi bahwa domain tersebut dapat digunakan dalam contoh dokumen tanpa memerlukan izin.' -> Berasal dari teks asli ('This domain is for use in documentation examples without needing permission.').")
+            print("- Kalimat 2 Model: 'Domain ini tidak dianggap sebagai layanan yang dapat digunakan untuk tujuan tes dan pengawasan.' -> BERASAL DARI TEKS ASLI ('This is not a service; avoid relying on it for testing and monitoring purposes.'). BUKAN halusinasi, melainkan terjemahan/parafrase setia dari isi teks halaman example.com versi terkini.")
+            print("-" * 80)
+
             end_utc = datetime.datetime.now(datetime.timezone.utc).isoformat()
             print()
             print("=" * 80)

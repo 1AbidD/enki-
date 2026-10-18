@@ -272,6 +272,70 @@ class TestW3ResourceLimits(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn("Café", body)
 
+    def test_w3_real_local_http_streaming_and_timeout(self):
+        """Memverifikasi penegakan batas 1.5MB dan timeout pada server HTTP lokal riil."""
+        import http.server
+        import threading
+
+        class RealTestHandler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == "/stream_10mb":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    chunk = b"Y" * 65536
+                    try:
+                        for _ in range(160):  # 10 MB
+                            self.wfile.write(chunk)
+                            self.wfile.flush()
+                    except Exception:
+                        pass
+                elif self.path == "/slow":
+                    time.sleep(3.0)
+                    try:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/html; charset=utf-8")
+                        self.end_headers()
+                        self.wfile.write(b"OK")
+                    except Exception:
+                        pass
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, format, *args):
+                pass
+
+        srv = http.server.HTTPServer(("127.0.0.1", 0), RealTestHandler)
+        port = srv.server_port
+        t = threading.Thread(target=srv.serve_forever, daemon=True)
+        t.start()
+
+        try:
+            # 1. Stream 10 MB: wajib terhenti pada 1.5 MB + 1 chunk
+            ok, _, err, meta = fetch_web_page(
+                f"http://127.0.0.1:{port}/stream_10mb",
+                allow_private_hosts=True,
+                timeout_seconds=15.0
+            )
+            self.assertFalse(ok)
+            self.assertIn("melebihi batas maksimal", (err or "").lower())
+            self.assertLessEqual(meta["bytes_downloaded"], 1572864 + 8192)
+
+            # 2. Timeout riil
+            t0 = time.perf_counter()
+            ok_s, _, err_s, _ = fetch_web_page(
+                f"http://127.0.0.1:{port}/slow",
+                allow_private_hosts=True,
+                timeout_seconds=1.0
+            )
+            dur = time.perf_counter() - t0
+            self.assertFalse(ok_s)
+            self.assertIn("timeout", (err_s or "").lower())
+            self.assertLess(dur, 2.5)
+        finally:
+            srv.shutdown()
+
 
 class TestW4TextExtraction(unittest.TestCase):
     """W4: Kualitas ekstraksi teks pada 3 fixture HTML."""
@@ -283,14 +347,14 @@ class TestW4TextExtraction(unittest.TestCase):
         <html>
         <head><style>body { font-size: 14px; }</style></head>
         <body>
-        <nav><a href="/">Home</a> | <a href="/about">About</a></nav>
+        <nav><a href="/">Menu 1</a> | <a href="/about">Menu 2</a></nav>
         <article>
           <h1>Arsitektur ENKI</h1>
           <p>ENKI dirancang untuk perangkat keras NVIDIA RTX 3050 dengan batas 4GB VRAM.</p>
           <p>Seluruh sistem beroperasi mandiri dan offline secara default.</p>
         </article>
-        <footer>Hak Cipta 2026. Semua hak dilindungi.</footer>
-        <script>console.log("analytics tracking");</script>
+        <footer>Copyright 2026 Contoh Inc. Hak cipta dilindungi.</footer>
+        <script>console.log("tracker");</script>
         </body>
         </html>
         """
@@ -298,7 +362,10 @@ class TestW4TextExtraction(unittest.TestCase):
         self.assertIn("Arsitektur ENKI", text)
         self.assertIn("RTX 3050", text)
         self.assertIn("offline secara default", text)
-        self.assertNotIn("analytics tracking", text)
+        self.assertNotIn("Menu 1", text)
+        self.assertNotIn("Copyright 2026 Contoh Inc.", text)
+        self.assertNotIn("tracker", text)
+        self.assertNotIn("font-size", text)
 
     def test_w4_fixture_2_table_page(self):
         """Fixture 2: Sel data tabel terekstraksi rapi."""

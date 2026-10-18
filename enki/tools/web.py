@@ -190,7 +190,8 @@ def validate_url(
     # 3. Port
     port = parsed.port
     if port is not None and port not in ALLOWED_PORTS:
-        return False, "", f"Port {port} tidak diizinkan (hanya port 80 dan 443)."
+        if not allow_private_hosts:
+            return False, "", f"Port {port} tidak diizinkan (hanya port 80 dan 443)."
 
     # 4. Hostname
     hostname = parsed.hostname
@@ -198,7 +199,7 @@ def validate_url(
         return False, "", "URL tidak memiliki hostname yang valid."
 
     hostname_lower = hostname.lower()
-    if hostname_lower == "localhost" or hostname_lower.endswith(".local"):
+    if not allow_private_hosts and (hostname_lower == "localhost" or hostname_lower.endswith(".local")):
         return False, "", f"Hostname '{hostname}' adalah alamat lokal/privat yang dilarang."
 
     # 5. Deteksi IP Literal

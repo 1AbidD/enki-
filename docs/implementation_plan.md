@@ -1276,12 +1276,18 @@ Pengujian empiris penuh terhadap Kriteria W1–W12 diselesaikan pada commit impl
   - Skor Positif: **6/6 (100%)** (Gate $\ge 5/6$ **LULUS**).
   - Pertanyaan Negatif: Seluruh 3 pertanyaan yang tidak ada di teks (direktur keuangan, total anggaran biaya, nomor kontak darurat) dijawab oleh model dengan menyatakan fakta tersebut tidak tercakup di dalam sumber data.
 
-- **Rincian Bukti Empiris W9 (Live Smoke Test):**
+- **Rincian Bukti Empiris W9 (Live Smoke Test & Verifikasi Provenance):**
   - Hasil run interaktif konsol live terekam penuh di `docs/evidence/tahap6_live.txt`:
     - `/wiki Python` $\rightarrow$ Konfirmasi `[y/N]` $\rightarrow$ `y` $\rightarrow$ Terdeteksi halaman disambiguasi: `[Wikipedia] Topik 'Python' memiliki makna ganda (disambiguasi) di Wikipedia (ID).`
-    - `/wiki Indonesia` $\rightarrow$ Konfirmasi `[y/N]` $\rightarrow$ `y` $\rightarrow$ Terekstraksi ringkasan ensiklopedia Bahasa Indonesia (luas wilayah 1.904.569 km², negara terluas ke-14 dunia), `Sumber: https://id.wikipedia.org/wiki/Indonesia`, telemetri: 298.1 ms.
-    - `/wiki Linux` $\rightarrow$ Konfirmasi `[y/N]` $\rightarrow$ `y` $\rightarrow$ Terekstraksi ringkasan keluarga OS mirip Unix karya Linus Torvalds 1991, `Sumber: https://id.wikipedia.org/wiki/Linux`, telemetri: 317.8 ms.
-    - `/web https://example.com Apa isi halaman ini?` $\rightarrow$ Konfirmasi `[y/N]` $\rightarrow$ `y` $\rightarrow$ Terbaca teks halaman via stream HTTP, disanitasi dan diinferensi model `qwen2.5:3b`: ringkasan bahwa domain digunakan untuk dokumentasi tanpa butuh izin, `Sumber: https://example.com/`, telemetri: Prompt 710 tok, Generate 56 tok (71.4 tok/s), Web fetch: 320.9 ms.
+    - `/wiki Indonesia` $\rightarrow$ Konfirmasi `[y/N]` $\rightarrow$ `y` $\rightarrow$ Terekstraksi ringkasan ensiklopedia Bahasa Indonesia (luas wilayah 1.904.569 km², negara terluas ke-14 dunia), `Sumber: https://id.wikipedia.org/wiki/Indonesia`, telemetri: 336.8 ms.
+    - `/wiki Linux` $\rightarrow$ Konfirmasi `[y/N]` $\rightarrow$ `y` $\rightarrow$ Terekstraksi ringkasan keluarga OS mirip Unix karya Linus Torvalds 1991, `Sumber: https://id.wikipedia.org/wiki/Linux`, telemetri: 319.1 ms.
+    - `/web https://example.com Apa isi halaman ini?` $\rightarrow$ Konfirmasi `[y/N]` $\rightarrow$ `y` $\rightarrow$ Terbaca teks halaman via stream HTTP, disanitasi dan diinferensi model `qwen2.5:3b`.
+    - **Pemeriksaan Provenance & Grounding Teks Asli https://example.com/:**
+      - Teks hasil ekstraksi mentah yang dibungkus ke prompt:
+        `"This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes."`
+      - Jawaban Model:
+        - Kalimat 1: *"Isi halaman tersebut adalah dokumentasi yang memberikan informasi bahwa domain tersebut dapat digunakan dalam contoh dokumen tanpa memerlukan izin."* $\rightarrow$ Berasal langsung dari teks asli (*"This domain is for use in documentation examples without needing permission."*).
+        - Kalimat 2: *"Domain ini tidak dianggap sebagai layanan yang dapat digunakan untuk tujuan tes dan pengawasan."* $\rightarrow$ Berasal langsung dari kalimat 2 teks asli (*"This is not a service; avoid relying on it for testing and monitoring purposes."*). BUKAN halusinasi, melainkan terjemahan setia dari teks halaman `example.com` versi terkini.
     - Audit logging tercatat lengkap di `logs/tool_audit.log`.
 
 #### 5. Batasan yang Diketahui (Known Limitations) untuk Tahap 6
@@ -1291,9 +1297,13 @@ Pengujian empiris penuh terhadap Kriteria W1–W12 diselesaikan pada commit impl
    Halaman Wikipedia yang berstatus disambiguasi (misal topik umum seperti 'Python' atau 'Merkurius') menampilkan pesan deterministik tanpa mencoba menebak sub-halaman secara liar. Pengguna disarankan menggunakan topik yang lebih spesifik (misal `/wiki Python_(bahasa_pemrograman)`).
 3. **Offline Secara Default:**
    Model `qwen2.5:3b` tidak memiliki tool web otonom dalam ReAct loop percakapan biasa (`tools=None`). Akses internet HANYA dapat terjadi bila pengguna secara sadar mengetik perintah eksplisit `/web`, `/wiki`, atau `/buka` dan mengonfirmasi tombol `[y/N]`.
+4. **Karakteristik Grounding LLM 3B vs Ekstraksi Mentah /wiki:**
+   Model berukuran 3B (`qwen2.5:3b`) pada perintah `/web` melakukan pemadatan dan penerjemahan teks web yang dapat terpengaruh oleh gaya prompt atau instruksi adversarial (pada uji W5, model terkecoh pada teks jawaban sebanyak 2/12 kali atau 16.7%, meskipun batasan keamanan sistem, 0 tool execution, dan integritas memori terlindungi 100%). Sebaliknya, perintah `/wiki` menampilkan ekstrak teks terkurasi Wikipedia secara langsung tanpa melewati inferensi model LLM sehingga bebas dari risiko halusinasi.
+5. **Catatan Perbaikan Pasca-Gate (Edit #1):**
+   Pada pengujian server HTTP lokal sungguhan (W3), fungsi `validate_url` pada `enki/tools/web.py` memblokir port dinamis selain 80/443 meskipun parameter `allow_private_hosts=True` diberikan. Dilakukan perbaikan minimal (Edit #1 pasca-gate) dengan mengondisikan validasi port 80/443 dan penolakan localhost di dalam `if not allow_private_hosts:`. Pada lingkungan produksi (`allow_private_hosts=False`), port selain 80/443 dan host privat/localhost tetap ditolak keras 100%.
 
 #### 6. Status Progres & Rekomendasi Langkah Berikutnya
-- **Status Tahap 6:** **LULUS PENUH (DITERIMA)**.
+- **Status Tahap 6:** **SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD**.
 - **Rekomendasi Langkah Berikutnya:** Melanjutkan ke **Tahap 5 (Screen Reader / OCR Bounding Box)** sesuai urutan prioritas arsitektur, menunggu persetujuan Abid.
 
 ---

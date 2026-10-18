@@ -1,0 +1,53 @@
+================================================================================
+BUKTI EMPIRIS TAHAP 6 — KRITERIA W4 (KUALITAS EKSTRAKSI TEKS)
+================================================================================
+
+--- [1/3] FIXTURE 1: ARTIKEL DENGAN BOILERPLATE ---
+Teks Hasil Ekstraksi (panjang=153, truncated=False):
+----------------------------------------
+Arsitektur ENKI
+ENKI dirancang untuk perangkat keras NVIDIA RTX 3050 dengan batas 4GB VRAM.
+Seluruh sistem beroperasi mandiri dan offline secara default.
+----------------------------------------
+
+Pemeriksaan Marker Boilerplate (HARUS TIDAK ADA):
+  - Marker 'Menu 1': PASS (TERLUCUTI)
+  - Marker 'Copyright 2026 Contoh Inc.': PASS (TERLUCUTI)
+  - Marker 'tracker': PASS (TERLUCUTI)
+  - Marker 'font-size': PASS (TERLUCUTI)
+
+Pemeriksaan Marker Konten Utama (HARUS ADA):
+  - Marker 'Arsitektur ENKI': PASS (DITEMUKAN)
+  - Marker 'RTX 3050': PASS (DITEMUKAN)
+  - Marker 'offline secara default': PASS (DITEMUKAN)
+Status Fixture 1: LULUS
+
+--- [2/3] FIXTURE 2: HALAMAN TABEL DATA ---
+Teks Hasil Ekstraksi (panjang=88, truncated=False):
+----------------------------------------
+Tabel Spesifikasi Hardware
+Komponen
+Spesifikasi
+GPU
+NVIDIA RTX 3050 Laptop
+VRAM
+4096 MiB
+----------------------------------------
+
+Pemeriksaan Marker Tabel:
+  - Marker 'GPU': PASS (DITEMUKAN)
+  - Marker 'RTX 3050 Laptop': PASS (DITEMUKAN)
+  - Marker '4096 MiB': PASS (DITEMUKAN)
+Status Fixture 2: LULUS
+
+--- [3/3] FIXTURE 3: HALAMAN SPA JAVASCRIPT MURNI ---
+Teks Hasil Ekstraksi (panjang=24, truncated=False):
+----------------------------------------
+'Aplikasi SPA Client-Only'
+----------------------------------------
+Varian Murni Tanpa Title: ''
+Status Fixture 3: LULUS
+
+================================================================================
+STATUS AKHIR KRITERIA W4: LULUS
+================================================================================
