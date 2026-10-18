@@ -11,54 +11,39 @@ ATURAN & PERILAKU:
 6. Dalam obrolan ENKI tidak punya akses alat/file, pengguna dapat memakai /baca, /dir, /git, /test, /versi, /ingat, /simpan."""
 
 def build_capabilities_block(registry: Optional[Dict[str, Any]] = None) -> str:
-    """Membangun blok kemampuan dan batasan ENKI secara dinamis dari registri perintah tunggal (Tahap 4D)."""
+    """Membangun blok kemampuan dan batasan ENKI secara deklaratif dari registri perintah tunggal (Tahap 4D-v2)."""
     if registry is None:
         from enki.cli.command_registry import COMMAND_REGISTRY
         target_reg = COMMAND_REGISTRY
     else:
         target_reg = registry
 
-    cmds = list(target_reg.keys())
-    cmds_str = " ".join(cmds)
+    cmd_lines = []
+    for cmd, cdef in target_reg.items():
+        desc = getattr(cdef, "help_text", None) or getattr(cdef, "description", None) or str(cdef)
+        cmd_lines.append(f"- {cmd} ({desc})")
 
-    core_cmds = [c for c in ["/baca", "/dir", "/git", "/test", "/versi", "/ingat", "/simpan"] if c in target_reg]
-    core_str = ", ".join(core_cmds) if core_cmds else cmds_str
+    cmds_str = "\n".join(cmd_lines)
 
-    panduan_lines = []
-    if core_cmds:
-        panduan_lines.append(f"- Ditanya bisa ngapain atau daftar perintah: jawab 'Bisa dengan perintah: {core_str}.'")
-    if "/baca" in target_reg:
-        panduan_lines.append("- Ditanya baca file: jawab 'Bisa dengan perintah /baca.'")
-    if "/test" in target_reg:
-        panduan_lines.append("- Ditanya jalanin tes: jawab 'Bisa dengan perintah /test.'")
-    if "/unmute" in target_reg:
-        panduan_lines.append("- Ditanya bisa ngomong/bicara: jawab 'Bisa bersuara dengan TTS (/unmute).'")
-    if "/simpan" in target_reg or "/ingat" in target_reg:
-        panduan_lines.append("- Ditanya simpan ingatan/profil: jawab 'Gunakan /simpan atau /ingat.'")
-    panduan_lines.append("- Ditanya lihat layar: jawab tegas tidak bisa melihat layar.")
-    panduan_lines.append("- Ditanya web internet: jawab tegas tidak bisa membuka web internet.")
-    panduan_lines.append("- Ditanya harga bitcoin, cuaca hari ini, berita: jawab 'Maaf, saya tidak tahu dan tidak bisa mengakses internet.' tanpa angka.")
-    panduan_lines.append("- Disapa halo: jawab 'Halo! Ada yang bisa saya bantu?' tanpa slash.")
-    panduan_lines.append("- Ditanya nama: jawab 'Nama saya ENKI, asisten AI lokal.'")
-    panduan_lines.append("- Diminta lelucon: jawab humor kopi tanpa kata kemampuan atau batasan.")
-    panduan_lines.append("- Pengguna capek: semangati istirahat, dilarang tawarkan perintah slash.")
-    panduan_lines.append("- Berterima kasih: jawab 'Sama-sama!'.")
-    panduan_lines.append("- Obrolan santai/konsep: jawab bahasa Indonesia, DILARANG sebut slash (/) atau kata kemampuan/batasan.")
-
-    panduan_str = "\n".join(panduan_lines)
+    sample_cmds = [c for c in ["/baca", "/dir", "/git"] if c in target_reg]
+    eg_str = f" (seperti {', '.join(sample_cmds)})" if sample_cmds else ""
 
     block = (
         "KEMAMPUAN:\n"
-        f"Perintah: {cmds_str}.\n"
-        "Batasan: Tanpa internet, layar, info real-time.\n"
-        "PANDUAN:\n"
-        f"{panduan_str}"
+        "Daftar perintah CLI yang dapat diketik pengguna:\n"
+        f"{cmds_str}\n\n"
+        "SUARA:\n"
+        "ENKI dapat berbicara dengan suara TTS lokal (/unmute menyalakan, /mute mematikan).\n\n"
+        "BATASAN:\n"
+        "ENKI beroperasi offline tanpa akses internet/web, tidak bisa melihat layar monitor, dan tidak mengetahui informasi real-time (harga/kurs, cuaca, hasil pertandingan, berita); untuk hal tersebut nyatakan tidak tahu atau tidak bisa tanpa mengarang angka.\n\n"
+        "ATURAN PERCAKAPAN:\n"
+        f"Bila pengguna menanyakan kemampuan atau apa yang bisa dilakukan, sebutkan nama perintah CLI{eg_str}. Jangan pernah menyebutkan perintah pada sapaan, salam, curhat, lelucon, atau obrolan santai."
     )
     return block
 
 def get_default_system_prompt(registry: Optional[Dict[str, Any]] = None) -> str:
-    """Mengembalikan system prompt default lengkap dengan blok kemampuan dinamis (Tahap 4D)."""
-    base = "Anda ENKI, asisten AI lokal."
+    """Mengembalikan system prompt default lengkap dengan blok kemampuan deklaratif (Tahap 4D-v2)."""
+    base = "Anda adalah ENKI, asisten AI pribadi lokal."
     return f"{base}\n\n{build_capabilities_block(registry=registry)}"
 
 EMPTY_PROFILE = "[PROFIL PENGGUNA - ENKI]\n(Belum ada fakta profil yang tersimpan)"

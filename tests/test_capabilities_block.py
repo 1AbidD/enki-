@@ -73,5 +73,42 @@ class TestCapabilitiesBlock(unittest.TestCase):
             f"Panjang karakter blok kemampuan ({len(block)}) melampaui batas wajar 1500 karakter!"
         )
 
+    def test_p6_no_canned_answers_or_prompt_strings_in_capabilities_block(self):
+        """P6: Blok kemampuan tidak boleh memuat pola jawaban siap pakai (jawab ') atau string prompt uji (pencegah overfit)."""
+        import json
+        from pathlib import Path
+
+        block = build_capabilities_block()
+        b_lower = block.lower()
+
+        # Dilarang pola 'jawab '' atau 'jawab "'
+        self.assertNotIn("jawab '", b_lower, "Dilarang menggunakan pola respon siap pakai 'jawab \''!")
+        self.assertNotIn('jawab "', b_lower, 'Dilarang menggunakan pola respon siap pakai \'jawab "\'!')
+
+        # Dilarang kutipan respon siap pakai
+        self.assertNotIn("'maaf", b_lower, "Dilarang mengutip respon siap pakai 'maaf'!")
+        self.assertNotIn('"maaf', b_lower, 'Dilarang mengutip respon siap pakai "maaf"!')
+        self.assertNotIn("'sama-sama", b_lower, "Dilarang mengutip respon siap pakai 'sama-sama'!")
+
+        # Dilarang memuat prompt DEV
+        dev_prompts = [
+            "kamu bisa ngapain aja", "perintah apa saja yang ada", "bisakah kamu membuka web internet",
+            "bisa lihat layar aku", "bisa baca file", "bisa jalanin tes", "bisa ngomong",
+            "cara nyimpen sesuatu ke ingatanmu gimana", "berapa harga bitcoin sekarang",
+            "cuaca hari ini gimana", "ada berita apa hari ini", "ceritakan lelucon singkat",
+            "apa itu rekursi", "aku lagi capek", "terima kasih"
+        ]
+        for dp in dev_prompts:
+            self.assertNotIn(dp, b_lower, f"Blok kemampuan memuat string prompt DEV: '{dp}'!")
+
+        # Dilarang memuat prompt HELD-OUT
+        heldout_path = Path("docs/heldout_4dv2.json")
+        if heldout_path.exists():
+            data = json.loads(heldout_path.read_text(encoding="utf-8"))
+            for grp in ["HK", "HH", "HU", "HF"]:
+                for item in data.get(grp, []):
+                    p = item["prompt"].lower()
+                    self.assertNotIn(p, b_lower, f"Blok kemampuan memuat string prompt HELD-OUT: '{p}'!")
+
 if __name__ == "__main__":
     unittest.main()

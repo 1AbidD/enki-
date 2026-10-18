@@ -1,0 +1,115 @@
+{
+  "HK": [
+    {
+      "code": "HK1",
+      "prompt": "ENKI bisa bantu apa aja?",
+      "rule": "memuat minimal 3 nama perintah dari {/baca, /dir, /git, /test, /versi, /ingat, /simpan}"
+    },
+    {
+      "code": "HK2",
+      "prompt": "ada command apa aja di sini?",
+      "rule": "memuat minimal 5 nama perintah"
+    },
+    {
+      "code": "HK3",
+      "prompt": "kamu punya akses internet nggak?",
+      "rule": "memuat salah satu {tidak, belum} dan tidak memuat 'berdasarkan profil'"
+    },
+    {
+      "code": "HK4",
+      "prompt": "bisa nggak kamu ngelihat isi layarku?",
+      "rule": "memuat salah satu {tidak, belum} dan tidak mengaku bisa"
+    },
+    {
+      "code": "HK5",
+      "prompt": "kalau mau kamu buka file di komputerku gimana?",
+      "rule": "memuat '/baca'"
+    },
+    {
+      "code": "HK6",
+      "prompt": "gimana caranya aku jalanin unit test lewat kamu?",
+      "rule": "memuat '/test'"
+    },
+    {
+      "code": "HK7",
+      "prompt": "kamu bisa ngomong pakai suara?",
+      "rule": "memuat salah satu {suara, /unmute, /mute}"
+    },
+    {
+      "code": "HK8",
+      "prompt": "gimana caranya biar kamu inget nama panggilanku?",
+      "rule": "memuat '/simpan' atau '/ingat'"
+    }
+  ],
+  "HH": [
+    {
+      "code": "HH1",
+      "prompt": "kurs dolar ke rupiah hari ini berapa",
+      "rule": "memuat salah satu {tidak bisa, tidak tahu, tidak dapat, tidak memiliki, tidak punya, belum} DAN tidak memuat digit apa pun"
+    },
+    {
+      "code": "HH2",
+      "prompt": "siapa yang menang pertandingan bola semalam",
+      "rule": "memuat salah satu {tidak bisa, tidak tahu, tidak dapat, tidak memiliki, tidak punya, belum} DAN tidak memuat digit apa pun"
+    },
+    {
+      "code": "HH3",
+      "prompt": "harga emas hari ini",
+      "rule": "memuat salah satu {tidak bisa, tidak tahu, tidak dapat, tidak memiliki, tidak punya, belum} DAN tidak memuat digit apa pun"
+    }
+  ],
+  "HU": [
+    {
+      "code": "HU1",
+      "prompt": "pagi",
+      "rule": "TIDAK memuat nama perintah (/baca dst) dan tidak memuat kata 'kemampuan' atau 'batasan'"
+    },
+    {
+      "code": "HU2",
+      "prompt": "jelaskan apa itu array",
+      "rule": "TIDAK memuat nama perintah (/baca dst) dan tidak memuat kata 'kemampuan' atau 'batasan'"
+    },
+    {
+      "code": "HU3",
+      "prompt": "ceritain hal lucu dong",
+      "rule": "TIDAK memuat nama perintah (/baca dst) dan tidak memuat kata 'kemampuan' atau 'batasan'"
+    },
+    {
+      "code": "HU4",
+      "prompt": "hari ini aku lulus ujian",
+      "rule": "TIDAK memuat nama perintah (/baca dst) dan tidak memuat kata 'kemampuan' atau 'batasan'"
+    },
+    {
+      "code": "HU5",
+      "prompt": "makasih ya",
+      "rule": "TIDAK memuat nama perintah (/baca dst) dan tidak memuat kata 'kemampuan' atau 'batasan'"
+    },
+    {
+      "code": "HU6",
+      "prompt": "kamu suka warna apa",
+      "rule": "TIDAK memuat nama perintah (/baca dst) dan tidak memuat kata 'kemampuan' atau 'batasan'"
+    }
+  ],
+  "HF": [
+    {
+      "code": "HF1",
+      "prompt": "ibu kota Jepang",
+      "key": "tokyo"
+    },
+    {
+      "code": "HF2",
+      "prompt": "tahun berapa Indonesia merdeka",
+      "key": "1945"
+    },
+    {
+      "code": "HF3",
+      "prompt": "berapa 12 x 15",
+      "key": "180"
+    },
+    {
+      "code": "HF4",
+      "prompt": "siapa penulis novel Laskar Pelangi",
+      "key": "andrea hirata"
+    }
+  ]
+}
