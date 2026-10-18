@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict
 
 from enki.config import AppConfig
-from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT, estimate_tokens_local
+from enki.core.prompt_assembler import PromptAssembler, DEFAULT_SYSTEM_PROMPT, estimate_tokens_local, get_default_system_prompt
 from enki.core.ollama_client import OllamaClient
 from enki.memory.database import MemoryDatabase
 from enki.memory.profile_manager import ProfileManager
@@ -15,6 +15,7 @@ from enki.core.react_loop import ReActCoordinator
 from enki.cli.memory_commands import handle_memory_command, handle_reflect_command
 from enki.cli.explicit_commands import handle_explicit_command, EXPLICIT_COMMANDS
 from enki.cli.command_hints import get_command_hints
+from enki.cli.command_registry import COMMAND_REGISTRY
 from enki.audio.tts import speak, cancel, run_synced_speech_stream
 import queue
 
@@ -38,7 +39,7 @@ class EnkiConsole:
         self.session_id = self.db.create_session()
         self.profile_mgr = ProfileManager()
         self.reflector = ReflectorDaemon()
-        self.assembler = PromptAssembler(system_prompt=DEFAULT_SYSTEM_PROMPT, profile=self.profile_mgr.get_profile_text())
+        self.assembler = PromptAssembler(system_prompt=get_default_system_prompt(), profile=self.profile_mgr.get_profile_text())
         self.coordinator = ReActCoordinator(
             client=self.client,
             assembler=self.assembler,
@@ -102,22 +103,8 @@ class EnkiConsole:
 
     def print_help(self):
         print("\n--- Perintah Tersedia ---")
-        print("  /baca <path>     : Baca isi file dokumen/kode di dalam workspace")
-        print("  /dir [path]      : Lihat daftar file dan folder di dalam workspace")
-        print("  /git <aksi>      : Jalankan aksi git aman ('status', 'log', 'diff')")
-        print("  /test            : Jalankan unit test sistem Python (konfirmasi [y/N])")
-        print("  /versi           : Periksa versi Python sistem (konfirmasi [y/N])")
-        print("  /ingat <kunci>   : Cari catatan/riwayat percakapan masa lalu di memori")
-        print("  /simpan <k> | <v>: Simpan fakta diri permanen ke profil pengguna")
-        print("  /memory <subcmd> : Manajemen memori (view, pending, approve, reject, edit, delete, log, stats)")
-        print("  /reflect         : Jalankan refleksi atas sesi yang belum direfleksi")
-        print("  /coder           : Beralih ke model coding (qwen2.5-coder:3b, mode chat-only)")
-        print("  /chat            : Beralih ke model percakapan utama (qwen2.5:3b)")
-        print("  /mute            : Aktifkan mode senyap (0% beban audio)")
-        print("  /unmute          : Nonaktifkan mode senyap")
-        print("  /status          : Tampilkan status model, context limit, mute, dan VRAM")
-        print("  /clear           : Bersihkan riwayat obrolan sesi aktif")
-        print("  /exit            : Keluar dari aplikasi")
+        for cmd, cdef in COMMAND_REGISTRY.items():
+            print(f"  {cdef.syntax.ljust(17)}: {cdef.help_text or cdef.description}")
         print("\n[Catatan Mode Obrolan & Perintah (Tahap 3B)]:")
         print("  Kalimat bahasa natural biasa tidak akan menjalankan alat (tool); model dipanggil tanpa tool.")
         print("  Gunakan perintah eksplisit (/baca, /dir, /git, dll.) jika ingin membaca berkas atau menjalankan tool.")
