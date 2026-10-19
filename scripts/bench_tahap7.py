@@ -188,6 +188,8 @@ def test_s1_to_s10() -> Dict[str, Tuple[bool, str]]:
 
     # S6: Telemetri CLI menampilkan status skill aktif
     app = EnkiConsole()
+    app.check_startup_reflection = lambda: None
+    app.config.set_mute(True)
     app.skill_manager.activate("gaya-ringkas")
     fake_metrics = {"prompt_eval_count": 120, "eval_count": 45, "eval_tok_per_sec": 18.5}
     app.coordinator.run_react_turn = lambda **kwargs: [("Contoh teks.", fake_metrics)]
@@ -208,7 +210,9 @@ def test_s1_to_s10() -> Dict[str, Tuple[bool, str]]:
 
     # S8: Anggaran context & prioritas pemangkasan history
     long_hist = [{"role": "user" if i % 2 == 0 else "assistant", "content": f"Pesan riwayat percakapan turn {i} yang panjang."} for i in range(40)]
-    blk_g = mgr1.get_active_skill_block()
+    mgr_s8 = SkillManager()
+    mgr_s8.activate("gaya-ringkas")
+    blk_g = mgr_s8.get_active_skill_block()
     msgs_budget, meta_budget = assembler.assemble_messages("user pamungkas", long_hist, skill_block=blk_g, num_ctx=2048)
     s8_ok = (meta_budget["estimated_prompt_tokens"] <= 2048) and ('<active_skill' in msgs_budget[0]["content"])
     results["S8"] = (s8_ok, "Prioritas system prompt + skill tertinggi, riwayat dipangkas")
@@ -221,6 +225,7 @@ def test_s1_to_s10() -> Dict[str, Tuple[bool, str]]:
 
     # S10: Perintah /status menampilkan status skill
     app_st = EnkiConsole()
+    app_st.check_startup_reflection = lambda: None
     app_st.submit_mid_reply_input("/status")
     app_st.submit_mid_reply_input("/exit")
     buf_st = io.StringIO()
