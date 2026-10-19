@@ -1,0 +1,110 @@
+======================================================================
+LAPORAN HASIL BENCHMARK & VERIFIKASI TAHAP 7-FIX
+Waktu Eksekusi: 2026-10-19 22:09:50
+======================================================================
+======================================================================
+BAGIAN 1: DIAGNOSA MASALAH SUARA (1a, 1b, 1c)
+======================================================================
+
+[1a] Pelacakan Jalur Suara ('Microsoft Andika' ke Supertonic):
+  - Sebelum perbaikan:
+    * config.json memiliki tts_voice: 'Microsoft Andika' dan tts_voice_supertonic: 'M4'.
+    * Di console.py (/wiki baris 445, router baris 535, chat biasa non-synced baris 669):
+      speak(..., voice=self.config.tts_voice)
+    * Di tts.py (_resolve_default_engine_and_voice):
+      resolved_voice = voice if voice is not None else st_voice
+      Karena voice diberikan ('Microsoft Andika'), fungsi mengembalikan nama SAPI tersebut
+      walaupun engine aktif adalah Supertonic!
+    * SupertonicEngine._get_voice_style menerima 'Microsoft Andika', gagal memuat style,
+      dan memicu fallback ke SAPI5 disertai peringatan error.
+  - Sesudah perbaikan:
+    * console.py memilih suara sesuai engine aktif: tts_voice_supertonic ('M4') jika
+      supertonic, atau tts_voice ('Microsoft Andika') jika SAPI5.
+    * tts.py dan supertonic.py memvalidasi suara ke SUPERTONIC_VALID_VOICES. Nilai tidak
+      valid otomatis diganti default 'M4' dengan peringatan satu baris terkontrol.
+
+[1b] Reproduksi Toggle & Alasan Suara Tumpang Tindih (Numpuk):
+  - Apakah /unmute membuat worker/thread baru? TIDAK. TTSManager menggunakan thread worker tunggal
+    yang hanya dibuat jika belum ada atau sudah mati (_ensure_worker).
+  - Apakah model memanggil speak() dua kali? TIDAK. Alur console.py selalu mengeksekusi
+    salah satu percabangan secara eksklusif (synced stream vs non-synced speak).
+  - Akar masalah suara numpuk live:
+    Ketika fallback ke SAPI5 terjadi akibat error suara ('Microsoft Andika'), SupertonicEngine
+    sebelumnya tidak mematikan pemutaran audio aktif (winsound), sehingga jika ada sisa buffer
+    audio Supertonic yang berbunyi, SAPI5 langsung mulai berbicara di atasnya (dual-engine overlap).
+    Kini _activate_fallback langsung memanggil winsound.PlaySound(None, SND_PURGE) agar audio
+    Supertonic berhenti tuntas sebelum SAPI5 bersuara.
+
+[1c] Mengapa /web Tidak Memicu Peringatan Suara di Live Test Abid:
+  - Pada alur /web (console.py):
+    run_synced_speech_stream dipanggil dengan:
+    voice=self.config.tts_voice_supertonic  # Mengirim 'M4' secara eksplisit!
+  - Karena 'M4' adalah suara Supertonic yang sah, tidak terjadi exception dan tidak ada peringatan.
+  - Sebaliknya, pada balasan biasa non-synced dan /wiki, kode sebelumnya mengirim self.config.tts_voice
+    ('Microsoft Andika'), sehingga hanya balasan tersebut yang memicu peringatan.
+
+======================================================================
+BAGIAN 2: VERIFIKASI KRITERIA V1–V4, W-SHORT, B-URL
+======================================================================
+V1 (/unmute Idempoten & Max 1 Worker Thread): LULUS
+   - Pesan idempoten: True | Synth Worker: 0 | Play Worker: 0
+V2 (Satu Balasan = Tepat Satu Pemutaran): LULUS
+   - Panggilan speak: 1 (harus 1) | Chunks diputar: 1
+V3 (Validasi Suara Supertonic & Single-Engine Fallback): LULUS
+   - Suara SAPI ditolak -> default M4: True | Peringatan 1 baris: True | SND_PURGE dipanggil: True
+W-short (Peringatan Halaman Web < 400 Karakter Sebelum Baris Sumber): LULUS
+   - Posisi Catatan: 614 | Posisi Sumber: 738
+B-url (Petunjuk Tautan Manual /buka): LULUS
+   - Pesan tautan manual tercetak: True
+
+======================================================================
+BAGIAN 3: JAWABAN & BUKTI AUDIT TAHAP 7 (3a, 3b, 3c, 3d)
+======================================================================
+
+[3a] Investigasi Kriteria S5 & Pergeseran Label:
+  - Pada commit 78ba83d, terjadi ketidakselarasan penamaan:
+    Kriteria awal pre-registered S5 adalah 'Tidak Menambah Kemampuan / Keamanan Utuh'
+    sedangkan nama kelas tes adalah TestS5ExampleSkills (menguji 2 contoh skill repo).
+  - Bukti keamanan S5 kini diverifikasi eksplisit lewat TestTahap7FixS5ExplicitSecurity:
+    * Netralisasi closing tag palsu: True
+    * Coordinator obrolan biasa selalu dipanggil dengan enable_tools=False (terbukti di unit test).
+
+[3b] Penjelasan Kegagalan Run 1 pada Commit c6b4151:
+  - Pada run 1 skrip benchmark bench_tahap7.py:
+    Kasus uji S8 menggunakan variabel mgr1.get_active_skill_block(). Namun variabel mgr1
+    telah dinonaktifkan (mgr1.deactivate()) pada langkah pengujian S2 sebelumnya, sehingga
+    mgr1.get_active_skill_block() mengembalikan string kosong ('').
+    Akibatnya, pengecekan '<active_skill' in msgs_budget[0]['content'] menghasilkan False.
+  - Kode produksi (SkillManager dan PromptAssembler) 100% benar.
+    Perbaikan dilakukan pada scaffolding skrip pengujian dengan menginisialisasi instance
+    SkillManager baru yang aktif khusus untuk pengujian S8 (mgr_s8.activate('gaya-ringkas')).
+
+[3c] Interaksi Skill Aktif dengan /web, /wiki, dan Router:
+  - /wiki: Merupakan pemanggilan deterministik Wikipedia REST API tanpa keterlibatan LLM.
+    Skill aktif tidak memengaruhi teks ringkasan Wikipedia sama sekali.
+  - Router: Mengevaluasi regex deterministik sebelum pemanggilan model.
+    Skill aktif tidak mengubah regex dan tidak mengubah jawaban router deterministik.
+  - /web: Mengirimkan konten web ke LLM, tetapi console.py TIDAK meneruskan parameter
+    skill_block ke coordinator (skill_block=None), sehingga instruksi skill tidak merusak prompt /web.
+  - Terbukti 100% diisolasi melalui TestTahap7FixSkillInteractions.
+
+[3d] Perhitungan Token Estimator Kedua Contoh Skill (170 Token):
+  - gaya-ringkas/SKILL.md    : 474 karakter -> math.ceil(474 / 2.8) = 170 token
+  - format-ringkasan/SKILL.md: 476 karakter -> math.ceil(476 / 2.8) = 170 token
+  - Kesimpulan: Bukan bug token estimator, melainkan murni kebetulan matematis karena panjang
+    kedua berkas sangat mirip (474 vs 476 karakter) dan rasio pembagi 2.8 menghasilkan bilangan bulat 170.
+
+======================================================================
+BAGIAN 4: VERIFIKASI HASH & INTEGRITAS GIT
+======================================================================
+Base Prompt Hash : 6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728 (COCOK)
+Router File SHA  : 48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9 (COCOK)
+Git HEAD Commit  : 7f79bdde4778a302e92c15f73b618d5442e07c86
+Git Dirty        : False
+Status Ollama    :
+NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+qwen2.5:3b    357c53fb659c    2.3 GB    100% GPU     8192       4 minutes from now
+
+======================================================================
+RINGKASAN STATUS TAHAP 7-FIX: SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD
+======================================================================

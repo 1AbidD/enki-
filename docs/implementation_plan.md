@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.8
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.9
 
-*Ringkasan Perubahan v3.8: Penutupan catatan Tahap 6 (akar masalah /buka BELUM PASTI, hasil rerun W5 dicatat, keterbatasan SPA tercatat); perumusan desain dan pembekuan kriteria S1–S11 Tahap 7 (Skills Folder /skill); implementasi subsistem skill (enki/core/skills.py, integrasi prompt assembler, ReAct coordinator, CLI console /skill & telemetri, command registry); penyertaan 2 contoh skill repo (gaya-ringkas, format-ringkasan); pembuatan unit test tests/test_skills.py (23 test lulus, total suite 214 test lulus, hash base prompt 6db1ac9a... dan router SHA 48a03331... 100% identik); eksekusi skrip verifikasi & benchmark scripts/bench_tahap7.py (S1–S10 SEMUA LULUS, S11 report-only 9/9 run patuh pada qwen2.5:3b, Git Dirty: False di docs/evidence/tahap7.txt); status Tahap 7: SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD.*
+*Ringkasan Perubahan v3.9: Eksekusi Tahap 7-FIX: perbaikan bug suara numpuk (/unmute idempoten V1, satu balasan = satu pemutaran V2, validasi nama suara per engine & pencegahan dual engine V3, W-short peringatan web terpotong <400 karakter, B-url tautan manual /buka); audit Tahap 7 lengkap (klarifikasi label S5 & uji isolasi XML eksplisit, penjelasan jujur run 1 c6b4151, pembuktian isolasi skill dari /web, /wiki, router, perhitungan matematis token 170); penambahan 15 unit test baru tests/test_tahap7fix.py (total suite 229 test lulus hijau, prompt hash 6db1ac9a... dan router SHA 48a03331... 100% identik); eksekusi scripts/bench_tahap7fix.py menghasilkan docs/evidence/tahap7fix.txt dengan Git Dirty: False; status Tahap 7: SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -1459,6 +1459,43 @@ Pada pengujian live oleh Abid, fitur `/skill` berjalan baik (`/skill list`, akti
   Pada `/web`: jika teks hasil ekstraksi memiliki panjang $< 400$ karakter, sistem mencetak baris deterministik tepat sebelum baris `"Sumber:"`: `"[Catatan] Teks yang berhasil diambil hanya N karakter; halaman mungkin dirender JavaScript sehingga isinya tidak lengkap."` (Ambang 400 karakter ditetapkan final saat ini).
 - **B-url (Petunjuk Tautan Manual /buka):**
   Pada `/buka`: setelah pembukaan sukses dikirim ke sistem, sistem mencetak baris `"(Jika jendela tidak muncul, buka manual: <url>)"`. Pesan sukses tidak mengklaim browser fisik pasti terbuka, hanya bahwa perintah telah dikirim ke sistem. Pesan gagal tetap tidak berubah.
+
+#### 3. Hasil Eksekusi & Bukti Empiris Tahap 7-FIX
+- **Hasil Kriteria V1–V4, W-short, B-url (Semua LULUS):**
+  - **V1 (/unmute Idempoten & Batas Worker Thread):** **LULUS**. Panggilan `/unmute` saat sudah unmuted mencetak `"[Config] Mode senyap sudah NONAKTIF."` Siklus 5x `/mute` dan `/unmute` mempertahankan jumlah worker thread TTS $\le 1$ untuk masing-masing worker sintesis (`ENKI_TTS_Worker`) dan worker pemutar (`ENKI_TTS_PlayWorker`).
+  - **V2 (Satu Balasan = Tepat Satu Pemutaran):** **LULUS**. Dengan engine tiruan `CountingFakeEngine`, tepat 1 pemanggilan `speak_chunk` terjadi per balasan dan tepat 1 chunk diputar, tidak terpengaruh berapa kali `/unmute` dipanggil sebelumnya.
+  - **V3 (Validasi Suara Supertonic & Single-Engine Fallback):** **LULUS**. Nama suara SAPI `"Microsoft Andika"` ditolak oleh Supertonic, otomatis dialihkan ke default `M4` disertai peringatan satu baris terkontrol `[Peringatan TTS] Suara 'Microsoft Andika' tidak valid untuk Supertonic (hanya F1-F5, M1-M5); menggunakan default M4.` Pada saat aktivasi fallback SAPI5, `winsound.PlaySound(None, SND_PURGE)` langsung dipanggil untuk menghentikan audio Supertonic yang sedang berjalan seketika, menjamin hanya satu engine yang bersuara tanpa tumpang tindih.
+  - **V4 (Integritas Sistem & Nol Regresi):** **LULUS**. Seluruh 229 pengujian unit lulus hijau (214 tes lama + 15 tes baru di `tests/test_tahap7fix.py`). Hash base system prompt tetap persis `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` dan SHA `enki/core/capability_router.py` tetap persis `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`.
+  - **W-short (Peringatan Halaman Web Terpotong):** **LULUS**. Halaman web dengan teks hasil ekstraksi $< 400$ karakter mencetak peringatan deterministik tepat sebelum baris `"Sumber:"`: `"[Catatan] Teks yang berhasil diambil hanya N karakter; halaman mungkin dirender JavaScript sehingga isinya tidak lengkap."`
+  - **B-url (Petunjuk Tautan Manual /buka):** **LULUS**. Setelah pembukaan URL berhasil dikirim ke peramban sistem, ENKI mencetak petunjuk manual: `"(Jika jendela tidak muncul, buka manual: <url>)"`.
+
+#### 4. Jawaban Diagnosa & Audit Tahap 7
+- **1a. Lacak Jalur Suara ("Microsoft Andika" ke Supertonic):**
+  * *Sebelum:* `config.json` menyimpan `tts_voice: "Microsoft Andika"` dan `tts_voice_supertonic: "M4"`. Pada `/wiki`, router, dan chat biasa non-synced di `console.py`, fungsi `speak(..., voice=self.config.tts_voice)` dipanggil. Di `tts.py` (`_resolve_default_engine_and_voice`), logika mengambil `voice if voice is not None else st_voice`, sehingga string `"Microsoft Andika"` diteruskan ke `SupertonicEngine._get_voice_style()`. Karena Supertonic hanya mengenali `{F1..F5, M1..M5}`, pencarian style melempar exception dan memicu peringatan fallback.
+  * *Sesudah:* `console.py` memilih suara secara deterministik: jika engine aktif Supertonic digunakan `self.config.tts_voice_supertonic` (`M4`), jika SAPI5 digunakan `self.config.tts_voice`. Selain itu, `tts.py` dan `supertonic.py` memvalidasi suara ke `SUPERTONIC_VALID_VOICES` dan mengembalikan `M4` jika tidak valid.
+- **1b. Reproduksi Toggle & Alasan Suara Numpuk:**
+  * `/unmute` tidak membuat worker thread baru (`_ensure_worker` hanya membuat thread jika `is_alive()` bernilai `False`), dan model tidak memanggil `speak()` dua kali (alur `console.py` bercabang secara eksklusif).
+  * Penyebab tumpang tindih audio pada pengujian live adalah ketika Supertonic mengalami error sintesis akibat nama suara tidak valid, engine mengaktifkan fallback SAPI5 tanpa mematikan buffer audio Supertonic yang sedang berbunyi via winsound. Akibatnya SAPI5 mulai berbicara sementara winsound masih menyelesaikan pemutaran audio Supertonic (dual-engine overlap). Perbaikan: `_activate_fallback` langsung memanggil `winsound.PlaySound(None, winsound.SND_PURGE)` untuk menghentikan audio lama sebelum SAPI5 bersuara.
+- **1c. Mengapa /web Tidak Memicu Peringatan Suara di Live Test Abid:**
+  * Pada alur `/web` di `console.py`, fungsi `run_synced_speech_stream` dipanggil dengan parameter `voice=self.config.tts_voice_supertonic` yang mengirimkan `"M4"` (suara Supertonic yang sah). Karena suara sah, tidak terjadi exception. Sebaliknya pada balasan biasa non-synced dan `/wiki`, parameter yang dikirim adalah `self.config.tts_voice` (`"Microsoft Andika"`).
+- **3a. Investigasi Kriteria S5 & Pergeseran Label:**
+  * Pada commit `78ba83d`, terjadi pergeseran label: kriteria awal pre-registered S5 adalah *Tidak Menambah Kemampuan / Keamanan Utuh*, namun diuji oleh kelas `TestS5ExampleSkills` (yang menguji keberadaan berkas skill contoh).
+  * Keamanan S5 kini diuji secara eksplisit di `TestTahap7FixS5ExplicitSecurity`: skill dengan instruksi command injection (`/web`, `git reset`) dan closing tag palsu `</active_skill>` terbukti tidak dapat meloloskan tag (dinetralkan menjadi `&lt;/active_skill&gt;`) dan koordinator tetap dipanggil dengan `enable_tools=False`.
+- **3b. Penjelasan Kegagalan Run 1 pada Commit c6b4151:**
+  * Pada run 1 skrip `bench_tahap7.py`, pengujian S8 menggunakan variabel `mgr1.get_active_skill_block()`. Namun `mgr1` telah dinonaktifkan (`mgr1.deactivate()`) pada pengujian S2 sebelumnya, sehingga `get_active_skill_block()` bernilai string kosong (`""`) dan pengecekan tag gagal.
+  * Kode produksi (`SkillManager` dan `PromptAssembler`) sudah 100% benar. Perbaikan dilakukan pada scaffolding skrip pengujian dengan membuat instance `SkillManager` baru yang aktif khusus untuk S8.
+- **3c. Interaksi Skill Aktif dengan /web, /wiki, dan Router:**
+  * `/wiki` adalah pemanggilan deterministik REST API tanpa model/LLM, sehingga skill aktif tidak memengaruhinya.
+  * Router kemampuan berjalan sebelum pemanggilan model berbasis regex deterministik murni, sehingga tidak terpengaruh skill.
+  * `/web` memanggil model, namun `console.py` tidak meneruskan argumen `skill_block` (`skill_block=None`), sehingga instruksi skill tidak merusak ringkasan web. Terbukti lewat `TestTahap7FixSkillInteractions`.
+- **3d. Perhitungan Token Estimator Kedua Contoh Skill (Tepat 170 Token):**
+  * `gaya-ringkas/SKILL.md` memiliki panjang 474 karakter: $\lceil 474 / 2.8 \rceil = \lceil 169.2857 \rceil = 170$ token.
+  * `format-ringkasan/SKILL.md` memiliki panjang 476 karakter: $\lceil 476 / 2.8 \rceil = \lceil 170.0 \rceil = 170$ token.
+  * Ini murni kebetulan matematis akibat panjang kedua berkas yang hampir identik (selisih hanya 2 karakter) dan pembagian dengan faktor 2.8 dibulatkan ke atas (`ceil`). Tidak ada bug pada token estimator.
+
+#### 5. Status Progres & Rekomendasi Langkah Berikutnya
+- **Status Tahap 7:** **SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD** (Jangan menulis DITERIMA/LULUS sebelum verifikasi lead).
+- **Rekomendasi Langkah Berikutnya:** Menunggu audit lead/Abid atas perbaikan Tahap 7-FIX dan bukti di `docs/evidence/tahap7fix.txt`.
 
 ---
 
