@@ -1355,6 +1355,50 @@ Fakta empiris: `webbrowser.open('https://example.com')` mengembalikan `True` dan
 
 ---
 
+### Tahap 7: Skills Folder (/skill) (MENUNGGU AUDIT LEAD)
+
+#### 1. Tujuan & Filosofi Desain
+Pengguna dapat menyediakan persona, gaya bicara, atau instruksi khusus buatan sendiri dalam format teks terstruktur sederhana di dalam folder `skills/<nama>/SKILL.md`.
+- **Bukan Penambahan Kemampuan (No Tool / No Code Execution):** Skill HANYA berupa teks panduan persona/format bagi LLM (`<active_skill>`), tidak memiliki hak akses alat (tool), tidak dapat mengeksekusi kode atau perintah CLI, tidak dapat meng-include file lain, dan tidak mengubah router deterministik maupun konfirmasi keamanan.
+- **Isolasi & Sanitasi Data:** Konten `SKILL.md` diperlakukan sebagai data tidak tepercaya dan disanitasi menggunakan `sanitize_untrusted_text` untuk mencegah injeksi tag penutup palsu (`</active_skill>`).
+- **Zero-Cost Saat Nonaktif:** Default saat startup adalah OFF. Tanpa skill aktif, tidak ada I/O disk ke direktori `skills/` saat percakapan berlangsung, dan pesan sistem dasar tetap memiliki hash identik.
+
+#### 2. Kriteria Kelulusan Tahap 7 (S1–S11) — FINAL Sebelum Kode:
+- **S1 (Lokasi & Pola Nama Valid):**
+  Hanya membaca berkas `<root>/skills/<nama>/SKILL.md`. Nama skill wajib mematuhi regex `^[a-z0-9][a-z0-9-]{0,39}$`. Path traversal (misal `../`, `..\`), symlink, nama di luar pola (huruf kapital, spasi, karakter aneh), atau berkas di luar folder `skills/` ditolak keras.
+- **S2 (Perintah /skill & Siklus Hidup Non-Persisten):**
+  - `/skill list`: Menampilkan daftar skill yang tersedia beserta deskripsi 1 baris (diambil dari frontmatter YAML `description:` atau baris non-kosong pertama).
+  - `/skill <nama>`: Mengaktifkan skill yang dipilih (hanya 1 skill yang dapat aktif dalam satu waktu).
+  - `/skill off`: Menonaktifkan skill aktif.
+  - `/skill`: Menampilkan status skill yang sedang aktif (nama, jumlah token) atau menyatakan tidak ada skill aktif.
+  - Status aktif bersifat *in-memory* per sesi console, default OFF saat startup aplikasi (tidak disimpan ke `config.json`).
+- **S3 (Batas Ukuran & Estimasi Token):**
+  Isi `SKILL.md` dibatasi maksimal 600 token (dihitung menggunakan estimasi tokenizer lokal atau heuristic kata/karakter). Bila melebihi 600 token, pengaktifan DITOLAK dengan pesan kesalahan informatif (tidak dipotong diam-diam). Berkas dengan ukuran > 8 KB ditolak sebelum dibaca penuh. Berkas wajib berupa teks UTF-8 valid.
+- **S4 (Injeksi Blok Sistem & Preservasi Hash Dasar):**
+  Skill aktif disisipkan sebagai blok terpisah pada pesan sistem:
+  ```text
+  <active_skill name="<nama>">
+  [Isi Teks SKILL.md Tersanitasi]
+  </active_skill>
+  ```
+  Konten disanitasi dari tag kontrol palsu. Ketika tidak ada skill aktif, system prompt dasar memiliki hash SHA-256 yang tetap identik dengan baseline: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`.
+- **S5 (Tidak Menambah Kemampuan / Keamanan Utuh):**
+  Skill tidak bisa mengaktifkan tool baru, tidak bisa memicu eksekusi shell/python, tidak bisa mengimpor berkas lain, dan tidak mengubah router/gating. Tidak ada parsing perintah di dalam skill.
+- **S6 (Transparansi Telemetri & Konfirmasi):**
+  Telemetri balasan konsol mencantumkan penanda `Skill: <nama> (+N tok)` saat skill aktif. Konsol mencetak pesan konfirmasi `[Skill] <nama> aktif (N token)` saat diaktifkan.
+- **S7 (Zero-Cost Saat Nonaktif):**
+  Saat tidak ada skill aktif, operasi percakapan biasa menghasilkan 0 I/O ke folder `skills/`, dan prompt identik 100% dengan sebelumnya.
+- **S8 (Anggaran Konteks & Prioritas Pemangkasan):**
+  Beban token skill dihitung dalam alokasi budgeting token. Jika total token melebihi batas `num_ctx` (8192), riwayat obrolan terdahulu yang dipangkas terlebih dahulu, bukan skill aktif, dan tidak menghasilkan error.
+- **S9 (Registri & Integritas Router):**
+  Perintah `/skill` terdaftar di `COMMAND_REGISTRY` dan `/help`. SHA `enki/core/capability_router.py` TIDAK BERUBAH (`48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`).
+- **S10 (Cakupan Tes Unit Komprehensif):**
+  Tes unit mencakup pengujian S1–S9: path traversal, symlink, ukuran >8KB, token >600, nama invalid, aktivasi/deaktivasi, sanitasi blok, immutability hash prompt dasar, dan zero-cost. Seluruh pengujian suite lama tetap hijau 100%.
+- **S11 (Evaluasi Perilaku Model Nyata qwen2.5:3b - REPORT-ONLY):**
+  Membuat 2 skill contoh (`skills/gaya-ringkas`, `skills/format-ringkasan`) dan mengevaluasi respon nyata `qwen2.5:3b` pada 3 prompt x 3 seed, membandingkan respon dengan skill vs tanpa skill. Menilai tingkat kepatuhan secara jujur (patuh/tidak/sebagian) tanpa melakukan tuning pasca-hasil.
+
+---
+
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
 * Komparasi langsung Windows Media OCR vs RapidOCR pada layar VS Code.
