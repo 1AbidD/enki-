@@ -1,20 +1,20 @@
 ================================================================================
 SMOKE TEST LIVE TAHAP 6 — WEB TOOLS (/wiki, /web) (KRITERIA W9)
 ================================================================================
-Timestamp Mulai (UTC): 2026-10-18T15:49:33.314029+00:00
-Git HEAD             : 86c02b22800a085fdc8b7668706fa8b62950f3a6
-Git Dirty            : True
+Timestamp Mulai (UTC): 2026-10-19T12:55:50.371709+00:00
+Git HEAD             : 1213b024a2600d7ccfce7b592c3bf4bad35e8651
+Git Dirty            : False
 Ollama Active Model  :
 NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
-qwen2.5:3b    357c53fb659c    2.3 GB    100% GPU     8192       4 minutes from now
+qwen2.5:3b    357c53fb659c    2.2 GB    100% GPU     4096       3 minutes from now
 ================================================================================
 
 [Memulai Siklus Interaksi Konsol Live]
 ============================================================
 [ENKI] Local AI Personal Assistant (v0.2.0 - Memory Enabled)
 Model: qwen2.5:3b | Context: 8192 | Mute: True
-Sesi Aktif: session_20261018_224933_476169
-VRAM: 2571 MiB / 4096 MiB (Free: 1392 MiB)
+Sesi Aktif: session_20261019_195550_509107
+VRAM: 2618 MiB / 4096 MiB (Free: 1345 MiB)
 Ketik pesan Anda untuk mulai, atau /help untuk melihat perintah.
 ============================================================
 Ini akan mengakses internet: https://id.wikipedia.org/api/rest_v1/page/summary/Python
@@ -28,7 +28,7 @@ Indonesia, dengan nama resmi Republik Indonesia, adalah sebuah negara di Asia Te
 
 Sumber: https://id.wikipedia.org/wiki/Indonesia
 
--- Telemetri: wiki (REST API) | Web: 336.8 ms | 640 char (utuh) | Sisa Context: 8192/8192 tok --
+-- Telemetri: wiki (REST API) | Web: 604.6 ms | 640 char (utuh) | Sisa Context: 8192/8192 tok --
 Ini akan mengakses internet: https://id.wikipedia.org/api/rest_v1/page/summary/Linux
 
 [Jawaban]
@@ -37,15 +37,15 @@ Linux adalah keluarga sistem operasi mirip Unix yang didasarkan pada kernel Linu
 
 Sumber: https://id.wikipedia.org/wiki/Linux
 
--- Telemetri: wiki (REST API) | Web: 319.1 ms | 579 char (utuh) | Sisa Context: 8192/8192 tok --
+-- Telemetri: wiki (REST API) | Web: 616.3 ms | 579 char (utuh) | Sisa Context: 8192/8192 tok --
 Ini akan mengakses internet: https://example.com/
 
 [Jawaban]
-Isi halaman tersebut adalah dokumentasi yang memberikan informasi bahwa domain tersebut dapat digunakan dalam contoh dokumen tanpa memerlukan izin. Domain ini tidak dianggap sebagai layanan yang dapat digunakan untuk tujuan tes dan pengawasan.
+Isi halaman tersebut adalah dokumentasi yang memberikan informasi bahwa domain tersebut dapat digunakan dalam contoh dokumen tanpa membutuhkan izin. Domain ini tidak digunakan sebagai layanan dan disarankan untuk tidak dipakai untuk tujuan tes dan pengawasan.
 
 Sumber: https://example.com/
 
--- Telemetri: Prompt: 710 tok | Generate: 56 tok (71.6 tok/s) | Web: 342.7 ms | 156 char (utuh) | Sisa Context: 7426/8192 tok --
+-- Telemetri: Prompt: 710 tok | Generate: 60 tok (74.0 tok/s) | Web: 355.3 ms | 156 char (utuh) | Sisa Context: 7422/8192 tok --
 Keluar dari ENKI. Sampai jumpa!
 
 --------------------------------------------------------------------------------
@@ -63,6 +63,6 @@ Perbandingan Jawaban Model vs Teks Asli:
 --------------------------------------------------------------------------------
 
 ================================================================================
-Timestamp Selesai (UTC): 2026-10-18T15:49:37.058320+00:00
+Timestamp Selesai (UTC): 2026-10-19T12:55:59.199857+00:00
 STATUS: SMOKE TEST LIVE TAHAP 6 SELESAI
 ================================================================================
