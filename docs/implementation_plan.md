@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.7
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.8
 
-*Ringkasan Perubahan v3.7: pencatatan hasil held-out 4E (gagal: positif 10/16, false route 1/10; dataset heldout_4e terbakar), penetapan status router dipakai apa adanya (best-effort) tanpa tuning; koreksi jujur investigasi A0 (isu tampilan Abid tidak berhasil direproduksi dalam simulasi, yang terbukti hanya artefak spasi \r, penanganan /mute di tengah jawaban dicatat sebagai perbaikan tambahan, bukti empiris 12/12 PASS di tahap4e_partA_evidence.txt), koreksi riwayat tuning router v4 (total minimal 9 edit); pelaksanaan Langkah 0 Tahap 6 (baseline suite lulus, probe jaringan 5/5 HTTP 200 dengan TLS wajib, requests 2.34.2 dan trafilatura 2.3.1 terpasang dan dipin); preregistrasi desain teknis dan pembekuan Kriteria W1–W12 Tahap 6 (Web Tools: /web, /wiki, /buka) dengan isolasi data tidak tepercaya, konfirmasi eksplisit [y/N], dan zero-cost lazy import SEBELUM implementasi kode.*
+*Ringkasan Perubahan v3.8: Penutupan catatan Tahap 6 (akar masalah /buka BELUM PASTI, hasil rerun W5 dicatat, keterbatasan SPA tercatat); perumusan desain dan pembekuan kriteria S1–S11 Tahap 7 (Skills Folder /skill); implementasi subsistem skill (enki/core/skills.py, integrasi prompt assembler, ReAct coordinator, CLI console /skill & telemetri, command registry); penyertaan 2 contoh skill repo (gaya-ringkas, format-ringkasan); pembuatan unit test tests/test_skills.py (23 test lulus, total suite 214 test lulus, hash base prompt 6db1ac9a... dan router SHA 48a03331... 100% identik); eksekusi skrip verifikasi & benchmark scripts/bench_tahap7.py (S1–S10 SEMUA LULUS, S11 report-only 9/9 run patuh pada qwen2.5:3b, Git Dirty: False di docs/evidence/tahap7.txt); status Tahap 7: SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -1355,7 +1355,7 @@ Fakta empiris: `webbrowser.open('https://example.com')` mengembalikan `True` dan
 
 ---
 
-### Tahap 7: Skills Folder (/skill) (MENUNGGU AUDIT LEAD)
+### Tahap 7: Skills Folder (/skill) (SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD)
 
 #### 1. Tujuan & Filosofi Desain
 Pengguna dapat menyediakan persona, gaya bicara, atau instruksi khusus buatan sendiri dalam format teks terstruktur sederhana di dalam folder `skills/<nama>/SKILL.md`.
@@ -1396,6 +1396,42 @@ Pengguna dapat menyediakan persona, gaya bicara, atau instruksi khusus buatan se
   Tes unit mencakup pengujian S1–S9: path traversal, symlink, ukuran >8KB, token >600, nama invalid, aktivasi/deaktivasi, sanitasi blok, immutability hash prompt dasar, dan zero-cost. Seluruh pengujian suite lama tetap hijau 100%.
 - **S11 (Evaluasi Perilaku Model Nyata qwen2.5:3b - REPORT-ONLY):**
   Membuat 2 skill contoh (`skills/gaya-ringkas`, `skills/format-ringkasan`) dan mengevaluasi respon nyata `qwen2.5:3b` pada 3 prompt x 3 seed, membandingkan respon dengan skill vs tanpa skill. Menilai tingkat kepatuhan secara jujur (patuh/tidak/sebagian) tanpa melakukan tuning pasca-hasil.
+
+#### 3. Hasil Pengujian & Evaluasi Kriteria Tahap 7 (Bukti Empiris: `docs/evidence/tahap7.txt`)
+- **Metadata Lingkungan:**
+  - Git Commit: `c6b4151d0af2755d09e6b82feb6c567ba312042b`
+  - Git Dirty: `False`
+  - Base Prompt Hash: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` (Identik 100%)
+  - Router SHA: `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9` (Identik 100%)
+  - Model: `qwen2.5:3b` pada Ollama GPU
+- **Hasil Kriteria S1–S10 (Verifikasi Fungsional & Keamanan):**
+  - **S1 (Validasi Nama & Path Traversal):** **LULUS**. Regex `^[a-z0-9][a-z0-9-]{0,39}$` memvalidasi nama legal dan menolak traversal `../`, `..\`, symlink, karakter khusus, spasi, dan huruf kapital.
+  - **S2 (Perintah /skill & In-Memory Lifecycle):** **LULUS**. `/skill list`, `/skill <nama>`, `/skill off`, dan status in-memory terisolasi per sesi tanpa residu ke `config.json`.
+  - **S3 (Batas Berkas & Ukuran):** **LULUS**. Berkas >8 KB (8192 bytes) ditolak, token >600 ditolak dengan pesan kesalahan, berkas non-UTF-8 ditolak aman.
+  - **S4 (Pembungkusan Tag & Immutability Hash):** **LULUS**. Blok dibungkus `<active_skill name="...">`, tag penutup palsu dinetralkan, hash system prompt tanpa skill tetap `6db1ac9a...`.
+  - **S5 (Contoh Skill di Repo):** **LULUS**. `skills/gaya-ringkas/SKILL.md` (170 tok) dan `skills/format-ringkasan/SKILL.md` (170 tok) tersedia di repo dan valid.
+  - **S6 (Telemetri Transparan):** **LULUS**. Baris telemetri mencetak `... | Skill: <nama> (+<N> tok) | ...` saat skill aktif.
+  - **S7 (Zero-Cost Inaktif):** **LULUS**. Saat nonaktif, 0 token ditambahkan ke prompt sistem, tidak ada I/O disk.
+  - **S8 (Anggaran Konteks & Prioritas):** **LULUS**. Blok skill + system prompt dipertahankan utuh; riwayat percakapan dipangkas jika batas konteks tercapai.
+  - **S9 (Registri & Integritas Router):** **LULUS**. `/skill` terdaftar di `COMMAND_REGISTRY`, muncul di `/help`, dan SHA router `48a03331...` tidak berubah.
+  - **S10 (Pengujian Komprehensif):** **LULUS**. 23 unit test khusus di `tests/test_skills.py` lulus, seluruh 214 test di suite utama lulus hijau (OK, 3 skipped).
+- **Hasil Kriteria S11 (Benchmark Kualitas & Gaya - Report Only pada `qwen2.5:3b`):**
+  - Evaluasi 3 prompt x 3 seed (42, 100, 2026) x 3 mode (27 run):
+    | Mode | Rata-rata Token | Rata-rata Karakter | Rata-rata Kalimat | Kepatuhan Gaya |
+    | :--- | :--- | :--- | :--- | :--- |
+    | **Baseline (Tanpa Skill)** | 379.1 tok | 1366.6 char | 14.7 kalimat | N/A (unconstrained) |
+    | **Skill: gaya-ringkas** | 42.3 tok | 159.0 char | 1.4 kalimat | **9/9 (100% $\le 2$ kalimat)** |
+    | **Skill: format-ringkasan** | 257.2 tok | 943.7 char | 8.2 kalimat | **9/9 (100% judul tebal + poin)** |
+  - *Observasi Perilaku:* Model `qwen2.5:3b` menunjukkan kepatuhan sangat tinggi terhadap instruksi persona/format yang disuntikkan via `<active_skill>`. Pada `gaya-ringkas`, token output terpangkas rata-rata sebesar 88.8% dibandingkan baseline (dari 379 tok menjadi 42 tok), dan seluruh balasan mematuhi batas maksimal 2 kalimat. Pada `format-ringkasan`, seluruh 9 run menyertakan judul tebal di awal dan poin-poin bertitik rapi.
+
+#### 4. Keterbatasan yang Diketahui (Known Limitations)
+1. **Single Active Skill:** Hanya 1 skill yang dapat aktif dalam satu waktu. Mengaktifkan skill baru otomatis menggantikan skill sebelumnya.
+2. **In-Memory Volatility:** Pengaturan skill aktif tidak dipersistensikan ke disk (by design, sesuai S2). Jika aplikasi keluar atau crash, sesi berikutnya dimulai dengan skill OFF.
+3. **Ketergantungan Model Terhadap Kompleksitas Instruksi:** Kepatuhan format bergantung pada kapabilitas model. Meskipun terbukti 100% patuh pada contoh sederhana di `qwen2.5:3b`, instruksi skill yang terlalu panjang atau berbelit dapat mengurangi kepatuhan pada model 3B.
+
+#### 5. Status Progres & Rekomendasi Langkah Berikutnya
+- **Status Tahap 7:** **SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD** (Jangan menulis DITERIMA/LULUS sebelum verifikasi lead).
+- **Rekomendasi Langkah Berikutnya:** Menunggu audit lead/Abid atas implementasi Tahap 7 dan hasil bukti empiris di `docs/evidence/tahap7.txt`.
 
 ---
 
