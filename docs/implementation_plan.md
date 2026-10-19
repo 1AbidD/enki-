@@ -1326,6 +1326,35 @@ Pada pengujian live Abid di lingkungan Windows PowerShell:
 - **F5 (Batasan Klaim & Verifikasi Live):**
   Verifikasi "browser benar-benar terbuka secara fisik di layar" hanya bisa dilakukan oleh Abid secara live. Agen dilarang mengklaim bahwa browser telah terbuka di monitor pengguna; laporan wajib menyatakan "menunggu verifikasi live Abid".
 
+#### Akar Masalah (Root Cause Analysis):
+1. **Cacat Kode Pengabaian Return Value:**
+   Pada fungsi `open_in_browser` sebelumnya, pemanggilan `webbrowser.open(norm_url)` dieksekusi tanpa memeriksa nilai baliknya (`return True, None` langsung dieksekusi tanpa syarat). Jika fungsi internal `webbrowser` mengembalikan `False` (misal akibat `OSError` internal yang ditelan atau ketiadaan aplikasi peramban terdaftar), fungsi tetap melaporkan sukses kepada konsol CLI.
+2. **Karakteristik Abstraksi `webbrowser` vs `os.startfile` di Windows:**
+   Modul standar `webbrowser` pada Windows membungkus pemanggilan melalui controller `WindowsDefault` yang dapat berperilaku tidak konsisten tergantung asosiasi registry browser atau konteks terminal shell. Sebaliknya, `os.startfile(url)` langsung memanggil Win32 API `ShellExecuteW(..., "open", url, ...)` bawaan kernel Windows tanpa lapisan wrapper peramban Python, menjamin pemanggilan protokol default peramban sistem secara langsung.
+
+#### Implementasi Perbaikan:
+1. `enki/tools/web.py` (`open_in_browser`):
+   - Pada Windows (`sys.platform == "win32"`): Jalur utama memanggil `os.startfile(norm_url)`. Jika terjadi exception, fallback otomatis memanggil `webbrowser.open(norm_url)`.
+   - Pada non-Windows: Memanggil `webbrowser.open(norm_url)`.
+   - Memeriksa return value secara ketat: jika gagal mengembalikan `(False, err_msg)`.
+   - Mencatat setiap percobaan pembukaan peramban ke `logs/tool_audit.log` dengan format `tool=open_browser | url=... | status=OK/ERROR | error=...`.
+2. `enki/cli/console.py` (handler `/buka`):
+   - Pesan `[Peramban] Membuka <url> di peramban web sistem.` HANYA dicetak bila pembuka mengembalikan status `ok == True`.
+   - Bila `ok == False` atau terjadi exception: mencetak pesan error jujur dan menyertakan URL secara lengkap (`Silakan buka tautan secara manual: <url>`).
+3. Tes Unit (`tests/test_web.py:TestTahap6FixBukaBrowser`):
+   - Menambahkan 5 kasus uji komprehensif menguji skenario sukses Windows `os.startfile`, fallback `webbrowser.open`, kegagalan ganda Windows, non-Windows, integrasi output konsol saat sukses dan gagal, serta integritas berkas audit log.
+
+#### Hasil Evaluasi & Bukti Empiris Tahap 6-FIX:
+- **F1 (Integritas Pesan & Audit Log):** **LULUS** (Pesan sukses hanya tercetak saat pembuka berhasil; saat gagal tercetak error jujur dan tautan manual; audit log mencatat `tool=open_browser` dengan status `OK` dan `ERROR` secara akurat).
+- **F2 (Jalur Utama Windows & Fallback):** **LULUS** (`os.startfile` dipanggil sebagai jalur utama pada Windows, fallback ke `webbrowser.open` teruji bila `os.startfile` gagal).
+- **F3 (Preservasi Keamanan SSRF):** **LULUS** (`validate_url`, prompt konfirmasi `[y/N]`, dan proteksi IP privat/loopback/link-local tidak berubah sama sekali; diff `web.py` hanya menyentuh `open_in_browser`).
+- **F4 (Cakupan Tes Unit & Integritas Suite):** **LULUS** (191 unit test lulus 100%, 0 fail, 0 error, skip 3; hash prompt `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` dan router SHA `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9` identik).
+- **F5 (Status Verifikasi Fisik Layar):** **MENUNGGU VERIFIKASI LIVE ABID** (Agen dilarang dan tidak mengklaim jendela browser fisik telah terbuka di layar; pengujian riil memerlukan verifikasi mata langsung oleh Abid).
+
+#### Status Progres & Rekomendasi Langkah Berikutnya:
+- **Status Tahap 6:** **SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD**.
+- **Langkah Berikutnya:** Menunggu verifikasi live Abid pada sesi interaktif nyata untuk perintah `/buka`.
+
 ---
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
