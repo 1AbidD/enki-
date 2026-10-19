@@ -190,8 +190,11 @@ class EnkiConsole:
                     print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
                     continue
                 elif cmd == "/unmute":
-                    self.config.set_mute(False)
-                    print("[Config] Mode senyap NONAKTIF (/unmute).")
+                    if not self.config.is_muted:
+                        print("[Config] Mode senyap sudah NONAKTIF.")
+                    else:
+                        self.config.set_mute(False)
+                        print("[Config] Mode senyap NONAKTIF (/unmute).")
                     continue
                 elif cmd == "/status":
                     facts_count = len(self.profile_mgr.get_all_facts())
@@ -337,10 +340,15 @@ class EnkiConsole:
                         content = "".join(content_chunks).strip()
                         if content and not self.config.is_muted:
                             try:
+                                speak_voice = (
+                                    self.config.tts_voice_supertonic
+                                    if self.config.tts_engine.lower().strip() == "supertonic"
+                                    else self.config.tts_voice
+                                )
                                 speak(
                                     text=content,
                                     is_muted=self.config.is_muted,
-                                    voice=self.config.tts_voice,
+                                    voice=speak_voice,
                                     engine=self.tts_engine_override,
                                     pronunciation_map=self.config.tts_pronunciation,
                                     gapless_start=False,
@@ -377,6 +385,10 @@ class EnkiConsole:
                         except Exception as e:
                             print(f"\n[Error Inferensi] {e}")
                             continue
+
+                    # W-short Tahap 7-FIX: peringatan jika teks terpotong / JS-heavy (< 400 char)
+                    if len(extracted_text) < 400:
+                        print(f"\n[Catatan] Teks yang berhasil diambil hanya {len(extracted_text)} karakter; halaman mungkin dirender JavaScript sehingga isinya tidak lengkap.")
 
                     # Baris Sumber dicetak oleh kode SETELAH jawaban dan SEBELUM telemetri
                     print(f"\nSumber: {norm_url}")
@@ -439,10 +451,15 @@ class EnkiConsole:
                     print(content)
                     if not self.config.is_muted:
                         try:
+                            speak_voice = (
+                                self.config.tts_voice_supertonic
+                                if self.config.tts_engine.lower().strip() == "supertonic"
+                                else self.config.tts_voice
+                            )
                             speak(
                                 text=extract,
                                 is_muted=self.config.is_muted,
-                                voice=self.config.tts_voice,
+                                voice=speak_voice,
                                 engine=self.tts_engine_override,
                                 pronunciation_map=self.config.tts_pronunciation,
                                 gapless_start=False,
@@ -483,6 +500,7 @@ class EnkiConsole:
                         ok, b_err = open_in_browser(norm_url)
                         if ok:
                             print(f"[Peramban] Membuka {norm_url} di peramban web sistem.")
+                            print(f"(Jika jendela tidak muncul, buka manual: {norm_url})")
                         else:
                             print(f"[Error /buka] Gagal membuka peramban: {b_err}")
                             print(f"Silakan buka tautan secara manual: {norm_url}")
@@ -529,10 +547,15 @@ class EnkiConsole:
                     print(content)
                     if not self.config.is_muted:
                         try:
+                            speak_voice = (
+                                self.config.tts_voice_supertonic
+                                if self.config.tts_engine.lower().strip() == "supertonic"
+                                else self.config.tts_voice
+                            )
                             speak(
                                 text=content,
                                 is_muted=self.config.is_muted,
-                                voice=self.config.tts_voice,
+                                voice=speak_voice,
                                 engine=self.tts_engine_override,
                                 pronunciation_map=self.config.tts_pronunciation,
                                 gapless_start=False,
@@ -663,10 +686,15 @@ class EnkiConsole:
                 content = "".join(content_chunks).strip()
                 if content and not self.config.is_muted:
                     try:
+                        speak_voice = (
+                            self.config.tts_voice_supertonic
+                            if self.config.tts_engine.lower().strip() == "supertonic"
+                            else self.config.tts_voice
+                        )
                         speak(
                             text=content,
                             is_muted=self.config.is_muted,
-                            voice=self.config.tts_voice,
+                            voice=speak_voice,
                             engine=self.tts_engine_override,
                             pronunciation_map=self.config.tts_pronunciation,
                             gapless_start=False,

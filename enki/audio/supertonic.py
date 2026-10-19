@@ -20,6 +20,23 @@ def default_supertonic_model_dir() -> str:
 # Selisih penutupan perangkat winsound terukur pada 5 WAV uji (median = 287.21 ms)
 DEFAULT_WINSOUND_TAIL_PADDING_SEC: float = 0.287208
 
+SUPERTONIC_VALID_VOICES = {
+    "F1", "F2", "F3", "F4", "F5",
+    "M1", "M2", "M3", "M4", "M5",
+}
+
+
+def validate_supertonic_voice(voice: Optional[str], default_voice: str = "M4") -> str:
+    """Memvalidasi nama suara Supertonic. Jika tidak valid, cetak peringatan satu baris dan gunakan default M4."""
+    raw = (voice or default_voice or "M4").strip()
+    if raw in SUPERTONIC_VALID_VOICES:
+        return raw
+    print(
+        f"[Peringatan TTS] Suara '{voice}' tidak valid untuk Supertonic (hanya F1-F5, M1-M5); menggunakan default M4.",
+        flush=True,
+    )
+    return "M4"
+
 
 class SupertonicEngine(BaseTTSEngine):
     """Engine TTS lokal Supertonic 3 dengan lazy loading, mode offline ketat,
@@ -34,7 +51,7 @@ class SupertonicEngine(BaseTTSEngine):
         tail_padding_sec: float = DEFAULT_WINSOUND_TAIL_PADDING_SEC,
     ):
         self.model_dir: str = model_dir or default_supertonic_model_dir()
-        self.default_voice: str = default_voice or "M4"
+        self.default_voice: str = default_voice if default_voice in SUPERTONIC_VALID_VOICES else "M4"
         self.fallback_voice: Optional[str] = fallback_voice
         self.tail_padding_sec: float = max(0.0, float(tail_padding_sec))
 
@@ -70,6 +87,10 @@ class SupertonicEngine(BaseTTSEngine):
 
     def _activate_fallback(self, reason: str) -> SAPI5Engine:
         """Mengaktifkan fallback ke SAPI5Engine dan mencetak tepat satu baris pesan peringatan."""
+        try:
+            winsound.PlaySound(None, winsound.SND_PURGE)
+        except Exception:
+            pass
         if self._fallback_engine is None:
             self._fallback_engine = SAPI5Engine()
         if not self._fallback_warned:
@@ -127,7 +148,7 @@ class SupertonicEngine(BaseTTSEngine):
                 return False
 
     def _get_voice_style(self, voice_name: str) -> Any:
-        v = voice_name or self.default_voice or "M4"
+        v = validate_supertonic_voice(voice_name, self.default_voice)
         if v not in self._voice_styles:
             self._voice_styles[v] = self._tts.get_voice_style(v)
         return self._voice_styles[v]
@@ -162,7 +183,7 @@ class SupertonicEngine(BaseTTSEngine):
             self.discarded_after_cancel_count += 1
             return None
 
-        target_voice = voice or self.default_voice or "M4"
+        target_voice = validate_supertonic_voice(voice, self.default_voice)
         try:
             self._restore_full_cpu_affinity_for_onnx()
             style = self._get_voice_style(target_voice)

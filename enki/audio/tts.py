@@ -887,7 +887,12 @@ class TTSManager:
         if engine_type == "sapi5":
             resolved_voice = voice if voice is not None else sapi_voice
         else:
-            resolved_voice = voice if voice is not None else st_voice
+            from enki.audio.supertonic import SUPERTONIC_VALID_VOICES, validate_supertonic_voice
+
+            if voice is not None:
+                resolved_voice = validate_supertonic_voice(voice, st_voice)
+            else:
+                resolved_voice = st_voice if st_voice in SUPERTONIC_VALID_VOICES else "M4"
 
         return engine, resolved_voice, pron_map
 
