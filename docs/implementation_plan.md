@@ -1304,7 +1304,27 @@ Pengujian empiris penuh terhadap Kriteria W1–W12 diselesaikan pada commit impl
 
 #### 6. Status Progres & Rekomendasi Langkah Berikutnya
 - **Status Tahap 6:** **SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD**.
-- **Rekomendasi Langkah Berikutnya:** Melanjutkan ke **Tahap 5 (Screen Reader / OCR Bounding Box)** sesuai urutan prioritas arsitektur, menunggu persetujuan Abid.
+- **Rekomendasi Langkah Berikutnya:** Perbaikan live bug `/buka` (Tahap 6-FIX), lalu verifikasi live Abid.
+
+---
+
+### Tahap 6-FIX: Perbaikan Pembuka Peramban (/buka) (MENUNGGU AUDIT LEAD)
+
+#### Konteks & Latar Belakang Masalah
+Pada pengujian live Abid di lingkungan Windows PowerShell:
+`/buka https://www.youtube.com/` -> konfirmasi `[y/N]` dijawab `y`, CLI mencetak `"[Peramban] Membuka https://www.youtube.com/ di peramban web sistem."`, namun jendela browser fisik tidak pernah terbuka (teruji 3x percobaan). Hal ini membuktikan pengujian smoke test otomatis sebelumnya hanya memverifikasi mock atau print string, bukan keterbukaan proses browser yang nyata di OS host.
+
+#### Kriteria Perbaikan Tahap 6-FIX (F1–F5) — FINAL Sebelum Kode:
+- **F1 (Integritas Pesan & Audit Log):**
+  Pesan sukses `"[Peramban] Membuka ..."` HANYA dicetak bila fungsi pembuka mengembalikan status sukses nyata. Jika gagal atau terjadi exception, sistem menampilkan pesan error jujur dan menyertakan URL secara lengkap agar pengguna dapat menyalinnya secara manual. `logs/tool_audit.log` mencatat hasil sebenarnya (`open_browser` dengan status `ok` atau `error` beserta alasannya).
+- **F2 (Jalur Pembuka Windows `os.startfile`):**
+  Pada sistem operasi Windows (`sys.platform == "win32"`), gunakan `os.startfile(url)` sebagai jalur utama (karena URL telah melalui validasi ketat `http`/`https` dan pembersihan karakter) dengan fallback ke `webbrowser.open`. Pada sistem non-Windows, gunakan `webbrowser.open`. Fungsi pembuka mengembalikan tuple `(success: bool, error_msg: Optional[str])`.
+- **F3 (Preservasi Pertahanan SSRF & Kebijakan Keamanan):**
+  Fungsi `validate_url`, prompt konfirmasi `[y/N]`, dan seluruh pertahanan SSRF TIDAK BERUBAH. Perubahan pada `enki/tools/web.py` hanya menyentuh fungsi pembuka peramban (`open_browser_url`).
+- **F4 (Cakupan Tes Unit & Regresi Nol):**
+  Tes unit memverifikasi: bila pembuka peramban gagal -> pesan sukses TIDAK dicetak dan pesan error tampil; bila pembuka sukses -> pesan sukses tampil; catatan audit log mencatat event yang sesuai. Seluruh tes lama tetap hijau (0 fail, 0 error).
+- **F5 (Batasan Klaim & Verifikasi Live):**
+  Verifikasi "browser benar-benar terbuka secara fisik di layar" hanya bisa dilakukan oleh Abid secara live. Agen dilarang mengklaim bahwa browser telah terbuka di monitor pengguna; laporan wajib menyatakan "menunggu verifikasi live Abid".
 
 ---
 
