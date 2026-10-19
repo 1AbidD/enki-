@@ -1431,7 +1431,34 @@ Pengguna dapat menyediakan persona, gaya bicara, atau instruksi khusus buatan se
 
 #### 5. Status Progres & Rekomendasi Langkah Berikutnya
 - **Status Tahap 7:** **SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD** (Jangan menulis DITERIMA/LULUS sebelum verifikasi lead).
-- **Rekomendasi Langkah Berikutnya:** Menunggu audit lead/Abid atas implementasi Tahap 7 dan hasil bukti empiris di `docs/evidence/tahap7.txt`.
+- **Rekomendasi Langkah Berikutnya:** Melanjutkan ke Tahap 7-FIX (bug suara numpuk, idempoten /unmute, validasi suara per engine, W-short, B-url).
+
+---
+
+### Tahap 7-FIX: Perbaikan TTS (Bug Suara Numpuk, Idempoten /unmute, Validasi Suara), W-short & B-url (SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD)
+
+#### 1. Konteks & Diagnosa Masalah
+Pada pengujian live oleh Abid, fitur `/skill` berjalan baik (`/skill list`, aktivasi, telemetri, dan `/skill off`). Namun terdeteksi masalah audio:
+1. Suara bertumpuk (numpuk) saat transisi audio dan pemanggilan `/unmute`.
+2. Nama suara SAPI ("Microsoft Andika") terkirim ke Supertonic saat memanggil fungsi `speak()` non-synced (`/wiki`, router, non-synced replies) karena `console.py` mengirimkan `self.config.tts_voice`. Supertonic hanya mengenali {F1..F5, M1..M5}, sehingga nama suara SAPI memicu kegagalan sintesis dan fallback paksa ke SAPI5.
+3. `/unmute` belum idempoten: saat sudah unmuted, tetap mencetak pesan pengaktifan ulang.
+4. Dua perbaikan kecil fungsional:
+   - W-short: Pada `/web`, jika teks hasil ekstraksi < 400 karakter, mencetak catatan sebelum baris "Sumber:": `"[Catatan] Teks yang berhasil diambil hanya N karakter; halaman mungkin dirender JavaScript sehingga isinya tidak lengkap."`
+   - B-url: Pada `/buka`, setelah perintah berhasil dikirim ke sistem, cetak juga `"(Jika jendela tidak muncul, buka manual: <url>)"`.
+
+#### 2. Kriteria Kelulusan Tahap 7-FIX (V1–V4, W-short, B-url) — FINAL Sebelum Kode:
+- **V1 (/unmute Idempoten & Batas Thread Worker):**
+  Saat status sudah unmuted (`is_muted == False`), perintah `/unmute` tidak membuat worker/thread/engine baru, dan mencetak: `"[Config] Mode senyap sudah NONAKTIF."` Siklus `/mute` dan `/unmute` sebanyak 5 kali tidak menambah jumlah thread worker TTS (maksimal 1 worker sintesis dan 1 worker pemutar aktif; terukur).
+- **V2 (Satu Balasan = Tepat Satu Pemutaran):**
+  Dengan engine tiruan/palsu (yang menghitung pemanggilan `speak()`), satu balasan menghasilkan tepat 1 pemutaran audio, apa pun jumlah pemanggilan `/unmute` sebelumnya.
+- **V3 (Validasi Nama Suara per Engine & Pencegahan Dual-Engine):**
+  Supertonic hanya menerima himpunan suara valid `{F1..F5, M1..M5}`. Nama suara SAPI ("Microsoft Andika") tidak boleh dikirim ke Supertonic. Jika nilai tidak valid diberikan, engine otomatis beralih menggunakan default `M4` disertai peringatan satu baris: `"[Peringatan TTS] Suara '<suara>' tidak valid untuk Supertonic (hanya F1-F5, M1-M5); menggunakan default M4."` Saat Supertonic mengalami kegagalan dan jatuh ke SAPI5, hanya SATU engine yang berbicara untuk teks yang sama (tidak boleh dua engine berbunyi bersamaan).
+- **V4 (Integritas Sistem & Nol Regresi):**
+  Tampilan, text-sync, mute zero-cost, dan telemetri tidak berubah. Seluruh 214 pengujian unit lama tetap hijau. Hash prompt dasar (`6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`) dan SHA `capability_router.py` (`48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`) 100% tidak berubah.
+- **W-short (Peringatan Halaman Web Terpotong/JS-heavy):**
+  Pada `/web`: jika teks hasil ekstraksi memiliki panjang $< 400$ karakter, sistem mencetak baris deterministik tepat sebelum baris `"Sumber:"`: `"[Catatan] Teks yang berhasil diambil hanya N karakter; halaman mungkin dirender JavaScript sehingga isinya tidak lengkap."` (Ambang 400 karakter ditetapkan final saat ini).
+- **B-url (Petunjuk Tautan Manual /buka):**
+  Pada `/buka`: setelah pembukaan sukses dikirim ke sistem, sistem mencetak baris `"(Jika jendela tidak muncul, buka manual: <url>)"`. Pesan sukses tidak mengklaim browser fisik pasti terbuka, hanya bahwa perintah telah dikirim ke sistem. Pesan gagal tetap tidak berubah.
 
 ---
 
