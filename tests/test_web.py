@@ -783,5 +783,132 @@ class TestW12FullRegressionAndPromptHash(unittest.TestCase):
             self.assertEqual(h1, h2)
 
 
+class TestTahap6FixBukaBrowser(unittest.TestCase):
+    """Tahap 6-FIX: Pengujian fungsi pembuka peramban /buka sesuai kriteria F1–F4."""
+
+    def test_f1_f2_windows_open_via_startfile_success(self):
+        """F1 & F2: Pada Windows, os.startfile dipanggil sebagai jalur utama dan audit log mencatat status OK."""
+        from unittest.mock import patch, MagicMock
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_dir = Path(tmp_dir) / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with patch("sys.platform", "win32"), \
+                 patch("os.startfile", MagicMock()) as mock_startfile, \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                ok, err = open_in_browser("https://example.com")
+                self.assertTrue(ok)
+                self.assertIsNone(err)
+                mock_startfile.assert_called_once_with("https://example.com/")
+
+                # Periksa audit log
+                audit_file = log_dir / "tool_audit.log"
+                self.assertTrue(audit_file.exists())
+                content = audit_file.read_text(encoding="utf-8")
+                self.assertIn("tool=open_browser", content)
+                self.assertIn("url=https://example.com/", content)
+                self.assertIn("status=OK", content)
+
+    def test_f1_f2_windows_startfile_fails_fallback_success(self):
+        """F1 & F2: Pada Windows, jika os.startfile gagal, fallback ke webbrowser.open dan audit log mencatat status OK."""
+        from unittest.mock import patch, MagicMock
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_dir = Path(tmp_dir) / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with patch("sys.platform", "win32"), \
+                 patch("os.startfile", side_effect=OSError("No association")), \
+                 patch("webbrowser.open", return_value=True) as mock_web_open, \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                ok, err = open_in_browser("https://example.com")
+                self.assertTrue(ok)
+                self.assertIsNone(err)
+                mock_web_open.assert_called_once_with("https://example.com/")
+
+                audit_file = log_dir / "tool_audit.log"
+                self.assertTrue(audit_file.exists())
+                content = audit_file.read_text(encoding="utf-8")
+                self.assertIn("status=OK", content)
+
+    def test_f1_f2_windows_both_fail_returns_error_and_audits(self):
+        """F1 & F2: Pada Windows, jika os.startfile dan fallback gagal, kembalikan False dan audit status ERROR."""
+        from unittest.mock import patch, MagicMock
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_dir = Path(tmp_dir) / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with patch("sys.platform", "win32"), \
+                 patch("os.startfile", side_effect=OSError("Access denied")), \
+                 patch("webbrowser.open", return_value=False), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                ok, err = open_in_browser("https://example.com")
+                self.assertFalse(ok)
+                self.assertIsNotNone(err)
+                self.assertIn("os.startfile gagal", err)
+
+                audit_file = log_dir / "tool_audit.log"
+                self.assertTrue(audit_file.exists())
+                content = audit_file.read_text(encoding="utf-8")
+                self.assertIn("status=ERROR", content)
+                self.assertIn("error=", content)
+
+    def test_f1_f2_non_windows_success_and_failure(self):
+        """F1 & F2: Pada non-Windows, gunakan webbrowser.open dan audit log mencatat hasil nyata."""
+        from unittest.mock import patch, MagicMock
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_dir = Path(tmp_dir) / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            with patch("sys.platform", "linux"), \
+                 patch("webbrowser.open", return_value=True), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                ok, err = open_in_browser("https://example.com")
+                self.assertTrue(ok)
+                self.assertIsNone(err)
+
+            with patch("sys.platform", "linux"), \
+                 patch("webbrowser.open", return_value=False), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                ok, err = open_in_browser("https://example.com")
+                self.assertFalse(ok)
+                self.assertIn("webbrowser.open mengembalikan False", err)
+
+    def test_f1_f4_console_buka_success_and_failure(self):
+        """F1 & F4: Console /buka mencetak pesan sukses hanya bila berhasil, mencetak error jujur & URL manual bila gagal."""
+        from unittest.mock import patch, MagicMock
+        import io
+        from enki.cli.console import EnkiConsole
+
+        # 1. Kasus Sukses
+        with patch("enki.tools.web.open_in_browser", return_value=(True, None)):
+            app = EnkiConsole()
+            app.config.set_mute(True)
+            app.check_startup_reflection = lambda: None
+            app.submit_mid_reply_input("/buka https://example.com")
+            app.submit_mid_reply_input("y")
+            app.submit_mid_reply_input("/exit")
+
+            out = io.StringIO()
+            with patch("sys.stdout", out):
+                app.run()
+            output_str = out.getvalue()
+            self.assertIn("[Peramban] Membuka https://example.com/ di peramban web sistem.", output_str)
+            self.assertNotIn("[Error /buka]", output_str)
+
+        # 2. Kasus Gagal (Browser opener mengembalikan False)
+        with patch("enki.tools.web.open_in_browser", return_value=(False, "Aplikasi peramban tidak ditemukan")):
+            app = EnkiConsole()
+            app.config.set_mute(True)
+            app.check_startup_reflection = lambda: None
+            app.submit_mid_reply_input("/buka https://example.com")
+            app.submit_mid_reply_input("y")
+            app.submit_mid_reply_input("/exit")
+
+            out = io.StringIO()
+            with patch("sys.stdout", out):
+                app.run()
+            output_str = out.getvalue()
+            self.assertNotIn("[Peramban] Membuka https://example.com/ di peramban web sistem.", output_str)
+            self.assertIn("[Error /buka] Gagal membuka peramban: Aplikasi peramban tidak ditemukan", output_str)
+            self.assertIn("Silakan buka tautan secara manual: https://example.com/", output_str)
+
+
 if __name__ == "__main__":
     unittest.main()
+

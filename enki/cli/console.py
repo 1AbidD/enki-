@@ -475,11 +475,16 @@ class EnkiConsole:
                         print("[Batal] Pembukaan URL dibatalkan oleh pengguna.")
                         continue
 
-                    ok, b_err = open_in_browser(norm_url)
-                    if ok:
-                        print(f"[Peramban] Membuka {norm_url} di peramban web sistem.")
-                    else:
-                        print(f"[Error /buka] {b_err}")
+                    try:
+                        ok, b_err = open_in_browser(norm_url)
+                        if ok:
+                            print(f"[Peramban] Membuka {norm_url} di peramban web sistem.")
+                        else:
+                            print(f"[Error /buka] Gagal membuka peramban: {b_err}")
+                            print(f"Silakan buka tautan secara manual: {norm_url}")
+                    except Exception as e_open:
+                        print(f"[Error /buka] Terjadi kesalahan saat membuka peramban: {e_open}")
+                        print(f"Silakan buka tautan secara manual: {norm_url}")
                     continue
                 else:
                     print(f"Perintah tidak dikenal: {user_input}. Ketik /help untuk bantuan.")

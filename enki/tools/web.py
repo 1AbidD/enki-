@@ -682,12 +682,53 @@ def open_in_browser(
     allow_private_hosts: bool = False,
 ) -> Tuple[bool, Optional[str]]:
     """Membuka tautan di peramban sistem setelah validasi keamanan URL."""
+    import os
+    import sys
+
     is_val, norm_url, err = validate_url(url, allow_private_hosts=allow_private_hosts)
     if not is_val:
         return False, err
 
+    opened = False
+    err_msg: Optional[str] = None
+
+    if sys.platform == "win32":
+        try:
+            os.startfile(norm_url)
+            opened = True
+        except Exception as e_startfile:
+            try:
+                res = webbrowser.open(norm_url)
+                if res:
+                    opened = True
+                else:
+                    err_msg = f"os.startfile gagal ({e_startfile}) dan webbrowser.open mengembalikan False"
+            except Exception as e_web:
+                err_msg = f"os.startfile gagal ({e_startfile}) dan webbrowser.open gagal ({e_web})"
+    else:
+        try:
+            res = webbrowser.open(norm_url)
+            if res:
+                opened = True
+            else:
+                err_msg = "webbrowser.open mengembalikan False"
+        except Exception as e:
+            err_msg = f"webbrowser.open gagal: {e}"
+
+    # Pencatatan audit ke tool_audit.log
     try:
-        webbrowser.open(norm_url)
+        log_dir = get_log_dir()
+        log_file = log_dir / "tool_audit.log"
+        now_iso = datetime.datetime.now().isoformat()
+        status_str = "OK" if opened else "ERROR"
+        err_field = f" | error={err_msg}" if err_msg else ""
+        entry = f"[{now_iso}] tool=open_browser | url={norm_url} | status={status_str}{err_field}\n"
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except Exception:
+        pass
+
+    if opened:
         return True, None
-    except Exception as e:
-        return False, f"Gagal membuka peramban sistem: {e}"
+    else:
+        return False, err_msg or "Gagal membuka peramban sistem."
