@@ -18,6 +18,7 @@ from enki.cli.command_hints import get_command_hints
 from enki.cli.command_registry import COMMAND_REGISTRY
 from enki.audio.tts import speak, cancel, run_synced_speech_stream
 from enki.core.capability_router import route_capability_inquiry
+from enki.core.skills import SkillManager
 import queue
 
 def get_vram_info() -> str:
@@ -47,6 +48,7 @@ class EnkiConsole:
             workspace_root=self.config.workspace_root,
             db=self.db
         )
+        self.skill_manager = SkillManager(skills_dir=Path(self.config.workspace_root) / "skills")
         self.history: List[Dict[str, str]] = []
         self.seen_hint_commands: set = set()
         self._queued_inputs: queue.Queue = queue.Queue()
@@ -210,6 +212,8 @@ class EnkiConsole:
                     print(f"  Sesi Aktif   : {self.session_id}")
                     print(f"  Fakta Profil : {facts_count} fakta ({self.profile_mgr.count_tokens()}/500 token)")
                     print(f"  Pending Usul : {pending_count} usulan")
+                    active_skill_name = self.skill_manager.active_skill.name if self.skill_manager.active_skill else "tidak ada"
+                    print(f"  Skill Aktif  : {active_skill_name}")
                     print(f"  VRAM GPU     : {get_vram_info()}")
                     print(f"  History Turn : {len(self.history)} pesan\n")
                     continue
@@ -486,6 +490,20 @@ class EnkiConsole:
                         print(f"[Error /buka] Terjadi kesalahan saat membuka peramban: {e_open}")
                         print(f"Silakan buka tautan secara manual: {norm_url}")
                     continue
+                elif cmd == "/skill":
+                    subparts = user_input.split(None, 1)
+                    subarg = subparts[1].strip() if len(subparts) > 1 else ""
+                    if not subarg:
+                        print(self.skill_manager.get_status_message())
+                        print("Gunakan '/skill list' untuk melihat daftar, '/skill <nama>' untuk mengaktifkan, atau '/skill off' untuk menonaktifkan.")
+                    elif subarg.lower() == "list":
+                        print(self.skill_manager.list_skills_message())
+                    elif subarg.lower() == "off":
+                        print(self.skill_manager.deactivate())
+                    else:
+                        ok, msg, _ = self.skill_manager.activate(subarg)
+                        print(msg)
+                    continue
                 else:
                     print(f"Perintah tidak dikenal: {user_input}. Ketik /help untuk bantuan.")
                     continue
@@ -586,10 +604,12 @@ class EnkiConsole:
 
             # 3. Assembler Prompt & Pre-flight check
             self.assembler.profile = self.profile_mgr.get_profile_text()
+            active_skill_block = self.skill_manager.get_active_skill_block()
             _, meta = self.assembler.assemble_messages(
                 user_input=user_input,
                 history=self.history,
                 recall_content=recall_content,
+                skill_block=active_skill_block,
                 num_ctx=self.config.num_ctx
             )
 
@@ -624,6 +644,7 @@ class EnkiConsole:
                         history=self.history,
                         model=self.config.model,
                         recall_content=recall_content,
+                        skill_block=active_skill_block,
                         num_ctx=self.config.num_ctx,
                         temperature=self.config.temperature,
                         trace_callback=trace_cb,
@@ -661,6 +682,7 @@ class EnkiConsole:
                         history=self.history,
                         model=self.config.model,
                         recall_content=recall_content,
+                        skill_block=active_skill_block,
                         num_ctx=self.config.num_ctx,
                         temperature=self.config.temperature,
                         trace_callback=trace_cb,
@@ -706,7 +728,11 @@ class EnkiConsole:
             speed = final_metrics.get("eval_tok_per_sec", 0.0)
             remaining_dyn = max(0, self.config.num_ctx - (prompt_eval + eval_count))
 
-            print(f"\n-- Telemetri: Prompt: {prompt_eval} tok | Generate: {eval_count} tok ({speed} tok/s) | Sisa Context: {remaining_dyn}/{self.config.num_ctx} tok --")
+            skill_telemetry = ""
+            if self.skill_manager.active_skill:
+                skill_telemetry = f" | Skill: {self.skill_manager.active_skill.name} (+{self.skill_manager.active_skill.tokens} tok)"
+
+            print(f"\n-- Telemetri: Prompt: {prompt_eval} tok | Generate: {eval_count} tok ({speed} tok/s){skill_telemetry} | Sisa Context: {remaining_dyn}/{self.config.num_ctx} tok --")
             if sync_res and sync_res.get("interrupt_reason") == "/mute":
                 print("[Config] Mode senyap AKTIF (/mute). TTS dilewati 100%.")
 

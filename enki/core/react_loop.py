@@ -371,7 +371,8 @@ class ReActCoordinator:
         num_ctx: int = 8192,
         temperature: float = 0.2,
         trace_callback: Optional[Callable[[str, str], None]] = None,
-        enable_tools: bool = True
+        enable_tools: bool = True,
+        skill_block: Optional[str] = None
     ) -> Generator[Tuple[str, Optional[Dict[str, Any]]], None, None]:
         """Menjalankan siklus ReAct multi-step hingga balasan final streaming.
         Menerapkan kebijakan:
@@ -386,7 +387,8 @@ class ReActCoordinator:
             user_input=user_input,
             history=history,
             recall_content=recall_content,
-            num_ctx=num_ctx
+            num_ctx=num_ctx,
+            skill_block=skill_block
         )
 
         last_call_signature = None

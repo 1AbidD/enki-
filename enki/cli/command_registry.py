@@ -32,6 +32,8 @@ COMMAND_REGISTRY: Dict[str, CommandDef] = {
     "/web": CommandDef("/web <url> [tanya]", "web", "mengambil teks web dengan konfirmasi"),
     "/wiki": CommandDef("/wiki <topik>", "wiki", "mencari ringkasan ensiklopedia Wikipedia"),
     "/buka": CommandDef("/buka <url>", "buka", "membuka URL di peramban web"),
+    "/skill": CommandDef("/skill [nama|list|off]", "skill", "mengelola persona dan format kustom"),
     "/exit": CommandDef("/exit", "keluar", "keluar dari aplikasi"),
     "/help": CommandDef("/help", "bantuan", "menampilkan panduan bantuan perintah"),
 }
+

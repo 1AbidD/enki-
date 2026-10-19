@@ -159,13 +159,18 @@ class PromptAssembler:
         user_input: str,
         history: List[Dict[str, str]] = None,
         recall_content: str = None,
-        num_ctx: int = 8192
+        num_ctx: int = 8192,
+        skill_block: Optional[str] = None
     ) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
         """Merakit prompt lengkap dengan System prompt + Profile di awal (prefix caching)."""
         if history is None:
             history = []
 
-        system_block = f"{self.system_prompt.strip()}\n\n{self.profile.strip()}"
+        if skill_block and skill_block.strip():
+            system_block = f"{self.system_prompt.strip()}\n\n{self.profile.strip()}\n\n{skill_block.strip()}"
+        else:
+            system_block = f"{self.system_prompt.strip()}\n\n{self.profile.strip()}"
+
         est_system = estimate_tokens_local(system_block)
         est_user = estimate_tokens_local(user_input)
 
