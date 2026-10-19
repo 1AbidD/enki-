@@ -1,11 +1,12 @@
 ================================================================================
 BENCHMARK KRITERIA W8 — GROUNDING FAKTUAL (MODEL NYATA qwen2.5:3b)
 ================================================================================
-Timestamp Mulai (UTC): 2026-10-18T15:46:21.041041+00:00
-Git HEAD             : 86c02b22800a085fdc8b7668706fa8b62950f3a6
-Git Dirty            : True
+Timestamp Mulai (UTC): 2026-10-19T12:56:09.958720+00:00
+Git HEAD             : e70d521a2b008c8072f2ac9edbfeb9a4e15b49f9
+Git Dirty            : False
 Ollama Active Model  :
-NAME    ID    SIZE    PROCESSOR    CONTEXT    UNTIL
+NAME          ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+qwen2.5:3b    357c53fb659c    2.3 GB    100% GPU     8192       4 minutes from now
 ================================================================================
 
 [Fixture Teks Sumber]
@@ -22,59 +23,59 @@ Setiap unit gateway dilengkapi dengan kapasitas memori 16GB dan media penyimpana
       Target Kunci: 'Hartono'
       Jawaban Model:
       "Kepala insinyur yang memimpin perancangan sistem Proyek Rajawali adalah Dr. Hartono."
-      Status: MATCH (LULUS) | Waktu: 3563.9 ms | Kecepatan: 70.8 tok/s
+      Status: MATCH (LULUS) | Waktu: 4285.9 ms | Kecepatan: 74.6 tok/s
 
 [P02] Pertanyaan: Di kota mana lokasi server utama ditempatkan?
       Target Kunci: 'Cibinong'
       Jawaban Model:
       "Pusat data dan lokasi server utama ditempatkan di kota Cibinong."
-      Status: MATCH (LULUS) | Waktu: 333.4 ms | Kecepatan: 75.1 tok/s
+      Status: MATCH (LULUS) | Waktu: 327.2 ms | Kecepatan: 77.5 tok/s
 
 [P03] Pertanyaan: Protokol apa yang digunakan oleh sensor untuk mengirimkan telemetri?
       Target Kunci: 'MQTT'
       Jawaban Model:
       "Protokol MQTT digunakan oleh sensor untuk mengirimkan telemetri."
-      Status: MATCH (LULUS) | Waktu: 264.6 ms | Kecepatan: 75.8 tok/s
+      Status: MATCH (LULUS) | Waktu: 291.3 ms | Kecepatan: 78.4 tok/s
 
 [P04] Pertanyaan: Berapa kapasitas memori yang dimiliki setiap unit gateway?
       Target Kunci: '16GB'
       Jawaban Model:
       "Setiap unit gateway memiliki kapasitas memori sebesar 16GB."
-      Status: MATCH (LULUS) | Waktu: 290.5 ms | Kecepatan: 74.7 tok/s
+      Status: MATCH (LULUS) | Waktu: 347.6 ms | Kecepatan: 75.1 tok/s
 
 [P05] Pertanyaan: Tahun berapa proyek ini diluncurkan secara resmi?
       Target Kunci: '2024'
       Jawaban Model:
       "Proyek Rajawali diluncurkan secara resmi pada tahun 2024."
-      Status: MATCH (LULUS) | Waktu: 325.6 ms | Kecepatan: 75.8 tok/s
+      Status: MATCH (LULUS) | Waktu: 356.2 ms | Kecepatan: 74.8 tok/s
 
 [P06] Pertanyaan: Apa nama kode proyek infrastruktur pemantauan yang dijelaskan?
       Target Kunci: 'Rajawali'
       Jawaban Model:
       "Nama kode proyek infrastruktur pemantauan cuaca yang dijelaskan adalah Proyek Rajawali."
-      Status: MATCH (LULUS) | Waktu: 411.0 ms | Kecepatan: 75.2 tok/s
+      Status: MATCH (LULUS) | Waktu: 430.8 ms | Kecepatan: 75.7 tok/s
 
 --- [BAGIAN 2/2] 3 PERTANYAAN NEGATIF (JAWABAN TIDAK ADA DI SUMBER) ---
 
 [N01] Pertanyaan: Siapa nama direktur keuangan pada proyek tersebut?
       Jawaban Model:
-      "Tidak ada di sumber. Data yang diberikan tidak mencakup informasi tentang direktur keuangan proyek Proyek Rajawali."
-      Waktu: 535.5 ms | Kecepatan: 74.3 tok/s
+      "Tidak ada di sumber."
+      Waktu: 152.3 ms | Kecepatan: 77.8 tok/s
 
 [N02] Pertanyaan: Berapa total anggaran biaya yang dihabiskan untuk proyek tersebut?
       Jawaban Model:
-      "Tidak ada di sumber. Informasi mengenai anggaran biaya proyek Rajawali tidak disebutkan dalam konten yang diberikan."
-      Waktu: 540.3 ms | Kecepatan: 73.8 tok/s
+      "Tentu saja, data yang diberikan tidak mencakup informasi tentang total anggaran biaya proyek Rajawali. Data yang diberikan hanya mencakup detail teknis dan organisasional proyek tersebut. Jadi, tidak ada di sumber untuk mengetahui berapa total anggaran biaya yang dihabiskan untuk proyek tersebut."
+      Waktu: 1257.3 ms | Kecepatan: 70.3 tok/s
 
 [N03] Pertanyaan: Berapa nomor telepon kontak layanan darurat proyek tersebut?
       Jawaban Model:
-      "Tidak ada di sumber. Informasi kontak layanan darurat proyek Proyek Rajawali tidak disebutkan dalam sumber yang Anda berikan."
-      Waktu: 561.4 ms | Kecepatan: 74.3 tok/s
+      "Tidak ada di sumber. Informasi kontak layanan darurat proyek Proyek Rajawali tidak disebutkan dalam sumber yang diberikan."
+      Waktu: 598.9 ms | Kecepatan: 69.9 tok/s
 
 ================================================================================
 RINGKASAN SKOR KRITERIA W8:
   - Skor Pertanyaan Positif: 6/6 (100.0%) [Ambang Batas Gate: >= 5/6]
   - Pertanyaan Negatif     : 3/3 terekam transparan
 STATUS AKHIR GERBANG W8: LULUS
-Timestamp Selesai (UTC): 2026-10-18T15:46:28.029954+00:00
+Timestamp Selesai (UTC): 2026-10-19T12:56:18.171743+00:00
 ================================================================================
