@@ -683,6 +683,7 @@ def open_in_browser(
 ) -> Tuple[bool, Optional[str]]:
     """Membuka tautan di peramban sistem setelah validasi keamanan URL."""
     import os
+    import subprocess
     import sys
 
     is_val, norm_url, err = validate_url(url, allow_private_hosts=allow_private_hosts)
@@ -691,29 +692,46 @@ def open_in_browser(
 
     opened = False
     err_msg: Optional[str] = None
+    method: str = "none"
 
     if sys.platform == "win32":
+        # 1. Jalur Utama: subprocess.Popen(["explorer.exe", norm_url])
+        method = "explorer"
         try:
-            os.startfile(norm_url)
+            subprocess.Popen(["explorer.exe", norm_url])
             opened = True
-        except Exception as e_startfile:
+        except Exception as e_exp:
+            err_exp = f"explorer gagal: {e_exp}"
+            # 2. Fallback 1: cmd /c start "" norm_url dengan CREATE_NO_WINDOW
+            method = "cmd_start"
             try:
-                res = webbrowser.open(norm_url)
-                if res:
+                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                subprocess.Popen(["cmd", "/c", "start", "", norm_url], creationflags=creationflags)
+                opened = True
+            except Exception as e_cmd:
+                err_cmd = f"cmd_start gagal: {e_cmd}"
+                # 3. Fallback 2: os.startfile(norm_url)
+                method = "startfile"
+                try:
+                    os.startfile(norm_url)
                     opened = True
-                else:
-                    err_msg = f"os.startfile gagal ({e_startfile}) dan webbrowser.open mengembalikan False"
-            except Exception as e_web:
-                err_msg = f"os.startfile gagal ({e_startfile}) dan webbrowser.open gagal ({e_web})"
+                except Exception as e_sf:
+                    err_sf = f"os.startfile gagal: {e_sf}"
+                    method = "all_failed"
+                    opened = False
+                    err_msg = f"{err_exp}; {err_cmd}; {err_sf}"
     else:
+        method = "webbrowser"
         try:
             res = webbrowser.open(norm_url)
             if res:
                 opened = True
             else:
+                opened = False
                 err_msg = "webbrowser.open mengembalikan False"
-        except Exception as e:
-            err_msg = f"webbrowser.open gagal: {e}"
+        except Exception as e_wb:
+            opened = False
+            err_msg = f"webbrowser.open gagal: {e_wb}"
 
     # Pencatatan audit ke tool_audit.log
     try:
@@ -722,7 +740,10 @@ def open_in_browser(
         now_iso = datetime.datetime.now().isoformat()
         status_str = "OK" if opened else "ERROR"
         err_field = f" | error={err_msg}" if err_msg else ""
-        entry = f"[{now_iso}] tool=open_browser | url={norm_url} | status={status_str}{err_field}\n"
+        entry = (
+            f"[{now_iso}] tool=open_browser | url={norm_url} | "
+            f"method={method} | status={status_str}{err_field}\n"
+        )
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(entry)
     except Exception:

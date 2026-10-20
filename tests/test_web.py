@@ -784,15 +784,16 @@ class TestW12FullRegressionAndPromptHash(unittest.TestCase):
 
 
 class TestTahap6FixBukaBrowser(unittest.TestCase):
-    """Tahap 6-FIX: Pengujian fungsi pembuka peramban /buka sesuai kriteria F1–F4."""
+    """Tahap 6-FIX: Pengujian fungsi pembuka peramban /buka sesuai kriteria F1–F4 dan O1–O3."""
 
     def test_f1_f2_windows_open_via_startfile_success(self):
-        """F1 & F2: Pada Windows, os.startfile dipanggil sebagai jalur utama dan audit log mencatat status OK."""
+        """F1 & F2: Pada Windows, jalur startfile fallback dipanggil saat Popen melempar exception dan audit log mencatat status OK."""
         from unittest.mock import patch, MagicMock
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_dir = Path(tmp_dir) / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             with patch("sys.platform", "win32"), \
+                 patch("subprocess.Popen", side_effect=OSError("Popen not available")), \
                  patch("os.startfile", MagicMock()) as mock_startfile, \
                  patch("enki.tools.web.get_log_dir", return_value=log_dir):
                 ok, err = open_in_browser("https://example.com")
@@ -806,37 +807,47 @@ class TestTahap6FixBukaBrowser(unittest.TestCase):
                 content = audit_file.read_text(encoding="utf-8")
                 self.assertIn("tool=open_browser", content)
                 self.assertIn("url=https://example.com/", content)
+                self.assertIn("method=startfile", content)
                 self.assertIn("status=OK", content)
 
     def test_f1_f2_windows_startfile_fails_fallback_success(self):
-        """F1 & F2: Pada Windows, jika os.startfile gagal, fallback ke webbrowser.open dan audit log mencatat status OK."""
+        """F1 & F2 / O1: Pada Windows, jika explorer gagal, fallback ke cmd /c start dan audit log mencatat status OK."""
         from unittest.mock import patch, MagicMock
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_dir = Path(tmp_dir) / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
+
+            def popen_side_effect(cmd_args, **kwargs):
+                if cmd_args[0] == "explorer.exe":
+                    raise OSError("Explorer process error")
+                return MagicMock()
+
             with patch("sys.platform", "win32"), \
-                 patch("os.startfile", side_effect=OSError("No association")), \
-                 patch("webbrowser.open", return_value=True) as mock_web_open, \
+                 patch("subprocess.Popen", side_effect=popen_side_effect) as mock_popen, \
                  patch("enki.tools.web.get_log_dir", return_value=log_dir):
                 ok, err = open_in_browser("https://example.com")
                 self.assertTrue(ok)
                 self.assertIsNone(err)
-                mock_web_open.assert_called_once_with("https://example.com/")
+                self.assertEqual(mock_popen.call_count, 2)
+                second_call = mock_popen.call_args_list[1]
+                self.assertEqual(second_call[0][0], ["cmd", "/c", "start", "", "https://example.com/"])
+                self.assertIn("creationflags", second_call[1])
 
                 audit_file = log_dir / "tool_audit.log"
                 self.assertTrue(audit_file.exists())
                 content = audit_file.read_text(encoding="utf-8")
+                self.assertIn("method=cmd_start", content)
                 self.assertIn("status=OK", content)
 
     def test_f1_f2_windows_both_fail_returns_error_and_audits(self):
-        """F1 & F2: Pada Windows, jika os.startfile dan fallback gagal, kembalikan False dan audit status ERROR."""
+        """F1 & F2 / O1: Pada Windows, jika seluruh jalur gagal, kembalikan False dan audit status ERROR & method=all_failed."""
         from unittest.mock import patch, MagicMock
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_dir = Path(tmp_dir) / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             with patch("sys.platform", "win32"), \
+                 patch("subprocess.Popen", side_effect=OSError("Access denied")), \
                  patch("os.startfile", side_effect=OSError("Access denied")), \
-                 patch("webbrowser.open", return_value=False), \
                  patch("enki.tools.web.get_log_dir", return_value=log_dir):
                 ok, err = open_in_browser("https://example.com")
                 self.assertFalse(ok)
@@ -847,10 +858,11 @@ class TestTahap6FixBukaBrowser(unittest.TestCase):
                 self.assertTrue(audit_file.exists())
                 content = audit_file.read_text(encoding="utf-8")
                 self.assertIn("status=ERROR", content)
+                self.assertIn("method=all_failed", content)
                 self.assertIn("error=", content)
 
     def test_f1_f2_non_windows_success_and_failure(self):
-        """F1 & F2: Pada non-Windows, gunakan webbrowser.open dan audit log mencatat hasil nyata."""
+        """F1 & F2 / O1: Pada non-Windows, gunakan webbrowser.open dan audit log mencatat method=webbrowser serta hasil nyata."""
         from unittest.mock import patch, MagicMock
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_dir = Path(tmp_dir) / "logs"
@@ -862,6 +874,12 @@ class TestTahap6FixBukaBrowser(unittest.TestCase):
                 self.assertTrue(ok)
                 self.assertIsNone(err)
 
+                audit_file = log_dir / "tool_audit.log"
+                self.assertTrue(audit_file.exists())
+                content = audit_file.read_text(encoding="utf-8")
+                self.assertIn("method=webbrowser", content)
+                self.assertIn("status=OK", content)
+
             with patch("sys.platform", "linux"), \
                  patch("webbrowser.open", return_value=False), \
                  patch("enki.tools.web.get_log_dir", return_value=log_dir):
@@ -870,7 +888,7 @@ class TestTahap6FixBukaBrowser(unittest.TestCase):
                 self.assertIn("webbrowser.open mengembalikan False", err)
 
     def test_f1_f4_console_buka_success_and_failure(self):
-        """F1 & F4: Console /buka mencetak pesan sukses hanya bila berhasil, mencetak error jujur & URL manual bila gagal."""
+        """F1 & F4 / O2: Console /buka mencetak pesan jujur instruksi terkirim tanpa klaim jendela fisik, mencetak error jujur bila gagal."""
         from unittest.mock import patch, MagicMock
         import io
         from enki.cli.console import EnkiConsole
@@ -888,7 +906,9 @@ class TestTahap6FixBukaBrowser(unittest.TestCase):
             with patch("sys.stdout", out):
                 app.run()
             output_str = out.getvalue()
-            self.assertIn("[Peramban] Membuka https://example.com/ di peramban web sistem.", output_str)
+            self.assertIn("[Peramban] Perintah membuka dikirim ke sistem: https://example.com/", output_str)
+            self.assertIn("(Jika jendela tidak muncul, buka manual: https://example.com/)", output_str)
+            self.assertNotIn("[Peramban] Membuka", output_str)
             self.assertNotIn("[Error /buka]", output_str)
 
         # 2. Kasus Gagal (Browser opener mengembalikan False)
@@ -904,9 +924,132 @@ class TestTahap6FixBukaBrowser(unittest.TestCase):
             with patch("sys.stdout", out):
                 app.run()
             output_str = out.getvalue()
-            self.assertNotIn("[Peramban] Membuka https://example.com/ di peramban web sistem.", output_str)
+            self.assertNotIn("[Peramban] Perintah membuka dikirim ke sistem:", output_str)
+            self.assertNotIn("[Peramban] Membuka", output_str)
             self.assertIn("[Error /buka] Gagal membuka peramban: Aplikasi peramban tidak ditemukan", output_str)
             self.assertIn("Silakan buka tautan secara manual: https://example.com/", output_str)
+
+
+class TestTahap6Fix2Launcher(unittest.TestCase):
+    """Pengujian Kriteria O1, O2, O3 Tahap 6-FIX-2: Launcher Proses Terpisah, Keamanan Injeksi, Audit."""
+
+    def test_o1_arguments_strictly_passed_as_list(self):
+        """O1: Argumen pemanggilan ke subprocess.Popen SELALU berupa list (bukan string perintah)."""
+        from unittest.mock import patch, MagicMock
+        with patch("sys.platform", "win32"), patch("subprocess.Popen", return_value=MagicMock()) as mock_popen:
+            ok, err = open_in_browser("https://example.com/path?foo=bar")
+            self.assertTrue(ok)
+            args, kwargs = mock_popen.call_args
+            self.assertIsInstance(args[0], list, "Argumen pertama Popen wajib berupa list")
+            self.assertEqual(args[0], ["explorer.exe", "https://example.com/path?foo=bar"])
+
+    def test_o1_no_shell_true_passed(self):
+        """O1: Pemanggilan Popen TIDAK BOLEH menyertakan shell=True (mencegah evaluasi shell)."""
+        from unittest.mock import patch, MagicMock
+        with patch("sys.platform", "win32"), patch("subprocess.Popen", return_value=MagicMock()) as mock_popen:
+            open_in_browser("https://example.com")
+            _, kwargs = mock_popen.call_args
+            self.assertFalse(kwargs.get("shell", False), "shell=True tidak boleh digunakan")
+
+    def test_o1_url_with_ampersand_spaces_quotes_percent_encoding(self):
+        """O1: URL dengan &, spasi (%20), tanda kutip, dan %-encoding tidak menyebabkan injeksi argumen/perintah."""
+        from unittest.mock import patch, MagicMock
+
+        test_cases = [
+            "https://example.com/search?q=cat&page=2&filter=recent",
+            "https://example.com/wiki/Data%20Science%26AI",
+            'https://example.com/query?term="machine+learning"',
+            "https://example.com/path/'single_quoted'",
+            "https://example.com/test?a=%22quoted%22&b=%26escaped%26",
+        ]
+
+        with patch("sys.platform", "win32"), patch("subprocess.Popen", return_value=MagicMock()) as mock_popen:
+            for url in test_cases:
+                mock_popen.reset_mock()
+                ok, err = open_in_browser(url)
+                self.assertTrue(ok, f"URL seharusnya valid: {url}")
+                call_arg = mock_popen.call_args[0][0]
+                self.assertIsInstance(call_arg, list)
+                self.assertEqual(len(call_arg), 2)
+                self.assertEqual(call_arg[0], "explorer.exe")
+                self.assertTrue(call_arg[1].startswith("https://example.com/"))
+
+    def test_o2_honest_message_no_claim_of_physical_window(self):
+        """O2: Konsol menampilkan pesan jujur instruksi terkirim dan TIDAK mengklaim jendela terbuka sebagai fakta."""
+        from unittest.mock import patch, MagicMock
+        import io
+        from enki.cli.console import EnkiConsole
+
+        with patch("enki.tools.web.open_in_browser", return_value=(True, None)):
+            app = EnkiConsole()
+            app.config.set_mute(True)
+            app.check_startup_reflection = lambda: None
+            app.submit_mid_reply_input("/buka https://example.com/test")
+            app.submit_mid_reply_input("y")
+            app.submit_mid_reply_input("/exit")
+
+            out = io.StringIO()
+            with patch("sys.stdout", out):
+                app.run()
+            output = out.getvalue()
+            self.assertIn("[Peramban] Perintah membuka dikirim ke sistem: https://example.com/test", output)
+            self.assertIn("(Jika jendela tidak muncul, buka manual: https://example.com/test)", output)
+            self.assertNotIn("[Peramban] Membuka", output)
+
+    def test_o3_audit_log_method_recording_all_branches(self):
+        """O3: tool_audit.log mencatat method spesifik (explorer, cmd_start, startfile, webbrowser, all_failed) dan status."""
+        from unittest.mock import patch, MagicMock
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_dir = Path(tmp_dir) / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            audit_file = log_dir / "tool_audit.log"
+
+            # 1. Windows - Explorer
+            with patch("sys.platform", "win32"), \
+                 patch("subprocess.Popen", return_value=MagicMock()), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                open_in_browser("https://example.com/1")
+            content = audit_file.read_text(encoding="utf-8")
+            self.assertIn("url=https://example.com/1 | method=explorer | status=OK", content)
+
+            # 2. Windows - cmd_start fallback
+            def side_effect_cmd(args, **kwargs):
+                if args[0] == "explorer.exe":
+                    raise OSError("Fail explorer")
+                return MagicMock()
+
+            with patch("sys.platform", "win32"), \
+                 patch("subprocess.Popen", side_effect=side_effect_cmd), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                open_in_browser("https://example.com/2")
+            content = audit_file.read_text(encoding="utf-8")
+            self.assertIn("url=https://example.com/2 | method=cmd_start | status=OK", content)
+
+            # 3. Windows - startfile fallback
+            with patch("sys.platform", "win32"), \
+                 patch("subprocess.Popen", side_effect=OSError("All popen fail")), \
+                 patch("os.startfile", MagicMock()), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                open_in_browser("https://example.com/3")
+            content = audit_file.read_text(encoding="utf-8")
+            self.assertIn("url=https://example.com/3 | method=startfile | status=OK", content)
+
+            # 4. Windows - all failed
+            with patch("sys.platform", "win32"), \
+                 patch("subprocess.Popen", side_effect=OSError("Popen fail")), \
+                 patch("os.startfile", side_effect=OSError("Startfile fail")), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                open_in_browser("https://example.com/4")
+            content = audit_file.read_text(encoding="utf-8")
+            self.assertIn("url=https://example.com/4 | method=all_failed | status=ERROR", content)
+
+            # 5. Non-Windows - webbrowser
+            with patch("sys.platform", "linux"), \
+                 patch("webbrowser.open", return_value=True), \
+                 patch("enki.tools.web.get_log_dir", return_value=log_dir):
+                open_in_browser("https://example.com/5")
+            content = audit_file.read_text(encoding="utf-8")
+            self.assertIn("url=https://example.com/5 | method=webbrowser | status=OK", content)
 
 
 if __name__ == "__main__":

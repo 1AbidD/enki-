@@ -499,7 +499,7 @@ class EnkiConsole:
                     try:
                         ok, b_err = open_in_browser(norm_url)
                         if ok:
-                            print(f"[Peramban] Membuka {norm_url} di peramban web sistem.")
+                            print(f"[Peramban] Perintah membuka dikirim ke sistem: {norm_url}")
                             print(f"(Jika jendela tidak muncul, buka manual: {norm_url})")
                         else:
                             print(f"[Error /buka] Gagal membuka peramban: {b_err}")

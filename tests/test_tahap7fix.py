@@ -258,7 +258,7 @@ class TestTahap7FixBUrl(BaseNoHangTestCase):
                 app.run()
 
             output_str = out.getvalue()
-            self.assertIn("[Peramban] Membuka https://youtube.com/ di peramban web sistem.", output_str)
+            self.assertIn("[Peramban] Perintah membuka dikirim ke sistem: https://youtube.com/", output_str)
             self.assertIn("(Jika jendela tidak muncul, buka manual: https://youtube.com/)", output_str)
 
 
