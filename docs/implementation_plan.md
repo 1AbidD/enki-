@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.10
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.11
 
-*Ringkasan Perubahan v3.10: Perumusan pre-registered criteria R1-R8 untuk Tahap 7-FIX-2: R1 pengungkapan amend c63e365 atas 7f79bdd, R2 diagnosa tuntas hang tes unit, R3 riwayat 4x run bench_tahap7fix.py dan diff perubahannya, R4 pengukuran nyata worker thread TTS (1/1 pasca-pemutaran), R5 pembuktian anti-overlap dual engine (Supertonic gagal di chunk 2 dari 4), R6 koreksi penamaan label hasil S5 dan S10, R7 penegasan status akar masalah suara numpuk sebagai hipotesis belum terbukti, R8 nol regresi pada 229+ test suite, base prompt hash, dan router SHA. Status Tahap 7: SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD.*
+*Ringkasan Perubahan v3.11: Perumusan pre-registered criteria O1-O5 untuk Tahap 6-FIX-2 (/buka via proses terpisah dan diagnosa kondisi proses ENKI): O1 urutan launcher Windows (Popen explorer.exe -> Popen cmd /c start -> os.startfile) argumen list & aman injeksi, O2 pesan jujur tanpa klaim jendela fisik, O3 audit log mencatat method dan hasil eksekusi, O4 skrip diagnosa bertahap in-process REPORT-ONLY (scripts/probe_buka_inproc.py) untuk verifikasi mandiri oleh Abid tanpa agen menebak hasil, O5 nol regresi pada test suite, base prompt hash, router SHA, serta preservasi utuh validate_url/SSRF/konfirmasi [y/N]. Status Tahap 6: DITERIMA; Status Tahap 6-FIX-2: MENUNGGU VERIFIKASI LIVE ABID.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -1352,6 +1352,45 @@ Fakta empiris: `webbrowser.open('https://example.com')` mengembalikan `True` dan
 #### Status Progres & Rekomendasi Langkah Berikutnya:
 - **Status Tahap 6:** **DITERIMA (lead, verifikasi live Abid 19 Okt 2026)**.
 - **Rekomendasi Langkah Berikutnya:** Melanjutkan ke Tahap 7: Skills Folder (`/skill`).
+
+---
+
+### Tahap 6-FIX-2: /buka via Proses Terpisah & Diagnosa Kondisi Proses ENKI
+
+#### Konteks & Latar Belakang Masalah
+Pada pengujian live Abid (Windows, Microsoft Edge default, non-administrator), 5 metode pemanggilan membuka tautan dari Python mandiri (`os.startfile`, `webbrowser.open`, `Popen explorer.exe`, `Popen cmd /c start`, `Popen powershell Start-Process`) seluruhnya berhasil 3/3 membuka jendela peramban. Namun perintah `/buka` saat dijalankan di dalam proses interaktif ENKI tidak memunculkan jendela di beberapa sesi (misalnya pada `https://example.com` dan `https://www.youtube.com/`), meskipun `logs/tool_audit.log` mencatat `status=OK`.
+Fakta ini mengindikasikan bahwa penyebab kegagalan berhubungan dengan kondisi lingkungan atau thread di dalam proses ENKI yang sedang berjalan (akar masalah: **BELUM PASTI**). Tahap 6 telah berstatus **DITERIMA (lead, verifikasi live Abid 19 Okt 2026)**; perbaikan ini merupakan hardening lanjutan dan diagnosa mendalam.
+
+#### Kriteria Pre-Registered Tahap 6-FIX-2 (O1–O5) — Ditetapkan SEBELUM Kode:
+- **O1 (Launcher Proses Terpisah & Urutan Windows):**
+  Pada sistem operasi Windows (`sys.platform == "win32"`), urutan pemanggilan peluncur peramban:
+  1. `subprocess.Popen(["explorer.exe", url])` (tanpa `shell=True`, tanpa memunculkan jendela konsol).
+  2. Jika `Popen` melempar exception: fallback ke `subprocess.Popen(["cmd", "/c", "start", "", url], creationflags=subprocess.CREATE_NO_WINDOW)`.
+  3. Jika fallback cmd melempar exception: fallback ke `os.startfile(url)`.
+  4. Jika seluruhnya gagal: kembalikan error jujur beserta URL agar pengguna dapat menyalinnya secara manual.
+  Pada non-Windows: gunakan `webbrowser.open(url)`.
+  Argumen pemanggilan SELALU berupa `list` (bukan string perintah tunggal); URL yang dibuka HANYA yang telah lolos validasi `validate_url` (kebijakan keamanan tidak berubah).
+  Pengujian keamanan: URL yang mengandung karakter `&`, spasi (terenkode), tanda kutip ganda/tunggal, dan %-encoding diverifikasi tidak menyebabkan injeksi argumen maupun pemecahan perintah CLI.
+- **O2 (Pesan Jujur Tanpa Klaim Munculnya Jendela):**
+  ENKI hanya mengetahui bahwa instruksi membuka telah berhasil dikirimkan ke subsistem OS, bukan memverifikasi bahwa jendela peramban fisik telah muncul di monitor pengguna.
+  Pesan sukses konsol wajib berbunyi:
+  `[Peramban] Perintah membuka dikirim ke sistem: <url>`
+  `(Jika jendela tidak muncul, buka manual: <url>)`
+  Dilarang mengklaim kata "membuka" atau "terbuka" sebagai fakta yang sudah terjadi.
+- **O3 (Pencatatan Audit Log Metode & Hasil):**
+  Setiap pemanggilan `/buka` mencatat metode spesifik yang dieksekusi dan hasil nyatanya ke `logs/tool_audit.log`:
+  Format: `tool=open_browser | url=<url> | method=<explorer|cmd_start|startfile|webbrowser|all_failed> | status=<OK|ERROR>[ | error=<pesan>]`.
+- **O4 (Skrip Diagnosa In-Process Mandiri REPORT-ONLY):**
+  Dibuat skrip diagnosa mandiri `scripts/probe_buka_inproc.py` yang khusus dijalankan oleh Abid secara manual.
+  Skrip menjalankan langkah-langkah bertahap, mencetak label `"LANGKAH n: ..."`, memanggil `os.startfile('https://example.com')`, dan memberikan jeda 5 detik antar-langkah:
+  (a) Langkah 1: Python polos (`os.startfile` langsung);
+  (b) Langkah 2: Setelah `import enki.cli.console`;
+  (c) Langkah 3: Setelah membuat instance `TTSManager` dan memutar 1 kalimat pendek (mode unmuted);
+  (d) Langkah 4: Pemanggilan `os.startfile` dari background thread terpisah;
+  (e) Langkah 5: Setelah `EnkiConsole()` diinisialisasi (tanpa memanggil `run()`).
+  Abid mencatat langkah pertama yang gagal memunculkan jendela di layarnya. Agen DILARANG menjalankan skrip ini sendiri dan dilarang menebak hasilnya; kode skrip wajib dilampirkan utuh pada laporan.
+- **O5 (Preservasi Keamanan & Nol Regresi):**
+  Seluruh rangkaian pengujian unit (232+ tes) tetap lulus hijau (0 fail, 0 error). Hash prompt dasar model tetap persis `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` dan SHA `enki/core/capability_router.py` tetap persis `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`. Fungsi `validate_url`, prompt konfirmasi `[y/N]`, dan seluruh mekanisme mitigasi SSRF tidak mengalami perubahan.
 
 ---
 
