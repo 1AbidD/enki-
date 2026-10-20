@@ -1,6 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.9
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.10
 
-*Ringkasan Perubahan v3.9: Eksekusi Tahap 7-FIX: perbaikan bug suara numpuk (/unmute idempoten V1, satu balasan = satu pemutaran V2, validasi nama suara per engine & pencegahan dual engine V3, W-short peringatan web terpotong <400 karakter, B-url tautan manual /buka); audit Tahap 7 lengkap (klarifikasi label S5 & uji isolasi XML eksplisit, penjelasan jujur run 1 c6b4151, pembuktian isolasi skill dari /web, /wiki, router, perhitungan matematis token 170); penambahan 15 unit test baru tests/test_tahap7fix.py (total suite 229 test lulus hijau, prompt hash 6db1ac9a... dan router SHA 48a03331... 100% identik); eksekusi scripts/bench_tahap7fix.py menghasilkan docs/evidence/tahap7fix.txt dengan Git Dirty: False; status Tahap 7: SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD.*
+*Ringkasan Perubahan v3.10: Perumusan pre-registered criteria R1-R8 untuk Tahap 7-FIX-2: R1 pengungkapan amend c63e365 atas 7f79bdd, R2 diagnosa tuntas hang tes unit, R3 riwayat 4x run bench_tahap7fix.py dan diff perubahannya, R4 pengukuran nyata worker thread TTS (1/1 pasca-pemutaran), R5 pembuktian anti-overlap dual engine (Supertonic gagal di chunk 2 dari 4), R6 koreksi penamaan label hasil S5 dan S10, R7 penegasan status akar masalah suara numpuk sebagai hipotesis belum terbukti, R8 nol regresi pada 229+ test suite, base prompt hash, dan router SHA. Status Tahap 7: SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD.*
 
 ENKI adalah asisten AI pribadi lokal yang dirancang khusus untuk hardware **NVIDIA RTX 3050 4GB VRAM**.
 Arsitektur dan desain sistem ENKI dibangun secara sadar **di sekeliling keterbatasan nyata model 3B** (`qwen2.5:3b` dan `qwen2.5-coder:3b`), bukan menyangkalnya. Keterbatasan penalaran, rentannya model kecil terhadap prompt injection, serta kecenderungan halusinasi alat dimitigasi secara deterministik di level kode Python: antarmuka alat berargumen tetap (*fixed-argument tools*), deterministic memory gating, konfirmasi pengguna eksplisit `[y/N]`, dan penolakan kebijakan ReAct loop yang memaksa model kembali ke moda percakapan teks murni.
@@ -1498,6 +1498,44 @@ Pada pengujian live oleh Abid, fitur `/skill` berjalan baik (`/skill list`, akti
 - **Rekomendasi Langkah Berikutnya:** Menunggu audit lead/Abid atas perbaikan Tahap 7-FIX dan bukti di `docs/evidence/tahap7fix.txt`.
 
 ---
+
+
+---
+
+### Tahap 7-FIX-2: Pengungkapan Transparan, Pengujian Thread V1 Nyata, dan Isolasi Dual-Engine (R1–R8)
+
+#### 1. Konteks & Tujuan
+Memenuhi audit menyeluruh penguji atas Tahap 7-FIX:
+1. Mengungkapkan secara transparan riwayat Git terkait amend commit pencatatan hasil dan bukti (`c63e365` atas `7f79bdd`).
+2. Menjelaskan secara tuntas insiden hang pengujian unit, kode penyebabnya, dan perbaikan tanpa pelemahan assertion.
+3. Mendokumentasikan seluruh 4 eksekusi `scripts/bench_tahap7fix.py`, kegagalan pada tiap run, diff kode skrip, dan hasil debug `CountingEngine`.
+4. Mengukur worker thread TTS secara nyata (`ENKI_TTS_Worker` dan `ENKI_TTS_PlayWorker`) via `threading.enumerate()` setelah benar-benar ada pemutaran ucapan melalui konsol (bukan 0/0).
+5. Membuktikan secara deterministik bahwa tidak ada dua engine yang bersuara bersamaan pada skenario fallback di chunk 2 dari 4 kalimat melalui jalur `TTSManager`/konsol, dengan setiap kalimat terdengar tepat satu kali.
+6. Mengoreksi ketidaksesuaian label S5 dan S10 pada hasil Tahap 7 di plan.
+7. Menegaskan status akar masalah "suara numpuk" sebagai hipotesis yang belum terbukti secara live oleh Abid.
+8. Menjaga integritas seluruh 229+ tes unit lama, base system prompt hash, dan router SHA.
+
+#### 2. Kriteria Pre-Registered (R1–R8) — FINAL SEBELUM KODE
+- **R1 (Pengungkapan Amend & Yatim HEAD 7f79bdd):**
+  Plan mencatat bahwa commit pencatatan Tahap 7-fix di-amend (`git commit -a --amend --no-edit`), alasan amend (mencoba memastikan flag `Git Dirty: False` pada berkas evidence setelah pembaruan plan), dan fakta bahwa evidence lama di berkas `docs/evidence/tahap7fix.txt` merujuk ke commit `7f79bdd` yang menjadi yatim (orphaned) di reflog. Menampilkan `git reflog -20` dan `git cat-file -t 7f79bdd`.
+- **R2 (Investigasi Hang Pengujian Unit):**
+  Mencatat pengujian mana yang menggantung (`test_3c_skill_does_not_affect_wiki`), penyebab pastinya (pemanggilan `/wiki` meminta konfirmasi `[y/N]` via `_prompt_user`, yang mengonsumsi antrean `/exit` sehingga loop jatuh ke `builtins.input` tanpa mock stdin), dan perbaikan yang dibuat (menambahkan `submit_mid_reply_input("y")` dan scaffolding `BaseNoHangTestCase` dengan `side_effect=EOFError`). Konfirmasi tidak ada assertion yang dilemahkan atau dihapus.
+- **R3 (Riwayat Eksekusi Benchmark & Debug CountingEngine):**
+  Mencatat seluruh 4 eksekusi `scripts/bench_tahap7fix.py`, apa yang gagal pada tiap run sebelum diedit, dan diff perubahannya:
+  - Run 1: V2 gagal (`calls == 0`) karena `mgr.wait_done(timeout=2.0)` hanya menunggu `_queue.join()` (antrean sintesis), sementara pemutaran oleh `_play_worker` berjalan asinkron di antrean kedua `_play_queue`. Diperbaiki dengan `time.sleep(0.3)`.
+  - Run 2: Semua kriteria lulus, namun dieksekusi saat dokumen plan sedang dimodifikasi sehingga memicu `Git Dirty: True` di run berikutnya.
+  - Run 3: `Git Dirty: True` akibat perubahan berkas teks, diperbaiki dengan filter `tahap7fix.txt` pada deteksi git status porcelain.
+  - Run 4: Berhasil bersih dengan HEAD `7f79bdd`, namun kemudian di-amend menjadi `c63e365`.
+- **R4 (V1 Nyata Pasca-Pemutaran Utterance Konsol):**
+  Mengukur jumlah thread worker TTS aktif (`ENKI_TTS_Worker` dan `ENKI_TTS_PlayWorker`) via `threading.enumerate()` SETELAH benar-benar ada pemutaran ucapan melalui jalur konsol (siklus 5x `/mute` dan `/unmute` diikuti 1 balasan asisten). Angka tidak boleh 0/0, melainkan tepat 1 synth worker dan 1 play worker (maksimum 1 worker aktif per jenis, total 2 thread).
+- **R5 (Tidak Ada Dua Engine Bersuara Bersamaan):**
+  Pengujian dengan dua engine tiruan (flag `sedang_bersuara`). Skenario: Supertonic mengalami kegagalan pada chunk ke-2 dari 4 kalimat. Membuktikan bahwa pada tidak ada saat kedua flag aktif bersamaan (`overlap_detected == False`), dan setiap dari ke-4 kalimat disuarakan tepat satu kali (chunk 1 oleh Supertonic, chunk 2–4 oleh SAPI5 fallback) tanpa ada kalimat yang terulang atau hilang. Diuji melalui jalur `TTSManager`/konsol, bukan langsung ke engine.
+- **R6 (Koreksi Label Plan S5 & S10):**
+  Di hasil Tahap 7, koreksi label S5 (= tidak menambah kemampuan / keamanan utuh, diverifikasi via `TestTahap7FixS5ExplicitSecurity`) dan S10 (= cakupan tes unit komprehensif). Hapus klaim lama yang salah label ("Contoh Skill di Repo"); catat koreksinya.
+- **R7 (Status Akar Masalah Suara Numpuk):**
+  Menegaskan status akar masalah suara numpuk secara jujur: "BELUM TERBUKTI; hipotesis: sisa audio Supertonic + SAPI fallback; menunggu verifikasi live Abid". Tidak boleh ditulis sebagai fakta pasti sebelum diverifikasi live oleh Abid.
+- **R8 (Nol Regresi & Integritas Prompt/Router):**
+  Seluruh 229+ tes lama tetap hijau, base system prompt hash tetap persis `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`, dan SHA `enki/core/capability_router.py` tetap persis `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
