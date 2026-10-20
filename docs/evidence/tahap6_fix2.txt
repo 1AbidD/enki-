@@ -1,0 +1,124 @@
+===========================================================================
+BUKTI EMPIRIS TAHAP 6-FIX-2: /buka VIA PROSES TERPISAH & DIAGNOSA IN-PROCESS
+===========================================================================
+Waktu Pengujian : 2026-10-20T17:31:04.039330
+Git Commit      : a4e914f4399422e88f2db030a40c1b11a70d5cac
+Git Dirty       : False
+Python Exec     : D:\ENKI\Enki\venv\Scripts\python.exe
+Platform OS     : win32
+Base Prompt Hash: 6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728
+Router SHA      : 48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9
+
+===========================================================================
+BAGIAN 1: KONTEKS LIVE TEST & DATA 5 CARA MANDIRI ABID
+===========================================================================
+Konteks Uji Mandiri Python di Mesin Abid (Windows, Edge Default, Non-Admin):
+  1. os.startfile(url)                    : 3/3 BERHASIL
+  2. webbrowser.open(url)                 : 3/3 BERHASIL
+  3. Popen(['explorer.exe', url])         : 3/3 BERHASIL
+  4. Popen(['cmd', '/c', 'start', '', url]): 3/3 BERHASIL
+  5. Popen(['powershell', 'Start-Process']): 3/3 BERHASIL
+Masalah Teramati:
+  - Seluruh cara di atas 100% membuka peramban saat dipanggil dari Python mandiri.
+  - Namun pemanggilan /buka di dalam proses interaktif ENKI tidak memunculkan
+    jendela di beberapa sesi (example.com dan youtube.com), walau tool_audit.log
+    mencatat status=OK.
+  - Kesimpulan: Penyebab kegagalan berasal dari kondisi internal di dalam proses
+    ENKI (thread, console, COM initialization, dsb).
+  - Status Akar Masalah: BELUM PASTI (diperlukan diagnosa bertahap in-process O4).
+
+===========================================================================
+BAGIAN 2: EVALUASI KRITERIA O1 (LAUNCHER PROSES TERPISAH & KEAMANAN)
+===========================================================================
+  - [LULUS] win_explorer_ok: True
+  - [LULUS] win_cmd_start_fallback: True
+  - [LULUS] win_startfile_fallback: True
+  - [LULUS] win_all_fail_honest: True
+  - [LULUS] non_win_webbrowser: True
+  - [LULUS] injection_safety: True
+Status Kriteria O1: LULUS
+
+===========================================================================
+BAGIAN 3: EVALUASI KRITERIA O2 (PESAN JUJUR TANPA KLAIM JENDELA FISIK)
+===========================================================================
+  - [LULUS] sent_message_present: True
+  - [LULUS] hint_manual_present: True
+  - [LULUS] no_physical_claim: True
+  - [LULUS] fail_error_present: True
+  - [LULUS] fail_manual_present: True
+Status Kriteria O2: LULUS
+
+===========================================================================
+BAGIAN 4: EVALUASI KRITERIA O3 (PENCATATAN AUDIT LOG METODE & HASIL)
+===========================================================================
+  - [LULUS] method_explorer: True
+  - [LULUS] method_cmd_start: True
+  - [LULUS] method_startfile: True
+  - [LULUS] method_all_failed: True
+  - [LULUS] method_webbrowser: True
+Status Kriteria O3: LULUS
+
+===========================================================================
+BAGIAN 5: VERIFIKASI KRITERIA O4 (SKRIP DIAGNOSA IN-PROCESS REPORT-ONLY)
+===========================================================================
+  - Berkas Ditemukan : True
+  - Jalur Skrip      : scripts\probe_buka_inproc.py
+  - Langkah 1 s.d. 5 : LENGKAP
+  - Catatan Eksekusi : Skrip khusus dijalankan oleh Abid secara manual; tidak dieksekusi otomatis oleh harness.
+Status Kriteria O4: LULUS (DOKUMENTASI TERSEDIA)
+
+===========================================================================
+BAGIAN 6: EVALUASI KRITERIA O5 (PRESERVASI KEAMANAN & NOL REGRESI)
+===========================================================================
+
+[BENCHMARK LOCK] Mengambil alih lock basi (stale lock) dari PID=99999999 (proses sudah mati, dimulai pada 2026-10-10T10:00:00Z).
+
+=== RAW OUTPUT UJI (a) PASSIVE RECALL ===
+<untrusted_memory_content source="sqlite_fts5_passive_recall">
+[Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
+- User: apa database utama proyek kita ya?
+- Assistant: Database utama proyek kita adalah SQLite dengan mode WAL dan indeks FTS5.
+</untrusted_memory_content>
+==================================================
+
+=== RAW OUTPUT UJI (b) PASSIVE RECALL (HARUS NONE) ===
+Prompt: 'siapa pencipta bahasa pemrograman python dan kapan pertama kali dirilis?' -> Result: None
+Prompt: 'buatkan resep singkat cara bikin nasi goreng kampung yang enak dan gurih' -> Result: None
+Prompt: 'halo selamat pagi enki, gimana kabarmu hari ini?' -> Result: None
+Prompt: 'apa beda framework dan library dalam pemrograman web?' -> Result: None
+==================================================
+
+=== RAW OUTPUT UJI (a) PASSIVE RECALL ===
+<untrusted_memory_content source="sqlite_fts5_passive_recall">
+[Konteks Latar dari Percakapan Lama] (Gunakan HANYA jika relevan langsung dengan pertanyaan pengguna, abaikan jika tidak relevan):
+- User: apa database utama proyek kita ya?
+- Assistant: Database utama proyek kita adalah SQLite dengan mode WAL dan indeks FTS5.
+</untrusted_memory_content>
+==================================================
+
+=== RAW OUTPUT UJI (b) PASSIVE RECALL (HARUS NONE) ===
+Prompt: 'siapa pencipta bahasa pemrograman python dan kapan pertama kali dirilis?' -> Result: None
+Prompt: 'buatkan resep singkat cara bikin nasi goreng kampung yang enak dan gurih' -> Result: None
+Prompt: 'halo selamat pagi enki, gimana kabarmu hari ini?' -> Result: None
+Prompt: 'apa beda framework dan library dalam pemrograman web?' -> Result: None
+==================================================
+[Peringatan TTS] Model Supertonic gagal dimuat dari 'C:\Users\aabid\AppData\Local\Temp\tmp69nqui3a\model_tidak_ada' (direktori atau berkas onnx/tts.json tidak ditemukan); beralih otomatis ke SAPI5.
+  - Base Prompt Hash Match: True (6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728)
+  - Router SHA Match      : True (48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9)
+  - SSRF Defenses Intact  : True
+  - Unit Tests Run        : 237
+  - Failures              : 0
+  - Errors                : 0
+  - Skipped               : 3
+Status Kriteria O5: LULUS
+
+===========================================================================
+RINGKASAN HASIL EVALUASI TAHAP 6-FIX-2:
+===========================================================================
+  - O1 (Launcher Urutan Windows & Argumen List): LULUS
+  - O2 (Pesan Jujur Tanpa Klaim Jendela Fisik)  : LULUS
+  - O3 (Pencatatan Audit Log Metode & Hasil)    : LULUS
+  - O4 (Diagnosa In-Process REPORT-ONLY)        : LULUS (MENUNGGU ABID)
+  - O5 (Preservasi Keamanan & Nol Regresi)      : LULUS
+STATUS KELULUSAN TAHAP 6-FIX-2: MENUNGGU VERIFIKASI LIVE ABID
+===========================================================================
