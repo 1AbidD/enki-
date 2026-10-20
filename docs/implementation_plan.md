@@ -1,4 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.11
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.12
+
+*Ringkasan Perubahan v3.12: Perumusan pre-registered criteria K1-K7 untuk Tahap 6-FIX-3 (investigasi /buka intermiten berbasis deteksi jendela Edge otomatis + matriks kondisi Edge A/B/C x 7 metode x N=5, aturan keputusan K4 ditetapkan sebelum data). Status Tahap 6-FIX-3: MENUNGGU AUDIT LEAD.*
 
 *Ringkasan Perubahan v3.11: Perumusan pre-registered criteria O1-O5 untuk Tahap 6-FIX-2 (/buka via proses terpisah dan diagnosa kondisi proses ENKI): O1 urutan launcher Windows (Popen explorer.exe -> Popen cmd /c start -> os.startfile) argumen list & aman injeksi, O2 pesan jujur tanpa klaim jendela fisik, O3 audit log mencatat method dan hasil eksekusi, O4 skrip diagnosa bertahap in-process REPORT-ONLY (scripts/probe_buka_inproc.py) untuk verifikasi mandiri oleh Abid tanpa agen menebak hasil, O5 nol regresi pada test suite, base prompt hash, router SHA, serta preservasi utuh validate_url/SSRF/konfirmasi [y/N]. Status Tahap 6: DITERIMA; Status Tahap 6-FIX-2: MENUNGGU VERIFIKASI LIVE ABID.*
 
@@ -1431,6 +1433,37 @@ Fakta ini mengindikasikan bahwa penyebab kegagalan berhubungan dengan kondisi li
 - **Status Tahap 6:** **DITERIMA (lead, verifikasi live Abid 19 Okt 2026)**.
 - **Status Tahap 6-FIX-2:** **MENUNGGU VERIFIKASI LIVE ABID**.
 - **Rekomendasi Langkah Berikutnya:** Abid menjalankan skrip `.\venv\Scripts\python scripts/probe_buka_inproc.py` secara mandiri dan melaporkan pada langkah ke berapa jendela browser (Edge) pertama kali gagal muncul.
+
+---
+
+### Tahap 6-FIX-3: Investigasi /buka Intermiten (Deteksi Jendela Otomatis & Matriks Kondisi Edge)
+
+#### Konteks
+Fakta dari Abid (mesin pengguna): browser default Edge (ProgId MSEdgeHTM), terminal non-admin. Pada satu waktu, `Start-Process`, `explorer.exe`, `cmd /c start` dan 5 cara dari Python mandiri berhasil 3/3. Beberapa menit kemudian `os.startfile('https://example.com')` dari Python POLOS (tanpa ENKI) TIDAK memunculkan apa pun, dan `/buka` di ENKI juga tidak (mute/unmute tidak berbeda). Hipotesis sementara: kegagalan intermiten bergantung pada KEADAAN EDGE (tidak jalan / jalan di latar tanpa jendela [Startup boost, background apps] / jendela terlihat), bukan pada proses ENKI. Status: HIPOTESIS, belum terbukti.
+
+Evaluasi pekerjaan Tahap 6-FIX-2 (model sebelumnya), dipertahankan dan dilanjutkan:
+- Launcher `open_in_browser` (explorer.exe -> cmd /c start -> os.startfile; non-Windows webbrowser.open), pesan jujur O2, dan audit `method=` O3 tetap dipakai.
+- Cacat ditemukan pada `scripts/probe_buka_inproc.py`: (1) tidak menambahkan root repo ke `sys.path` sehingga gagal `No module named 'enki'` bila dijalankan sebagai `python scripts/probe_buka_inproc.py`; (2) mengimpor `enki.core.tts` padahal modul sebenarnya `enki.audio.tts` (`TTSManager()` tanpa argumen). Akibatnya langkah in-process tidak pernah terukur. Diperbaiki di tahap ini.
+- Cacat metodologis 6-FIX-2: tidak ada detektor otomatis apakah jendela benar-benar muncul; `status=OK` hanya berarti perintah terkirim tanpa exception.
+
+#### Kriteria Pre-Registered Tahap 6-FIX-3 (K1-K7) - Ditetapkan SEBELUM Kode Produksi & Sebelum Data
+- **K1 (Detektor otomatis):** `scripts/probe_open_url.py` mendeteksi sendiri munculnya jendela Edge: sebelum peluncuran mencatat daftar jendela top-level milik `msedge.exe` (ctypes `EnumWindows` + `GetWindowTextW` + `GetWindowThreadProcessId` + `IsWindowVisible`, nama proses via psutil); setelah peluncuran polling (interval 0,25 s) hingga 8 detik. **Sukses** = muncul jendela top-level TERLIHAT milik msedge.exe yang judulnya mengandung `Example Domain` dan tidak ada dalam daftar sebelum peluncuran. **Gagal** = tidak muncul dalam 8 detik. Per percobaan juga dicatat: jumlah proses msedge.exe (sebelum/sesudah), jumlah jendela msedge terlihat, latensi deteksi, exception peluncuran, session id proses harness.
+- **K2 (Matriks kondisi, reset otomatis per percobaan):** setiap percobaan diawali reset penuh: `taskkill /f /im msedge.exe` + verifikasi 0 proses (tunggu maks 10 s), lalu:
+  - A: tidak ada proses msedge.exe.
+  - B: luncurkan `msedge.exe about:blank` (exe langsung, argumen list), tunggu sampai satu jendela msedge terlihat (maks 15 s), tanpa tab example.
+  - C: seperti B, lalu tutup jendela dengan `WM_CLOSE` (BUKAN taskkill), tunggu 5 s, catat apakah msedge.exe masih berjalan di latar.
+  Metode (7): `os.startfile`, `webbrowser.open`, `Popen(["explorer.exe", url])`, `Popen(["cmd","/c","start","",url], CREATE_NO_WINDOW)`, `Popen(["powershell","-NoProfile","-Command","Start-Process",url])`, `Popen([msedge_path, url])`, `Popen([msedge_path, "--new-tab", url])`; `msedge_path` dari registry App Paths (HKLM lalu HKCU). N=5 per sel (3 x 7 x 5 = 105 percobaan), jeda >= 8 detik antar percobaan. URL uji: `https://example.com/`. Script mencetak PERINGATAN dan meminta konfirmasi sebelum taskkill (flag `--yes` hanya dipakai setelah persetujuan eksplisit Abid).
+- **K3 (Hasil):** tabel kondisi x metode `sukses/N` + data mentah per percobaan di `docs/evidence/tahap6_open_url_matrix.txt` dan `docs/evidence/tahap6_open_url_matrix.json`.
+- **K4 (Aturan keputusan, mekanis, tidak boleh diubah setelah data):**
+  - Metode **andal** = 5/5 pada SETIAP kondisi A, B, C.
+  - Jika ada >= 1 metode andal: metode andal pertama menurut urutan daftar K2 menjadi jalur utama `/buka` di Windows; fallback (hanya bila peluncuran melempar exception) berurutan menurut total sukses A+B+C menurun (seri: urutan daftar K2), dibatasi ke metode yang sudah ada di launcher + metode utama. Perubahan kode minimal + tes unit K6.
+  - Jika TIDAK ada metode andal: JANGAN mengklaim perbaikan; launcher `open_in_browser` TIDAK diubah. Dicatat sebagai keterbatasan lingkungan Edge/Windows dengan kondisi yang gagal, ditambah mitigasi sisi pengguna (matikan Startup boost dan "Continue running background extensions and apps when Microsoft Edge is closed" di `edge://settings/system`).
+  - Apa pun hasilnya ENKI tidak mengklaim jendela terbuka. Pesan tetap: `[Peramban] Perintah membuka dikirim ke sistem: <url>` + `(Jika jendela tidak muncul, buka manual: <url>)`.
+  - Akar masalah ditulis "terbukti" HANYA jika pola sukses/gagal konsisten dengan satu kondisi (mis. semua metode 0/5 di C dan 5/5 di A,B); selain itu "BELUM PASTI".
+- **K5 (Verifikasi pasca-peluncuran di ENKI):** DIPUTUSKAN SEKARANG (sebelum data) untuk TIDAK dikerjakan pada tahap ini (aturan "jika ragu, jangan"): deteksi berbasis judul bergantung pada lokalisasi, jaringan (judul halaman baru tersedia setelah dimuat) dan profil Edge, serta menambah latensi hingga 8 s. Dapat diajukan ulang oleh lead.
+- **K6 (Keamanan):** argumen subprocess SELALU list, tanpa `shell=True`, tanpa konkatenasi string; URL hanya yang lolos `validate_url`; tes unit URL berisi `&`, spasi (ditolak validate_url), tanda kutip, %-encoding tidak menyebabkan injeksi argumen; tes memakai mock `subprocess.Popen` / `os.startfile` (tanpa browser nyata).
+- **K7 (Nol regresi):** `python -m unittest discover -s tests` hijau (237 tes saat ini, 3 skip); hash prompt dasar `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` dan SHA `enki/core/capability_router.py` `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9` tidak berubah; `validate_url`/SSRF/konfirmasi `[y/N]` tidak disentuh.
+- **Probe in-process (Langkah 1, aturan keputusan):** `scripts/probe_buka_inproc.py` memakai detektor K1 dan reset kondisi A sebelum tiap percobaan; langkah (a) Python polos, (b) setelah `import enki.cli.console`, (c) setelah `TTSManager` + satu kalimat suara, (d) `os.startfile` dari thread latar (daemon, join timeout), (e) setelah `EnkiConsole()` dibuat; N=3 per langkah. Hipotesis "kondisi proses ENKI" DIDUKUNG jika (a) >= 2/3 dan ada langkah (b)-(e) dengan 0/3; DIGUGURKAN (untuk kondisi A) jika semua langkah (b)-(e) memiliki sukses >= sukses (a) - 1; selain itu BELUM PASTI.
 
 ---
 
