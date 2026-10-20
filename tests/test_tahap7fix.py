@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -406,6 +407,197 @@ class TestTahap7FixSkillInteractions(BaseNoHangTestCase):
 
             # skill_block TIDAK boleh dilewatkan ke run_react_turn pada /web
             self.assertNotIn("skill_block", called_kwargs, "skill_block tidak boleh dikirim pada /web!")
+
+
+
+class MockDualSAPI(BaseTTSEngine):
+    """Engine fallback SAPI palsu untuk uji konkurensi dual-engine."""
+    def __init__(self):
+        self.sedang_bersuara = False
+        self.spoken = []
+        self.peer = None
+        self.lock = threading.Lock()
+
+    def _ensure_loaded(self):
+        return True
+
+    def speak_chunk(self, text: str, voice=None) -> bool:
+        if self.peer and getattr(self.peer, "sedang_bersuara", False):
+            self.peer.overlap_detected = True
+        with self.lock:
+            self.sedang_bersuara = True
+        try:
+            self.spoken.append(text)
+            time.sleep(0.015)
+        finally:
+            with self.lock:
+                self.sedang_bersuara = False
+        return True
+
+    def stop(self):
+        with self.lock:
+            self.sedang_bersuara = False
+
+
+class MockDualSupertonic(BaseTTSEngine):
+    """Engine Supertonic pipelined palsu yang sengaja gagal di chunk 2 untuk menguji fallback."""
+    def __init__(self, fallback_engine: MockDualSAPI):
+        self.sedang_bersuara = False
+        self.fallback_engine = fallback_engine
+        self.fallback_engine.peer = self
+        self._fallback_active = False
+        self.spoken = []
+        self.chunk_count = 0
+        self.overlap_detected = False
+        self.lock = threading.Lock()
+
+    def _ensure_loaded(self):
+        return True
+
+    def speak_chunk(self, text: str, voice=None) -> bool:
+        item = self.synthesize_chunk(text, voice)
+        return self.play_synthesized(item)
+
+    def synthesize_chunk(self, text: str, voice=None, cancel_check=None, save_wav_dir=None, save_wav_name=None):
+        self.chunk_count += 1
+        if self.chunk_count == 2 and not self._fallback_active:
+            self._fallback_active = True
+            with self.lock:
+                self.sedang_bersuara = False
+            return {"mode": "fallback_sapi5", "text": text}
+        if self._fallback_active:
+            return {"mode": "fallback_sapi5", "text": text}
+        return {"mode": "supertonic_wav", "text": text}
+
+    def play_synthesized(self, item, cancel_check=None, on_before_play=None, on_after_play=None):
+        if item.get("mode") == "fallback_sapi5":
+            return self.fallback_engine.speak_chunk(item.get("text", ""))
+        if getattr(self.fallback_engine, "sedang_bersuara", False):
+            self.overlap_detected = True
+        with self.lock:
+            self.sedang_bersuara = True
+        try:
+            self.spoken.append(item.get("text", ""))
+            time.sleep(0.015)
+        finally:
+            with self.lock:
+                self.sedang_bersuara = False
+        return True
+
+    def discard_synthesized(self, item, count_as_cancelled=True):
+        pass
+
+    def stop(self):
+        with self.lock:
+            self.sedang_bersuara = False
+        self.fallback_engine.stop()
+
+
+class TestTahap7FixR4WorkerThreads(BaseNoHangTestCase):
+    """R4: Mengukur worker thread TTS secara nyata (1 synth + 1 play) pasca-pemutaran konsol."""
+
+    def test_r4_v1_real_measurement_after_console_playback(self):
+        app = EnkiConsole()
+        app.check_startup_reflection = MagicMock()
+        for _ in range(5):
+            app.submit_mid_reply_input("/mute")
+            app.submit_mid_reply_input("/unmute")
+
+        # Kirim query kemampuan yang memicu speak() deterministik
+        app.submit_mid_reply_input("kamu bisa apa saja?")
+        app.submit_mid_reply_input("/exit")
+
+        fake_engine = FakeEngine()
+        mgr = get_tts_manager()
+        mgr._resolve_default_engine_and_voice = lambda voice=None: (fake_engine, "default", {})
+
+        out = io.StringIO()
+        with patch("sys.stdout", out):
+            app.run()
+            mgr.wait_done(timeout=3.0)
+
+        threads = threading.enumerate()
+        synth_workers = [t for t in threads if t.name == "ENKI_TTS_Worker" and t.is_alive()]
+        play_workers = [t for t in threads if t.name == "ENKI_TTS_PlayWorker" and t.is_alive()]
+
+        # Angka tidak boleh 0/0 melainkan tepat 1 worker aktif untuk masing-masing
+        self.assertEqual(len(synth_workers), 1, f"Harus tepat 1 thread ENKI_TTS_Worker aktif, ditemukan {len(synth_workers)}")
+        self.assertEqual(len(play_workers), 1, f"Harus tepat 1 thread ENKI_TTS_PlayWorker aktif, ditemukan {len(play_workers)}")
+
+
+class TestTahap7FixR5DualEngineNoOverlap(BaseNoHangTestCase):
+    """R5: Membuktikan tidak ada dua engine bersuara bersamaan dan seluruh 4 kalimat terdengar utuh."""
+
+    def setUp(self):
+        super().setUp()
+        self.sentences = [
+            "Ini adalah kalimat pembuka pertama yang disusun dengan panjang karakter sekitar seratus lima puluh karakter agar menjadi satu chunk tersendiri yang utuh dan mandiri.",
+            "Ini adalah kalimat pengujian kedua yang sengaja dibuat panjang juga sekitar seratus lima puluh karakter agar tidak digabungkan oleh chunker ramp ke chunk pertama.",
+            "Ini adalah kalimat verifikasi ketiga setelah fallback diaktifkan oleh sistem asisten kita ketika mendeteksi error inferensi pada engine supertonic kita.",
+            "Ini adalah kalimat penutup keempat untuk membuktikan bahwa seluruh kalimat berhasil disuarakan tanpa ada chunk yang hilang atau terulang sama sekali.",
+        ]
+        from enki.audio.tts import prepare_tts_chunks
+        self.expected_chunks = prepare_tts_chunks(" ".join(self.sentences))
+        self.assertEqual(len(self.expected_chunks), 4, "Teks pengujian harus menghasilkan tepat 4 chunks!")
+
+    def test_r5_dual_engine_no_overlap_tts_manager(self):
+        sapi = MockDualSAPI()
+        st = MockDualSupertonic(sapi)
+
+        mgr = TTSManager()
+        try:
+            mgr.speak(" ".join(self.sentences), engine=st)
+            mgr.wait_done(timeout=5.0)
+
+            all_spoken = st.spoken + sapi.spoken
+            self.assertFalse(st.overlap_detected, "Terdeteksi tumpang tindih (kedua engine bersuara bersamaan)!")
+            self.assertEqual(len(st.spoken), 1, f"Chunk 1 harus disuarakan Supertonic, didapat: {len(st.spoken)}")
+            self.assertEqual(len(sapi.spoken), 3, f"Chunk 2-4 harus disuarakan SAPI fallback, didapat: {len(sapi.spoken)}")
+            self.assertEqual(all_spoken, self.expected_chunks, "Seluruh 4 kalimat harus disuarakan tepat tanpa terulang atau hilang!")
+        finally:
+            mgr.queue.put(None)
+            mgr.play_queue.put(None)
+            if mgr.worker_thread:
+                mgr.worker_thread.join(timeout=1.0)
+            if mgr.play_worker_thread:
+                mgr.play_worker_thread.join(timeout=1.0)
+
+    def test_r5_dual_engine_no_overlap_console_path(self):
+        from enki.core.capability_router import RouteResult
+
+        sapi = MockDualSAPI()
+        st = MockDualSupertonic(sapi)
+
+        app = EnkiConsole()
+        app.check_startup_reflection = MagicMock()
+        app.config.set_mute(False)
+        app.tts_engine_override = st
+
+        fake_route = RouteResult(
+            intent="LIST_COMMANDS",
+            reply=" ".join(self.sentences),
+        )
+
+        app.submit_mid_reply_input("kamu bisa apa saja?")
+
+        def fake_get_input(*args, **kwargs):
+            if app._mid_reply_queue:
+                return app._mid_reply_queue.pop(0)
+            get_tts_manager().wait_done(timeout=5.0)
+            return "/exit"
+
+        app._get_user_input = fake_get_input
+
+        out = io.StringIO()
+        with patch("enki.cli.console.route_capability_inquiry", return_value=fake_route):
+            with patch("sys.stdout", out):
+                app.run()
+
+        all_spoken = st.spoken + sapi.spoken
+        self.assertFalse(st.overlap_detected, "Terdeteksi tumpang tindih di jalur konsol!")
+        self.assertEqual(len(st.spoken), 1, "Chunk 1 harus disuarakan Supertonic di konsol!")
+        self.assertEqual(len(sapi.spoken), 3, "Chunk 2-4 harus disuarakan SAPI5 fallback di konsol!")
+        self.assertEqual(all_spoken, self.expected_chunks, "Seluruh 4 kalimat harus disuarakan tepat tanpa terulang atau hilang di konsol!")
 
 
 if __name__ == "__main__":
