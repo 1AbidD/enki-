@@ -48,10 +48,13 @@ class TeeWriter:
 
     def flush(self):
         self.terminal.flush()
-        self.log.flush()
+        if not self.log.closed:
+            self.log.flush()
 
     def close(self):
-        self.log.close()
+        sys.stdout = self.terminal
+        if not self.log.closed:
+            self.log.close()
 
 
 def get_git_info() -> Tuple[str, bool]:
