@@ -1,0 +1,139 @@
+===========================================================================
+TAHAP 6-FIX-3: MATRIKS KONDISI EDGE x METODE (deteksi jendela otomatis K1)
+===========================================================================
+time                  : 2026-10-20T18:00:30.995007
+git_head              : 61caf17579f43d69fcfa3f025c2590ca7a1feafe
+git_dirty             : False
+python                : D:\ENKI\Enki\venv\Scripts\python.exe
+msedge_path           : C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+default_https_progid  : MSEdgeHTM
+harness_session_id    : 1
+explorer_session_ids  : [1]
+n                     : 5
+conds                 : ['A', 'B', 'C']
+methods               : ['startfile', 'webbrowser', 'explorer', 'cmd_start', 'powershell', 'msedge_direct', 'msedge_newtab']
+detect_timeout_s      : 8.0
+gap_s                 : 8.0
+url                   : https://example.com/
+---------------------------------------------------------------------------
+[A] startfile      #1 success=True  latency=0.762 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] startfile      #2 success=True  latency=0.763 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] startfile      #3 success=True  latency=0.763 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] startfile      #4 success=True  latency=0.764 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] startfile      #5 success=True  latency=0.762 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] webbrowser     #1 success=True  latency=0.76 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=True title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] webbrowser     #2 success=True  latency=0.761 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=True title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] webbrowser     #3 success=True  latency=0.761 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=True title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] webbrowser     #4 success=True  latency=0.759 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=True title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] webbrowser     #5 success=True  latency=0.762 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=True title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] explorer       #1 success=True  latency=1.014 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] explorer       #2 success=True  latency=1.012 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] explorer       #3 success=True  latency=1.012 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] explorer       #4 success=True  latency=1.014 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] explorer       #5 success=True  latency=1.015 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] cmd_start      #1 success=True  latency=0.761 setup_ok=True pre_contam=False procs 0->9 vis 0->2 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] cmd_start      #2 success=True  latency=0.76 setup_ok=True pre_contam=False procs 0->9 vis 0->2 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] cmd_start      #3 success=True  latency=0.762 setup_ok=True pre_contam=False procs 0->9 vis 0->2 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] cmd_start      #4 success=True  latency=0.763 setup_ok=True pre_contam=False procs 0->9 vis 0->2 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] cmd_start      #5 success=True  latency=0.761 setup_ok=True pre_contam=False procs 0->9 vis 0->2 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] powershell     #1 success=True  latency=1.013 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] powershell     #2 success=True  latency=1.012 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] powershell     #3 success=True  latency=1.014 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] powershell     #4 success=True  latency=1.013 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] powershell     #5 success=True  latency=1.012 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_direct  #1 success=True  latency=0.763 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_direct  #2 success=True  latency=0.761 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_direct  #3 success=True  latency=0.76 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_direct  #4 success=True  latency=0.764 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_direct  #5 success=True  latency=0.761 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_newtab  #1 success=True  latency=0.762 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_newtab  #2 success=True  latency=0.762 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_newtab  #3 success=True  latency=0.761 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_newtab  #4 success=True  latency=0.759 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[A] msedge_newtab  #5 success=True  latency=0.762 setup_ok=True pre_contam=False procs 0->9 vis 0->3 err=None ret=None title='Example Domain - Personal - Microsoft\u200b Edge'
+[B] startfile      #1 success=True  latency=0.258 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] startfile      #2 success=True  latency=0.258 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] startfile      #3 success=True  latency=0.254 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] startfile      #4 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] startfile      #5 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] webbrowser     #1 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=True title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] webbrowser     #2 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=True title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] webbrowser     #3 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=True title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] webbrowser     #4 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=True title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] webbrowser     #5 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=True title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] explorer       #1 success=True  latency=0.508 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] explorer       #2 success=True  latency=0.507 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] explorer       #3 success=True  latency=0.508 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] explorer       #4 success=True  latency=0.508 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] explorer       #5 success=True  latency=0.511 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] cmd_start      #1 success=True  latency=0.254 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] cmd_start      #2 success=True  latency=0.257 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] cmd_start      #3 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] cmd_start      #4 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] cmd_start      #5 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] powershell     #1 success=True  latency=0.508 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] powershell     #2 success=True  latency=0.51 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] powershell     #3 success=True  latency=0.508 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] powershell     #4 success=True  latency=0.508 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] powershell     #5 success=True  latency=0.508 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_direct  #1 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_direct  #2 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_direct  #3 success=True  latency=0.258 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_direct  #4 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_direct  #5 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_newtab  #1 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_newtab  #2 success=True  latency=0.257 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_newtab  #3 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_newtab  #4 success=True  latency=0.255 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[B] msedge_newtab  #5 success=True  latency=0.256 setup_ok=True pre_contam=False procs 9->10 vis 2->3 err=None ret=None title='Example Domain and 1 more page - Personal - Microsoft\u200b Edge'
+[C] startfile      #1 success=True  latency=0.509 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] startfile      #2 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] startfile      #3 success=True  latency=0.509 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] startfile      #4 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] startfile      #5 success=True  latency=0.507 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] webbrowser     #1 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=True bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] webbrowser     #2 success=True  latency=0.512 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=True bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] webbrowser     #3 success=True  latency=0.51 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=True bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] webbrowser     #4 success=True  latency=0.512 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=True bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] webbrowser     #5 success=True  latency=1.271 setup_ok=True pre_contam=False procs 8->11 vis 0->3 err=None ret=True bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] explorer       #1 success=True  latency=0.759 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] explorer       #2 success=True  latency=0.76 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] explorer       #3 success=True  latency=0.761 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] explorer       #4 success=True  latency=0.761 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] explorer       #5 success=True  latency=0.761 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] cmd_start      #1 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] cmd_start      #2 success=True  latency=0.513 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] cmd_start      #3 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] cmd_start      #4 success=True  latency=0.507 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] cmd_start      #5 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] powershell     #1 success=True  latency=0.76 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] powershell     #2 success=True  latency=0.762 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] powershell     #3 success=True  latency=0.761 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] powershell     #4 success=True  latency=0.76 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] powershell     #5 success=True  latency=0.771 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_direct  #1 success=True  latency=0.521 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_direct  #2 success=True  latency=1.29 setup_ok=True pre_contam=False procs 8->11 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_direct  #3 success=True  latency=0.517 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_direct  #4 success=True  latency=0.507 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_direct  #5 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_newtab  #1 success=True  latency=0.509 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_newtab  #2 success=True  latency=0.508 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_newtab  #3 success=True  latency=0.507 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_newtab  #4 success=True  latency=0.52 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+[C] msedge_newtab  #5 success=True  latency=0.516 setup_ok=True pre_contam=False procs 8->10 vis 0->3 err=None ret=None bg_procs_after_close=8 vis_after_close=0 title='Example Domain - Personal - Microsoft\u200b Edge'
+
+===========================================================================
+TABEL HASIL (sukses/N)  [setup_gagal, pre_contaminated dalam kurung jika > 0]
+===========================================================================
+metode                    A           B           C     total
+startfile               5/5         5/5         5/5     15/15
+webbrowser              5/5         5/5         5/5     15/15
+explorer                5/5         5/5         5/5     15/15
+cmd_start               5/5         5/5         5/5     15/15
+powershell              5/5         5/5         5/5     15/15
+msedge_direct           5/5         5/5         5/5     15/15
+msedge_newtab           5/5         5/5         5/5     15/15
+
+Kondisi C: msedge.exe masih berjalan di latar setelah WM_CLOSE + 5 s pada 35/35 percobaan.
+Metode andal (5/5 di A, B, C) menurut K4: ['startfile', 'webbrowser', 'explorer', 'cmd_start', 'powershell', 'msedge_direct', 'msedge_newtab']
+JSON: docs\evidence\tahap6_open_url_matrix.json

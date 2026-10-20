@@ -1,0 +1,1992 @@
+{
+ "env": {
+  "time": "2026-10-20T18:19:16.339949",
+  "git_head": "b2a04aa2d72cd7e30e5ce09e8f76a456dc72f427",
+  "git_dirty": false,
+  "python": "D:\\ENKI\\Enki\\venv\\Scripts\\python.exe",
+  "msedge_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  "default_https_progid": "MSEdgeHTM",
+  "harness_session_id": 1,
+  "explorer_session_ids": [
+   1
+  ],
+  "n": 5,
+  "conds": [
+   "A",
+   "B",
+   "C"
+  ],
+  "methods": [
+   "startfile",
+   "webbrowser",
+   "explorer",
+   "cmd_start",
+   "powershell",
+   "msedge_direct",
+   "msedge_newtab"
+  ],
+  "detect_timeout_s": 8.0,
+  "gap_s": 8.0,
+  "url": "https://example.com/"
+ },
+ "table": {
+  "startfile": {
+   "A": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "B": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "C": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "total": {
+    "success": 15,
+    "n": 15
+   }
+  },
+  "webbrowser": {
+   "A": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "B": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "C": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "total": {
+    "success": 15,
+    "n": 15
+   }
+  },
+  "explorer": {
+   "A": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "B": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "C": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "total": {
+    "success": 15,
+    "n": 15
+   }
+  },
+  "cmd_start": {
+   "A": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "B": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "C": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "total": {
+    "success": 15,
+    "n": 15
+   }
+  },
+  "powershell": {
+   "A": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "B": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "C": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "total": {
+    "success": 15,
+    "n": 15
+   }
+  },
+  "msedge_direct": {
+   "A": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "B": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "C": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "total": {
+    "success": 15,
+    "n": 15
+   }
+  },
+  "msedge_newtab": {
+   "A": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "B": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "C": {
+    "success": 5,
+    "n": 5,
+    "setup_fail": 0,
+    "pre_contaminated": 0
+   },
+   "total": {
+    "success": 15,
+    "n": 15
+   }
+  }
+ },
+ "reliable": [
+  "startfile",
+  "webbrowser",
+  "explorer",
+  "cmd_start",
+  "powershell",
+  "msedge_direct",
+  "msedge_newtab"
+ ],
+ "records": [
+  {
+   "cond": "A",
+   "method": "startfile",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.762,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "startfile",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.763,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "startfile",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.763,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "startfile",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.764,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "startfile",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.762,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "webbrowser",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.76,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "webbrowser",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "webbrowser",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "webbrowser",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.759,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "webbrowser",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.762,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "explorer",
+   "trial": 1,
+   "success": true,
+   "latency_s": 1.014,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "explorer",
+   "trial": 2,
+   "success": true,
+   "latency_s": 1.012,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "explorer",
+   "trial": 3,
+   "success": true,
+   "latency_s": 1.012,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "explorer",
+   "trial": 4,
+   "success": true,
+   "latency_s": 1.014,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "explorer",
+   "trial": 5,
+   "success": true,
+   "latency_s": 1.015,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "cmd_start",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "cmd_start",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.76,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "cmd_start",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.762,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "cmd_start",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.763,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "cmd_start",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "powershell",
+   "trial": 1,
+   "success": true,
+   "latency_s": 1.013,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "powershell",
+   "trial": 2,
+   "success": true,
+   "latency_s": 1.012,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "powershell",
+   "trial": 3,
+   "success": true,
+   "latency_s": 1.014,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "powershell",
+   "trial": 4,
+   "success": true,
+   "latency_s": 1.013,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "powershell",
+   "trial": 5,
+   "success": true,
+   "latency_s": 1.012,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_direct",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.763,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_direct",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_direct",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.76,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_direct",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.764,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_direct",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_newtab",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.762,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_newtab",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.762,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_newtab",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_newtab",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.759,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "A",
+   "method": "msedge_newtab",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.762,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "startfile",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.258,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "startfile",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.258,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "startfile",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.254,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "startfile",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "startfile",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "webbrowser",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "webbrowser",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "webbrowser",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "webbrowser",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "webbrowser",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "explorer",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "explorer",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.507,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "explorer",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "explorer",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "explorer",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.511,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "cmd_start",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.254,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "cmd_start",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.257,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "cmd_start",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "cmd_start",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "cmd_start",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "powershell",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "powershell",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.51,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "powershell",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "powershell",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "powershell",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_direct",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_direct",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_direct",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.258,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_direct",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_direct",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_newtab",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_newtab",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.257,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_newtab",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_newtab",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.255,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "B",
+   "method": "msedge_newtab",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.256,
+   "setup": {
+    "setup_ok": true,
+    "background_running": false
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain and 1 more page - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "startfile",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.509,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "startfile",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "startfile",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.509,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "startfile",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "startfile",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.507,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "webbrowser",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "webbrowser",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.512,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "webbrowser",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.51,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "webbrowser",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.512,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "webbrowser",
+   "trial": 5,
+   "success": true,
+   "latency_s": 1.271,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "explorer",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.759,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "explorer",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.76,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "explorer",
+   "trial": 3,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "explorer",
+   "trial": 4,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "explorer",
+   "trial": 5,
+   "success": true,
+   "latency_s": 0.761,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "cmd_start",
+   "trial": 1,
+   "success": true,
+   "latency_s": 0.508,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "cmd_start",
+   "trial": 2,
+   "success": true,
+   "latency_s": 0.513,
+   "setup": {
+    "setup_ok": true,
+    "background_running": true
+   },
+   "pre_contaminated": false,
+   "detected_title": "'Example Domain - Personal - Microsoft\\u200b Edge'"
+  },
+  {
+   "cond": "C",
+   "method": "cmd_start",
+   "ts": "2026-10-20T18:19:16.352110",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.508,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 3
+  },
+  {
+   "cond": "C",
+   "method": "cmd_start",
+   "ts": "2026-10-20T18:19:31.584530",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.507,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 4
+  },
+  {
+   "cond": "C",
+   "method": "cmd_start",
+   "ts": "2026-10-20T18:19:47.066256",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.508,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 5
+  },
+  {
+   "cond": "C",
+   "method": "powershell",
+   "ts": "2026-10-20T18:20:02.641333",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.76,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 1
+  },
+  {
+   "cond": "C",
+   "method": "powershell",
+   "ts": "2026-10-20T18:20:18.423935",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.762,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 2
+  },
+  {
+   "cond": "C",
+   "method": "powershell",
+   "ts": "2026-10-20T18:20:34.150127",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.761,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 3
+  },
+  {
+   "cond": "C",
+   "method": "powershell",
+   "ts": "2026-10-20T18:20:49.876771",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.76,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 4
+  },
+  {
+   "cond": "C",
+   "method": "powershell",
+   "ts": "2026-10-20T18:21:05.605265",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.771,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 5
+  },
+  {
+   "cond": "C",
+   "method": "msedge_direct",
+   "ts": "2026-10-20T18:21:21.430508",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.521,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 1
+  },
+  {
+   "cond": "C",
+   "method": "msedge_direct",
+   "ts": "2026-10-20T18:21:37.032643",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 1.29,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 11,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 2
+  },
+  {
+   "cond": "C",
+   "method": "msedge_direct",
+   "ts": "2026-10-20T18:21:53.390137",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.517,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 3
+  },
+  {
+   "cond": "C",
+   "method": "msedge_direct",
+   "ts": "2026-10-20T18:22:08.951974",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.507,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 4
+  },
+  {
+   "cond": "C",
+   "method": "msedge_direct",
+   "ts": "2026-10-20T18:22:24.491925",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.508,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 5
+  },
+  {
+   "cond": "C",
+   "method": "msedge_newtab",
+   "ts": "2026-10-20T18:22:39.970123",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.509,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 1
+  },
+  {
+   "cond": "C",
+   "method": "msedge_newtab",
+   "ts": "2026-10-20T18:22:55.494645",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.508,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 2
+  },
+  {
+   "cond": "C",
+   "method": "msedge_newtab",
+   "ts": "2026-10-20T18:23:11.012668",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.507,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 3
+  },
+  {
+   "cond": "C",
+   "method": "msedge_newtab",
+   "ts": "2026-10-20T18:23:26.484352",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.52,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 4
+  },
+  {
+   "cond": "C",
+   "method": "msedge_newtab",
+   "ts": "2026-10-20T18:23:42.049468",
+   "setup": {
+    "cond": "C",
+    "procs_after_kill": 0,
+    "window_appeared": true,
+    "wm_close_sent": 2,
+    "procs_after_close": 8,
+    "visible_after_close": 0,
+    "background_running": true,
+    "setup_ok": true
+   },
+   "before": {
+    "edge_procs": 8,
+    "visible_windows": 0,
+    "visible_titles": []
+   },
+   "pre_contaminated": false,
+   "launch_error": null,
+   "launch_return": null,
+   "success": true,
+   "latency_s": 0.516,
+   "detected_title": "Example Domain - Personal - Microsoft​ Edge",
+   "after": {
+    "edge_procs": 10,
+    "visible_windows": 3,
+    "visible_titles": [
+     "Translate page from Russian?",
+     "Restore pages",
+     "Example Domain - Personal - Microsoft​ Edge"
+    ]
+   },
+   "trial": 5
+  }
+ ]
+}

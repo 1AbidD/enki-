@@ -1,0 +1,56 @@
+===========================================================================
+PROBE IN-PROCESS /buka (deteksi jendela otomatis, reset kondisi A tiap percobaan)
+===========================================================================
+time                 : 2026-10-20T17:58:02.799919
+git_head             : 61caf17579f43d69fcfa3f025c2590ca7a1feafe
+git_dirty            : False
+harness_session_id   : 1
+explorer_session_ids : [1]
+default_https_progid : MSEdgeHTM
+N per langkah        : 3, metode os.startfile, url https://example.com/
+
+LANGKAH a: Python polos
+  #1 success=True latency=0.762 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #2 success=True latency=0.761 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #3 success=True latency=0.761 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  => 3/3
+
+[import enki.cli.console OK]
+
+LANGKAH b: setelah import enki.cli.console
+  #1 success=True latency=0.76 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #2 success=True latency=0.763 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #3 success=True latency=0.763 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  => 3/3
+
+[TTSManager speak selesai=True]
+
+LANGKAH c: setelah TTSManager + 1 kalimat
+  #1 success=True latency=0.762 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #2 success=True latency=0.76 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #3 success=True latency=0.763 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  => 3/3
+
+LANGKAH d: os.startfile dari thread latar
+  #1 success=True latency=0.761 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #2 success=True latency=0.759 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #3 success=True latency=0.76 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  => 3/3
+
+[EnkiConsole() dibuat]
+
+LANGKAH e: setelah EnkiConsole() dibuat
+  #1 success=True latency=0.762 procs=0->9 vis=0->2 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #2 success=True latency=0.762 procs=0->9 vis=0->3 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  #3 success=True latency=0.761 procs=0->9 vis=0->2 kill_left=0 err=None title='Example Domain - Personal - Microsoft\u200b Edge'
+  => 3/3
+
+===========================================================================
+RINGKASAN (sukses/N):
+  a: Python polos                          3/3
+  b: setelah import enki.cli.console       3/3
+  c: setelah TTSManager + 1 kalimat        3/3
+  d: os.startfile dari thread latar        3/3
+  e: setelah EnkiConsole() dibuat          3/3
+Hipotesis 'kondisi proses ENKI': DIGUGURKAN untuk kondisi A (semua langkah ENKI >= sukses(a) - 1)
+===========================================================================
