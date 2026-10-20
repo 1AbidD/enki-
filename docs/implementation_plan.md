@@ -1409,12 +1409,12 @@ Pengguna dapat menyediakan persona, gaya bicara, atau instruksi khusus buatan se
   - **S2 (Perintah /skill & In-Memory Lifecycle):** **LULUS**. `/skill list`, `/skill <nama>`, `/skill off`, dan status in-memory terisolasi per sesi tanpa residu ke `config.json`.
   - **S3 (Batas Berkas & Ukuran):** **LULUS**. Berkas >8 KB (8192 bytes) ditolak, token >600 ditolak dengan pesan kesalahan, berkas non-UTF-8 ditolak aman.
   - **S4 (Pembungkusan Tag & Immutability Hash):** **LULUS**. Blok dibungkus `<active_skill name="...">`, tag penutup palsu dinetralkan, hash system prompt tanpa skill tetap `6db1ac9a...`.
-  - **S5 (Contoh Skill di Repo):** **LULUS**. `skills/gaya-ringkas/SKILL.md` (170 tok) dan `skills/format-ringkasan/SKILL.md` (170 tok) tersedia di repo dan valid.
+  - **S5 (Tidak Menambah Kemampuan / Keamanan Utuh):** **LULUS**. Skill tidak menambah kemampuan maupun alat baru, tidak memicu eksekusi shell/python, dan injeksi perintah/tag penutup palsu dinetralkan secara deterministik (`TestTahap7FixS5ExplicitSecurity`). (Catatan Koreksi: label lama yang keliru menamai S5 sebagai "Contoh Skill di Repo" telah dihapus dan dikoreksi).
   - **S6 (Telemetri Transparan):** **LULUS**. Baris telemetri mencetak `... | Skill: <nama> (+<N> tok) | ...` saat skill aktif.
   - **S7 (Zero-Cost Inaktif):** **LULUS**. Saat nonaktif, 0 token ditambahkan ke prompt sistem, tidak ada I/O disk.
   - **S8 (Anggaran Konteks & Prioritas):** **LULUS**. Blok skill + system prompt dipertahankan utuh; riwayat percakapan dipangkas jika batas konteks tercapai.
   - **S9 (Registri & Integritas Router):** **LULUS**. `/skill` terdaftar di `COMMAND_REGISTRY`, muncul di `/help`, dan SHA router `48a03331...` tidak berubah.
-  - **S10 (Pengujian Komprehensif):** **LULUS**. 23 unit test khusus di `tests/test_skills.py` lulus, seluruh 214 test di suite utama lulus hijau (OK, 3 skipped).
+  - **S10 (Cakupan Tes Unit Komprehensif):** **LULUS**. Seluruh aspek S1–S9 teruji dalam tes unit; 23 unit test khusus di `tests/test_skills.py` lulus, dan seluruh 214+ test di suite utama lulus hijau (OK, 3 skipped). (Catatan Koreksi: penamaan diselaraskan persis dengan kriteria S10 pre-registered).
 - **Hasil Kriteria S11 (Benchmark Kualitas & Gaya - Report Only pada `qwen2.5:3b`):**
   - Evaluasi 3 prompt x 3 seed (42, 100, 2026) x 3 mode (27 run):
     | Mode | Rata-rata Token | Rata-rata Karakter | Rata-rata Kalimat | Kepatuhan Gaya |
@@ -1475,7 +1475,7 @@ Pada pengujian live oleh Abid, fitur `/skill` berjalan baik (`/skill list`, akti
   * *Sesudah:* `console.py` memilih suara secara deterministik: jika engine aktif Supertonic digunakan `self.config.tts_voice_supertonic` (`M4`), jika SAPI5 digunakan `self.config.tts_voice`. Selain itu, `tts.py` dan `supertonic.py` memvalidasi suara ke `SUPERTONIC_VALID_VOICES` dan mengembalikan `M4` jika tidak valid.
 - **1b. Reproduksi Toggle & Alasan Suara Numpuk:**
   * `/unmute` tidak membuat worker thread baru (`_ensure_worker` hanya membuat thread jika `is_alive()` bernilai `False`), dan model tidak memanggil `speak()` dua kali (alur `console.py` bercabang secara eksklusif).
-  * Penyebab tumpang tindih audio pada pengujian live adalah ketika Supertonic mengalami error sintesis akibat nama suara tidak valid, engine mengaktifkan fallback SAPI5 tanpa mematikan buffer audio Supertonic yang sedang berbunyi via winsound. Akibatnya SAPI5 mulai berbicara sementara winsound masih menyelesaikan pemutaran audio Supertonic (dual-engine overlap). Perbaikan: `_activate_fallback` langsung memanggil `winsound.PlaySound(None, winsound.SND_PURGE)` untuk menghentikan audio lama sebelum SAPI5 bersuara.
+  * Status Akar Masalah "Suara Numpuk": BELUM TERBUKTI; hipotesis: sisa audio Supertonic + SAPI fallback; menunggu verifikasi live Abid. Jangan ditulis sebagai fakta sebelum verifikasi live! Perbaikan preventif: `_activate_fallback` langsung memanggil `winsound.PlaySound(None, winsound.SND_PURGE)` untuk menghentikan audio Supertonic sebelum SAPI5 bersuara.
 - **1c. Mengapa /web Tidak Memicu Peringatan Suara di Live Test Abid:**
   * Pada alur `/web` di `console.py`, fungsi `run_synced_speech_stream` dipanggil dengan parameter `voice=self.config.tts_voice_supertonic` yang mengirimkan `"M4"` (suara Supertonic yang sah). Karena suara sah, tidak terjadi exception. Sebaliknya pada balasan biasa non-synced dan `/wiki`, parameter yang dikirim adalah `self.config.tts_voice` (`"Microsoft Andika"`).
 - **3a. Investigasi Kriteria S5 & Pergeseran Label:**
@@ -1496,9 +1496,6 @@ Pada pengujian live oleh Abid, fitur `/skill` berjalan baik (`/skill list`, akti
 #### 5. Status Progres & Rekomendasi Langkah Berikutnya
 - **Status Tahap 7:** **SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD** (Jangan menulis DITERIMA/LULUS sebelum verifikasi lead).
 - **Rekomendasi Langkah Berikutnya:** Menunggu audit lead/Abid atas perbaikan Tahap 7-FIX dan bukti di `docs/evidence/tahap7fix.txt`.
-
----
-
 
 ---
 
@@ -1536,6 +1533,37 @@ Memenuhi audit menyeluruh penguji atas Tahap 7-FIX:
   Menegaskan status akar masalah suara numpuk secara jujur: "BELUM TERBUKTI; hipotesis: sisa audio Supertonic + SAPI fallback; menunggu verifikasi live Abid". Tidak boleh ditulis sebagai fakta pasti sebelum diverifikasi live oleh Abid.
 - **R8 (Nol Regresi & Integritas Prompt/Router):**
   Seluruh 229+ tes lama tetap hijau, base system prompt hash tetap persis `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`, dan SHA `enki/core/capability_router.py` tetap persis `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`.
+
+
+#### 3. Hasil Pengujian & Evaluasi Kriteria Tahap 7-FIX-2 (Bukti: `docs/evidence/tahap7fix.txt`)
+- **Metadata Lingkungan:**
+  - Git Commit: `3cd33272fa27d65ea0faf8f60adcede51db2e36d` (tercatat di log git, bukan commit yatim)
+  - Git Dirty: `False`
+  - Base Prompt Hash: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` (Identik 100%)
+  - Router SHA: `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9` (Identik 100%)
+  - Total Unit Test: 232 test lulus hijau (OK, skipped=3)
+- **Hasil Kriteria R1–R8:**
+  - **R1 (Pengungkapan Amend & Yatim HEAD 7f79bdd):** **TERUNGKAP LENGKAP**. Commit `7f79bdd` di-amend menjadi `c63e365` menggunakan `git commit -a --amend --no-edit` demi melipat pembaruan berkas evidence yang dihasilkan saat tree sedang dimodifikasi. Akibatnya, `7f79bdd` menjadi yatim di reflog. Riwayat lengkap diungkapkan transparan via `git reflog -20` dan `git cat-file -t 7f79bdd`. Seluruh commit pasca-insiden dijamin commit baru tanpa amend.
+  - **R2 (Investigasi Hang Pengujian Unit):** **TUNTAS**. Pengujian `test_3c_skill_does_not_affect_wiki` sempat menggantung karena pemanggilan `/wiki` meminta konfirmasi `[y/N]` via `_prompt_user`, yang mengonsumsi input `/exit` dari antrean sehingga giliran berikutnya jatuh ke `builtins.input` mentah tanpa mock stdin. Diperbaiki dengan mengantrekan jawaban `'y'` dan membungkus seluruh unit test dengan `BaseNoHangTestCase` yang melempar `EOFError` jika stdin diakses. Konfirmasi: nol assertion yang dilemahkan atau dihapus.
+  - **R3 (Riwayat 4x Run bench_tahap7fix.py & Debug CountingEngine):** **TERDOKUMENTASI**.
+    * Run 1: V2 gagal (`calls=0`) karena `mgr.wait_done()` hanya menunggu antrean sintesis `_queue.join()`, sementara thread `_play_worker` mengonsumsi dari antrean kedua `_play_queue` secara asinkron. Diperbaiki dengan `time.sleep(0.3)`.
+    * Run 2: Lulus seluruh kriteria pada tree bersih `993bfbd`.
+    * Run 3: `Git Dirty: True` akibat perubahan berkas dokumentasi plan yang sedang diedit.
+    * Run 4: Lulus seluruh kriteria dengan `Git Dirty: False` pada commit `7f79bdd`.
+  - **R4 (V1 Nyata Pasca-Pemutaran Utterance Konsol):** **LULUS**. Setelah siklus 5x `/mute` dan `/unmute` diikuti 1 balasan asisten nyata melalui konsol, thread worker TTS aktif diukur via `threading.enumerate()`: Synth Worker (`ENKI_TTS_Worker`) = 1, Play Worker (`ENKI_TTS_PlayWorker`) = 1. Angka bukan 0/0 melainkan tepat 1 worker aktif per jenis.
+  - **R5 (Pencegahan Dual Engine & Semua Kalimat Terdengar Utuh):** **LULUS**. Pengujian dengan dua engine tiruan (`MockDualSupertonic` dan `MockDualSAPI`) pada skenario Supertonic gagal di chunk ke-2 dari 4 kalimat:
+    * `st.overlap_detected == False` (tidak pernah ada momen di mana kedua engine bersuara bersamaan).
+    * Chunk 1 disuarakan oleh Supertonic (1 chunk).
+    * Chunk 2, 3, 4 disuarakan oleh SAPI5 fallback (3 chunk).
+    * Total 4 chunk disuarakan persis sesuai urutan tanpa ada kalimat yang hilang atau terulang.
+    * Diuji lulus baik melalui pemanggilan `TTSManager.speak` langsung maupun melalui alur konsol `EnkiConsole`.
+  - **R6 (Koreksi Label Plan S5 & S10):** **SELESAI**. Label hasil Tahap 7 dikoreksi: S5 menjadi "Tidak Menambah Kemampuan / Keamanan Utuh" (diuji via `TestTahap7FixS5ExplicitSecurity`) dan S10 menjadi "Cakupan Tes Unit Komprehensif". Klaim lama yang salah label telah dihapus.
+  - **R7 (Status Akar Masalah Suara Numpuk):** **DITEGASKAN**. Status akar masalah suara numpuk ditegaskan sebagai: "BELUM TERBUKTI; hipotesis: sisa audio Supertonic + SAPI fallback; menunggu verifikasi live Abid". Tidak diklaim sebagai fakta pasti.
+  - **R8 (Nol Regresi & Integritas Prompt/Router):** **LULUS**. Seluruh 232 pengujian unit lulus hijau (214 tes lama + 18 tes baru), hash prompt dasar tetap persis `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`, dan SHA `enki/core/capability_router.py` tetap persis `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`.
+
+#### 4. Status Progres & Rekomendasi Langkah Berikutnya
+- **Status Tahap 7:** **MENUNGGU AUDIT LEAD** (Tidak menulis DITERIMA/LULUS).
+- **Rekomendasi Langkah Berikutnya:** Menunggu audit lead/Abid atas perbaikan Tahap 7-FIX-2 dan bukti empiris di `docs/evidence/tahap7fix.txt`.
 
 ### Tahap 5: Screen Reader (OCR Bounding Box) (AKAN DATANG)
 * Deteksi bounding box window aktif.
