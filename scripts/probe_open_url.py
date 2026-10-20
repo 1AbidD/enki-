@@ -257,10 +257,10 @@ def run_trial(cond: str, method: str, fn: Callable[[str], Any], edge_path: str) 
 
 
 class Tee:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, mode: str = "w"):
         self.term = sys.stdout
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.f = open(path, "w", encoding="utf-8")
+        self.f = open(path, mode, encoding="utf-8")
 
     def write(self, s):
         self.term.write(s)
@@ -296,6 +296,7 @@ def confirm_or_exit(assume_yes: bool) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--yes", action="store_true")
+    ap.add_argument("--resume", action="store_true", help="Lanjutkan dari percobaan yang sudah tercatat di evidence.")
     ap.add_argument("--list", action="store_true", help="Hanya cetak jendela Edge saat ini (tanpa taskkill).")
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--conds", default="A,B,C")
@@ -318,7 +319,37 @@ def main() -> None:
         sys.exit(2)
 
     confirm_or_exit(args.yes)
-    tee = Tee(EVIDENCE_TXT)
+
+    import re
+    line_pat = re.compile(
+        r"^\[([ABC])\]\s+(\S+)\s+#(\d+)\s+success=(True|False)\s+latency=(\S+)\s+setup_ok=(True|False)\s+pre_contam=(True|False)"
+    )
+    existing_keys = set()
+    records: List[Dict[str, Any]] = []
+    if args.resume and EVIDENCE_TXT.exists():
+        with open(EVIDENCE_TXT, "r", encoding="utf-8") as f:
+            for line in f:
+                m = line_pat.match(line)
+                if m:
+                    c, mname, tr = m.group(1), m.group(2), int(m.group(3))
+                    existing_keys.add((c, mname, tr))
+                    lat = float(m.group(5)) if m.group(5) != "None" else None
+                    records.append({
+                        "cond": c,
+                        "method": mname,
+                        "trial": tr,
+                        "success": m.group(4) == "True",
+                        "latency_s": lat,
+                        "setup": {
+                            "setup_ok": m.group(6) == "True",
+                            "background_running": "bg_procs_after_close=" in line and "bg_procs_after_close=0" not in line,
+                        },
+                        "pre_contaminated": m.group(7) == "True",
+                        "detected_title": line.split("title=")[-1].strip() if "title=" in line else None,
+                    })
+        print(f"[--resume] Dimuat {len(records)} percobaan yang sudah selesai dari {EVIDENCE_TXT.name}.")
+
+    tee = Tee(EVIDENCE_TXT, mode="a" if existing_keys else "w")
     sys.stdout = tee
 
     head, dirty = get_git_info()
@@ -344,17 +375,20 @@ def main() -> None:
         "gap_s": GAP_S,
         "url": TEST_URL,
     }
-    print("=" * 75)
-    print("TAHAP 6-FIX-3: MATRIKS KONDISI EDGE x METODE (deteksi jendela otomatis K1)")
-    print("=" * 75)
-    for k, v in env.items():
-        print(f"{k:22}: {v}")
-    print("-" * 75)
 
-    records: List[Dict[str, Any]] = []
+    if not existing_keys:
+        print("=" * 75)
+        print("TAHAP 6-FIX-3: MATRIKS KONDISI EDGE x METODE (deteksi jendela otomatis K1)")
+        print("=" * 75)
+        for k, v in env.items():
+            print(f"{k:22}: {v}")
+        print("-" * 75)
+
     for cond in conds:
         for mname, fn in methods:
             for i in range(1, args.n + 1):
+                if (cond, mname, i) in existing_keys:
+                    continue
                 rec = run_trial(cond, mname, fn, edge_path)
                 rec["trial"] = i
                 records.append(rec)
