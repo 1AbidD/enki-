@@ -1392,6 +1392,46 @@ Fakta ini mengindikasikan bahwa penyebab kegagalan berhubungan dengan kondisi li
 - **O5 (Preservasi Keamanan & Nol Regresi):**
   Seluruh rangkaian pengujian unit (232+ tes) tetap lulus hijau (0 fail, 0 error). Hash prompt dasar model tetap persis `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` dan SHA `enki/core/capability_router.py` tetap persis `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`. Fungsi `validate_url`, prompt konfirmasi `[y/N]`, dan seluruh mekanisme mitigasi SSRF tidak mengalami perubahan.
 
+#### Hasil Pengujian & Evaluasi Kriteria Tahap 6-FIX-2 (Bukti: `docs/evidence/tahap6_fix2.txt`)
+- **Metadata Lingkungan:**
+  - Git Commit: `a4e914f4399422e88f2db030a40c1b11a70d5cac` (tercatat resmi di log git, bukan commit yatim)
+  - Git Dirty: `False`
+  - Base Prompt Hash: `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728` (Identik 100%)
+  - Router SHA: `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9` (Identik 100%)
+  - Total Unit Test: 237 test lulus hijau (OK, skipped=3)
+- **Hasil Evaluasi Kriteria O1–O5:**
+  - **O1 (Launcher Proses Terpisah & Urutan Windows):** **LULUS**.
+    * Jalur Windows: `subprocess.Popen(["explorer.exe", url])` (tanpa `shell=True`, tanpa jendela konsol) -> fallback `subprocess.Popen(["cmd", "/c", "start", "", url], creationflags=CREATE_NO_WINDOW)` -> fallback `os.startfile(url)` -> error jujur + URL manual.
+    * Jalur Non-Windows: `webbrowser.open(url)`.
+    * Argumen pemanggilan terverifikasi SELALU berupa `list`, `shell=True` tidak pernah digunakan.
+    * Pengujian keamanan injeksi: URL dengan `&`, spasi (`%20`), tanda kutip ganda/tunggal (`"`, `'`), dan %-encoding (`%22`, `%26`, `%27`) dipassing utuh sebagai elemen list tunggal tanpa menyebabkan pemecahan argumen atau eksekusi perintah liar.
+  - **O2 (Pesan Jujur Tanpa Klaim Jendela Fisik):** **LULUS**.
+    * Format sukses konsol: `[Peramban] Perintah membuka dikirim ke sistem: <url>` dan `(Jika jendela tidak muncul, buka manual: <url>)`.
+    * Verifikasi: tidak ada klaim "membuka" atau "terbuka" sebagai fakta fisik.
+    * Format gagal konsol: `[Error /buka] Gagal membuka peramban: <alasan>` dan `Silakan buka tautan secara manual: <url>`.
+  - **O3 (Pencatatan Audit Log Metode & Hasil):** **LULUS**.
+    * `logs/tool_audit.log` mencatat metode spesifik dan status untuk setiap cabang:
+      - `tool=open_browser | url=<url> | method=explorer | status=OK`
+      - `tool=open_browser | url=<url> | method=cmd_start | status=OK`
+      - `tool=open_browser | url=<url> | method=startfile | status=OK`
+      - `tool=open_browser | url=<url> | method=all_failed | status=ERROR | error=<rincian>`
+      - `tool=open_browser | url=<url> | method=webbrowser | status=OK`
+  - **O4 (Skrip Diagnosa In-Process Mandiri REPORT-ONLY):** **LULUS (DOKUMENTASI TERSEDIA, MENUNGGU ABID)**.
+    * Skrip `scripts/probe_buka_inproc.py` dibuat dan tersedia utuh.
+    * Menjalankan 5 langkah bertahap dengan jeda 5 detik: (a) Python polos; (b) setelah import `enki.cli.console`; (c) setelah `TTSManager` memutar 1 kalimat pendek unmuted; (d) `os.startfile` dari background thread; (e) setelah `EnkiConsole()` diinisialisasi.
+    * Skrip tidak dijalankan oleh agen/benchmark otomatis; khusus disiapkan untuk dijalankan oleh Abid secara manual demi mengidentifikasi langkah pertama yang gagal memunculkan jendela fisik.
+  - **O5 (Preservasi Keamanan & Nol Regresi):** **LULUS**.
+    * Seluruh 237 unit test (termasuk 5 test launcher baru pada `TestTahap6Fix2Launcher`) lulus hijau 100% (0 fail, 0 error, 3 skipped).
+    * Hash SHA-256 base system prompt model tetap persis `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`.
+    * SHA berkas `enki/core/capability_router.py` tetap persis `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`.
+    * `validate_url`, prompt konfirmasi `[y/N]`, dan proteksi SSRF bertahan utuh.
+
+#### Status Akar Masalah & Rekomendasi Langkah Berikutnya:
+- **Status Akar Masalah:** **BELUM PASTI** (Dugaan sementara: kondisi thread atau inisialisasi COM/console di dalam proses interaktif ENKI; menunggu hasil observasi riil Abid via skrip `scripts/probe_buka_inproc.py`).
+- **Status Tahap 6:** **DITERIMA (lead, verifikasi live Abid 19 Okt 2026)**.
+- **Status Tahap 6-FIX-2:** **MENUNGGU VERIFIKASI LIVE ABID**.
+- **Rekomendasi Langkah Berikutnya:** Abid menjalankan skrip `.\venv\Scripts\python scripts/probe_buka_inproc.py` secara mandiri dan melaporkan pada langkah ke berapa jendela browser (Edge) pertama kali gagal muncul.
+
 ---
 
 ### Tahap 7: Skills Folder (/skill) (SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD)
