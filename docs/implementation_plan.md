@@ -1532,6 +1532,76 @@ Jika pengguna mengalami kondisi di mana Edge menolak memunculkan jendela dari ap
 
 ---
 
+### Tahap 6-FIX-4: Ukur Keterlihatan Jendela /buka (Kriteria Pra-Registrasi)
+
+Kriteria dan aturan keputusan berikut dikunci sebelum perubahan kode produksi dan sebelum
+data eksperimen Tahap 6-FIX-4 dikumpulkan. Skrip yang dipakai ulang adalah
+`scripts/probe_open_url.py`, `scripts/probe_buka_inproc.py`, dan jalur produksi
+`enki/tools/web.py::open_in_browser`. Tidak ada kriteria yang akan dilonggarkan setelah
+hasil terlihat.
+
+#### Kriteria M1-M7 — Final Sebelum Kode Produksi dan Data
+
+- **M1 (Detektor keterlihatan per jendela):** Untuk setiap jendela top-level browser yang
+  ditemukan melalui PID proses (`psutil`) dan Win32 `EnumWindows`, catat HWND, PID, judul,
+  `IsWindowVisible`, `IsIconic`, `DWMWA_CLOAKED`, `MonitorFromWindow`/posisi `GetWindowRect`,
+  `GetForegroundWindow`, dan urutan z-order. Coba `IVirtualDesktopManager::
+  IsWindowOnCurrentVirtualDesktop`; jika API COM tidak tersedia/gagal, catat `unknown`
+  beserta alasan, jangan menebak. Catat tumpang-tindih dengan jendela top-level lain dan
+  apakah jendela tersebut berada di atas semua jendela yang bersinggungan; keterbatasan
+  deteksi oklusi parsial dinyatakan. Definisi `terlihat` adalah visible AND NOT iconic AND
+  NOT cloaked AND berada pada monitor. Definisi `terlihat-di-depan` adalah `terlihat` AND
+  (foreground ATAU teratas di antara jendela yang bersinggungan). Laporkan setiap komponen
+  terpisah. Unit test memakai mock Win32/psutil; tidak menjalankan browser atau `input()`.
+- **M2 (Keadaan Edge realistis):** Jangan mereset atau menghentikan Edge pada R1-R3.
+  R1: Edge dan profil/tab Abid dibiarkan; IDE/aplikasi lain dimaksimalkan di atas jendela
+  Edge. R2: jendela Edge yang sama diminimalkan. R3: Edge dipindah ke desktop virtual lain
+  hanya jika dapat dikondisikan otomatis tanpa mengganggu keadaan pengguna; jika tidak,
+  catat tidak diuji dan alasannya. R4: A/B/C lama hanya sebagai pembanding terpisah dan
+  hanya dengan izin eksplisit sebelum terminasi Edge. Catat profil Edge dari `Local State`,
+  profil penerima URL, kondisi pra-uji, dan seluruh jendela browser terkait. Pada R1-R3
+  tutup hanya tab uji yang dibuat oleh harness; jangan menutup atau membunuh Edge Abid.
+- **M3 (Metode dan sampel):** N=5 per sel, jeda minimal 8 detik. Uji launcher produksi
+  (explorer.exe), `os.startfile`, `msedge.exe <url>`, `msedge.exe --new-window <url>`,
+  `msedge.exe --new-tab <url>`, `msedge.exe --profile-directory=<profil aktif> <url>`,
+  serta eksperimen peningkatan fokus pasca-peluncuran (`ShowWindow(SW_RESTORE)` dan
+  `SetForegroundWindow`, dengan trik Alt/`AttachThreadInput` bila diperlukan). Pengukuran
+  fokus hanya menyentuh jendela browser baru/baru aktif milik proses browser, dan tetap
+  mencatat hasil sebelum/sesudah. Ulangi untuk Brave sebagai pembanding jika tersedia.
+  Jangan arahkan uji ke Chrome. R4 menggunakan metode dan batas sampel yang sama bila
+  dilakukan; prosedur reset lama tidak boleh berjalan pada R1-R3.
+- **M4 (Aturan keputusan mekanis):** Kandidat hanya dapat menjadi jalur utama jika mencapai
+  terlihat-di-depan 5/5 pada R1 DAN 5/5 pada R2; angka ini memenuhi ambang minimum 90%
+  dengan sampel N=5 (dan secara operasional mensyaratkan 5/5). Bila beberapa kandidat
+  memenuhi, pilih metode paling awal pada urutan M3, lalu fallback berurutan menurut
+  proporsi terlihat-di-depan gabungan R1+R2 menurun dan urutan M3 saat seri. Jika tidak
+  ada kandidat, jangan mengubah launcher produksi dan jangan mengklaim perbaikan. Jika
+  hanya `terlihat` yang tercapai, catat bahwa jendela mungkin berada di belakang/desktop
+  lain dan pertimbangkan petunjuk itu tanpa klaim keberhasilan fisik. Akar masalah hanya
+  disebut terbukti jika metrik menunjukkan sebab yang spesifik dan konsisten; selain itu
+  tulis **BELUM PASTI**.
+- **M5 (Syarat perubahan fokus produksi):** Jika dan hanya jika M4 mendukung, perubahan
+  `open_in_browser` minimal: fokus hanya jendela browser baru/berubah sejak peluncuran,
+  tanpa dependensi baru, tanpa `shell=True`, argumen subprocess berupa list, hanya URL
+  hasil `validate_url`, latensi tambahan <=3 detik, opsi konfigurasi `browser_focus: true`
+  dengan default aman, dan tes unit mock tanpa Win32 nyata. Jika syarat ini tidak dapat
+  dipenuhi, tidak menerapkan fokus di produksi.
+- **M6 (Klaim jujur):** Pesan tetap `[Peramban] Perintah membuka dikirim ke sistem: <url>`
+  serta tautan manual. Tidak ada klaim bahwa jendela telah terbuka atau terlihat.
+- **M7 (Integritas):** `validate_url`, SSRF, konfirmasi `[y/N]`, router
+  (`enki/core/capability_router.py`, SHA-256
+  `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`) dan hash prompt
+  dasar (`6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`) tidak
+  berubah. Seluruh tes lama tetap hijau (baseline terdokumentasi: 237 tes, 3 skip).
+  Bukti adalah skrip permanen di `scripts/` dan hasil di `docs/evidence/`. Header bukti
+  mencatat Git HEAD, `Git Dirty=False`, dan bahwa run berlangsung dari tree bersih. Jika
+  run di-resume atau skrip diedit di tengah, ungkapkan pada header dan laporan. Maksimum
+  dua putaran eksperimen dan satu putaran perbaikan; bila tak ada metode memenuhi M4,
+  berhenti dan dokumentasikan keterbatasan lingkungan serta mitigasi pengguna (Startup
+  boost/background apps Edge, memilih browser lain, atau restart).
+
+---
+
 ### Tahap 7: Skills Folder (/skill) (SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD)
 
 #### 1. Tujuan & Filosofi Desain
@@ -1746,5 +1816,4 @@ Memenuhi audit menyeluruh penguji atas Tahap 7-FIX:
 * Deteksi bounding box window aktif.
 * Komparasi langsung Windows Media OCR vs RapidOCR pada layar VS Code.
 * Integrasi tool `screen_inspect`.
-
 
