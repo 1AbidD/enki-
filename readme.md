@@ -121,4 +121,4 @@ Proyek ini dikerjakan dengan disiplin evaluasi yang ketat:
 
 ## Lisensi
 
-Belum ditentukan. Tambahkan berkas `LICENSE` sebelum membagikan proyek ini secara luas.
+Belum ditentukan. 
