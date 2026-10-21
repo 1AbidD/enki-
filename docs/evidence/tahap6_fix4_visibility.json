@@ -1,0 +1,996 @@
+{
+  "time": "2026-10-21T16:42:58.757186",
+  "git_head": "381597bdac733856f30693ff98beaf8c9a727731",
+  "git_dirty": false,
+  "git_status_entries": [],
+  "python": "D:\\ENKI\\Enki\\venv\\Scripts\\python.exe",
+  "harness_session_id": 1,
+  "explorer_session_ids": [
+    1
+  ],
+  "default_https_progid": "MSEdgeHTM",
+  "edge_process_count": 7,
+  "edge_top_level_window_count": 5,
+  "edge_minimize_target_count": 0,
+  "edge_visible_window_count": 0,
+  "brave_process_count": 9,
+  "edge_profiles": {
+    "available": true,
+    "last_used": "Default",
+    "profiles": [
+      {
+        "directory": "Default",
+        "display_name": "Profile 1",
+        "active_last_used": true
+      }
+    ]
+  },
+  "browser_available": {
+    "edge": true,
+    "brave": true
+  },
+  "foreground": {
+    "pid": 6320,
+    "process": "Code.exe",
+    "maximized": true,
+    "is_browser": false
+  },
+  "condition_readiness": {
+    "R1": {
+      "ready": false,
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground"
+    },
+    "R2": {
+      "ready": false,
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan"
+    },
+    "R3": {
+      "ready": false,
+      "reason": "Tidak diuji: tidak tersedia enumerasi/pembuatan desktop virtual yang aman dengan API publik ini"
+    },
+    "R4": {
+      "ready": false,
+      "reason": "Tidak dijalankan: reset A/B/C akan menghentikan Edge dan belum ada izin eksplisit untuk taskkill"
+    }
+  },
+  "method_order": [
+    "launcher_explorer",
+    "os_startfile",
+    "browser_direct",
+    "browser_new_window",
+    "browser_new_tab",
+    "browser_active_profile",
+    "launcher_explorer_focus"
+  ],
+  "matrix": [
+    {
+      "browser": "edge",
+      "condition": "R1",
+      "method": "launcher_explorer",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R1",
+      "method": "os_startfile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R1",
+      "method": "browser_direct",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R1",
+      "method": "browser_new_window",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R1",
+      "method": "browser_new_tab",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R1",
+      "method": "browser_active_profile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R1",
+      "method": "launcher_explorer_focus",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R2",
+      "method": "launcher_explorer",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R2",
+      "method": "os_startfile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R2",
+      "method": "browser_direct",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R2",
+      "method": "browser_new_window",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R2",
+      "method": "browser_new_tab",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R2",
+      "method": "browser_active_profile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "edge",
+      "condition": "R2",
+      "method": "launcher_explorer_focus",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R1",
+      "method": "launcher_explorer",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R1",
+      "method": "os_startfile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R1",
+      "method": "browser_direct",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R1",
+      "method": "browser_new_window",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R1",
+      "method": "browser_new_tab",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R1",
+      "method": "browser_active_profile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R1",
+      "method": "launcher_explorer_focus",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R2",
+      "method": "launcher_explorer",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R2",
+      "method": "os_startfile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R2",
+      "method": "browser_direct",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R2",
+      "method": "browser_new_window",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R2",
+      "method": "browser_new_tab",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R2",
+      "method": "browser_active_profile",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    },
+    {
+      "browser": "brave",
+      "condition": "R2",
+      "method": "launcher_explorer_focus",
+      "n_requested": 5,
+      "n_observed": 0,
+      "status": "NOT_RUN_PRECONDITION",
+      "reason": "Ada 5 HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
+      "components": {
+        "visible": null,
+        "iconic": null,
+        "cloaked": null,
+        "on_monitor": null,
+        "foreground": null,
+        "z_order_topmost_intersecting": null,
+        "visible_in_front": null
+      }
+    }
+  ],
+  "windows": [
+    {
+      "hwnd": 330264,
+      "pid": 4252,
+      "process": "brave.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 39,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 199208,
+      "pid": 21808,
+      "process": "brave.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 40,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 199232,
+      "pid": 4252,
+      "process": "brave.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 42,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 199236,
+      "pid": 4252,
+      "process": "brave.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        26,
+        26,
+        1178,
+        654
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 43,
+      "on_monitor": true,
+      "overlapping_hwnds": [
+        19335400,
+        47843634,
+        65848,
+        66048
+      ],
+      "z_order_topmost_intersecting": false,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 264770,
+      "pid": 4252,
+      "process": "brave.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 44,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 330316,
+      "pid": 8904,
+      "process": "brave.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        136,
+        39
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 45,
+      "on_monitor": true,
+      "overlapping_hwnds": [
+        19335400,
+        590788,
+        852212,
+        65848,
+        66048
+      ],
+      "z_order_topmost_intersecting": false,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 3212834,
+      "pid": 6188,
+      "process": "msedge.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        136,
+        39
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 50,
+      "on_monitor": true,
+      "overlapping_hwnds": [
+        19335400,
+        590788,
+        852212,
+        65848,
+        66048
+      ],
+      "z_order_topmost_intersecting": false,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 2164200,
+      "pid": 25808,
+      "process": "msedge.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        179,
+        179,
+        1331,
+        807
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 52,
+      "on_monitor": true,
+      "overlapping_hwnds": [
+        19335400,
+        47843634,
+        65848,
+        66048
+      ],
+      "z_order_topmost_intersecting": false,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 132598,
+      "pid": 25808,
+      "process": "msedge.exe",
+      "title": "",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 53,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 199222,
+      "pid": 4252,
+      "process": "brave.exe",
+      "title": "[unrelated browser title redacted]",
+      "visible": true,
+      "iconic": true,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        -25600,
+        -25600,
+        -25441,
+        -25573
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 290,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 133676,
+      "pid": 21808,
+      "process": "brave.exe",
+      "title": "Default IME",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 41,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 395854,
+      "pid": 8904,
+      "process": "brave.exe",
+      "title": "Default IME",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 46,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 132606,
+      "pid": 6188,
+      "process": "msedge.exe",
+      "title": "Default IME",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 51,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 132624,
+      "pid": 25808,
+      "process": "msedge.exe",
+      "title": "Default IME",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 54,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 264746,
+      "pid": 4252,
+      "process": "brave.exe",
+      "title": "MSCTFIME UI",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 288,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    },
+    {
+      "hwnd": 199238,
+      "pid": 4252,
+      "process": "brave.exe",
+      "title": "Default IME",
+      "visible": false,
+      "iconic": false,
+      "cloaked": false,
+      "cloaked_error": null,
+      "rect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "foreground": false,
+      "current_virtual_desktop": true,
+      "virtual_desktop_error": null,
+      "z_order": 289,
+      "on_monitor": false,
+      "overlapping_hwnds": [],
+      "z_order_topmost_intersecting": true,
+      "visible_according_to_criteria": false,
+      "visible_in_front": false
+    }
+  ],
+  "run_note": "Snapshot awal HEAD cd21378be30c99ad2d842ee8681042dd4c074aa7 diregenerasi di aab76e6e1b14a31492e79318808a7bc979d635b2 untuk redaksi command line/path/judul; snapshot kedua menemukan persegi Win32 kosong perlu dikecualikan. Keduanya snapshot saja, tanpa meluncurkan/menutup browser. Ini rerun setelah koreksi geometri; tidak ada resume dan script tidak diedit di tengah run."
+}
