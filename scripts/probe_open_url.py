@@ -53,7 +53,12 @@ _EnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM) if
 
 
 def _intersects(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> bool:
-    return a[0] < b[2] and a[2] > b[0] and a[1] < b[3] and a[3] > b[1]
+    return (
+        a[0] < a[2] and a[1] < a[3]
+        and b[0] < b[2] and b[1] < b[3]
+        and a[0] < b[2] and a[2] > b[0]
+        and a[1] < b[3] and a[3] > b[1]
+    )
 
 
 def evaluate_window_visibility(hwnd: int, windows: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -63,6 +68,8 @@ def evaluate_window_visibility(hwnd: int, windows: List[Dict[str, Any]]) -> Dict
     monitor_rects = own.get("monitor_rects") or []
     on_monitor = bool(
         rect
+        and rect[0] < rect[2]
+        and rect[1] < rect[3]
         and any(
             rect[0] >= monitor[0] and rect[1] >= monitor[1]
             and rect[2] <= monitor[2] and rect[3] <= monitor[3]
@@ -470,11 +477,17 @@ def get_strict_git_info() -> Tuple[str, bool, List[str]]:
 def capture_visibility_report() -> Dict[str, Any]:
     head, dirty, status_entries = get_strict_git_info()
     windows = list_all_windows_with_visibility(("msedge.exe", "brave.exe"))
-    edge_windows = [
-        window for window in windows
-        if window["process"] == "msedge.exe"
-        and window["title"]
-        and (window["visible"] or window["iconic"])
+    edge_top_level_windows = [
+        window for window in windows if window["process"] == "msedge.exe"
+    ]
+    edge_minimize_targets = [
+        window for window in edge_top_level_windows
+        if window["visible"] or window["iconic"]
+        if window["title"] not in ("Default IME", "MSCTFIME UI")
+    ]
+    edge_visible_windows = [
+        window for window in edge_minimize_targets
+        if window["visible"] and not window["iconic"]
     ]
     foreground_hwnd = int(user32.GetForegroundWindow() or 0) if sys.platform == "win32" else 0
     foreground_pid = wintypes.DWORD()
@@ -498,17 +511,19 @@ def capture_visibility_report() -> Dict[str, Any]:
 
     readiness = {
         "R1": {
-            "ready": bool(edge_windows and foreground_process and foreground_process.lower() != "msedge.exe"
+            "ready": bool(edge_visible_windows and foreground_process
+                          and foreground_process.lower() != "msedge.exe"
                           and foreground_maximized),
-            "reason": "Edge window visible, non-Edge foreground maximized"
-            if edge_windows and foreground_process and foreground_process.lower() != "msedge.exe"
+            "reason": "Edge visible, non-Edge foreground maximized"
+            if edge_visible_windows and foreground_process and foreground_process.lower() != "msedge.exe"
             and foreground_maximized
             else "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
         },
         "R2": {
-            "ready": bool(edge_windows),
+            "ready": bool(edge_minimize_targets),
             "reason": "Ada HWND Edge yang dapat diminimalkan untuk pengujian"
-            if edge_windows else "Tidak ada HWND Edge; proses background saja tidak bisa menjadi target minimize",
+            if edge_minimize_targets
+            else f"Ada {len(edge_top_level_windows)} HWND Edge, tetapi 0 jendela Edge visible/minimized yang aman ditargetkan",
         },
         "R3": {
             "ready": False,
@@ -562,6 +577,9 @@ def capture_visibility_report() -> Dict[str, Any]:
         "explorer_session_ids": explorer_sessions(),
         "default_https_progid": default_https_progid(),
         "edge_process_count": len(edge_pids()),
+        "edge_top_level_window_count": len(edge_top_level_windows),
+        "edge_minimize_target_count": len(edge_minimize_targets),
+        "edge_visible_window_count": len(edge_visible_windows),
         "brave_process_count": count_browser_processes("brave.exe"),
         "edge_profiles": edge_profile_inventory(),
         "browser_available": {

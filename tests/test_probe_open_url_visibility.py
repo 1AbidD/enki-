@@ -75,6 +75,32 @@ class TestWindowVisibilityMetrics(unittest.TestCase):
         self.assertEqual(result["overlapping_hwnds"], [])
         self.assertTrue(result["z_order_topmost_intersecting"])
 
+    def test_empty_rect_is_not_on_monitor_or_an_occluding_window(self):
+        empty_window = {**self.browser, "rect": (0, 0, 0, 0), "foreground": False}
+        covering = {
+            "hwnd": 20,
+            "visible": True,
+            "iconic": False,
+            "cloaked": False,
+            "rect": (0, 0, 100, 100),
+            "z_order": 1,
+        }
+
+        result = evaluate_window_visibility(10, [empty_window, covering])
+
+        self.assertFalse(result["on_monitor"])
+        self.assertFalse(result["visible_according_to_criteria"])
+        self.assertEqual(result["overlapping_hwnds"], [])
+        self.assertTrue(result["z_order_topmost_intersecting"])
+
+    def test_unknown_cloaking_state_does_not_count_as_visible(self):
+        window = {**self.browser, "cloaked": None}
+
+        result = evaluate_window_visibility(10, [window])
+
+        self.assertFalse(result["visible_according_to_criteria"])
+        self.assertFalse(result["visible_in_front"])
+
 
 if __name__ == "__main__":
     unittest.main()
