@@ -1,4 +1,6 @@
-# Rencana Implementasi: ENKI (Local AI Assistant) - v3.13
+# Rencana Implementasi: ENKI (Local AI Assistant) - v3.14
+
+*Ringkasan Perubahan v3.14: Tahap 6-FIX-4 mendaftarkan M1-M7 sebelum perubahan kode/data, memperluas detektor jendela dan menambah 6 unit test mock. Snapshot Windows dari tree bersih menemukan 7 proses Edge tetapi 0 jendela Edge terlihat/minimized yang dapat ditargetkan; R1/R2 tidak dapat dikondisikan dan seluruh 28 sel M3 tidak dijalankan. Tidak ada perubahan kode produksi; M4 tidak dapat menilai metode dan akar masalah tetap BELUM PASTI. Suite penuh terakhir dari tree bersih: 243 test, 3 skip; satu rerun sebelumnya gagal pada uji model stokastik dan kemudian diulang. Hash prompt dasar dan SHA router tidak berubah. Status akhir: MENUNGGU VERIFIKASI LIVE ABID.*
 
 *Ringkasan Perubahan v3.13: Penyelesaian pengujian Tahap 6-FIX-3. Probe in-process (3/3 pada semua 5 langkah) menggugurkan hipotesis 'kondisi proses ENKI'. Matriks 105 percobaan (Kondisi A/B/C x 7 metode x N=5) menghasilkan sukses 100% (105/105) dengan deteksi jendela Edge otomatis K1. Berdasarkan aturan keputusan K4, launcher berurutan Windows (explorer -> cmd start -> startfile) terbukti andal di semua kondisi dan dipertahankan. 237 test suite hijau, prompt hash dan router SHA tetap identik. Status: MENUNGGU AUDIT LEAD.*
 
@@ -1600,6 +1602,66 @@ hasil terlihat.
   berhenti dan dokumentasikan keterbatasan lingkungan serta mitigasi pengguna (Startup
   boost/background apps Edge, memilih browser lain, atau restart).
 
+#### Hasil Snapshot, Batas Kondisi, dan Keputusan M4
+
+- **Bukti M1 (snapshot saja, bukan percobaan membuka URL):** `docs/evidence/tahap6_fix4_visibility.txt`
+  dan `.json`, dikumpulkan 2026-10-21 16:42:58 dari Git HEAD
+  `381597bdac733856f30693ff98beaf8c9a727731`, `Git Dirty=False`, tree bersih. Snapshot
+  diulang setelah dua koreksi harness yang diungkapkan di header (redaksi command line/path
+  proses pada HEAD sebelumnya; lalu pembetulan persegi Win32 kosong agar tidak dianggap
+  monitor/oklusi). Semua snapshot hanya membaca keadaan; harness tidak membuka/menutup
+  tab, meminimalkan, atau menghentikan browser.
+- **Data mentah lingkungan:** ProgID HTTPS `MSEdgeHTM`; 7 proses Edge; 5 HWND top-level
+  yang dimiliki proses Edge, tetapi 0 jendela Edge yang terlihat dan 0 target minimize
+  visible/iconic yang aman. Baris HWND Edge yang terdeteksi tidak membuktikan adanya tab
+  uji atau halaman tertentu. Brave tersedia (9 proses, ada HWND minimized/off-monitor).
+  `Local State` hanya mencatat `last_used=Default` dan satu profil `Default` dengan nama
+  tampilan `Profile 1`; ini berbeda dari fakta terdahulu tentang profil `Personal`.
+  Profil penerima URL tidak dapat ditentukan karena tidak ada URL yang diluncurkan.
+  Foreground saat snapshot adalah `Code.exe`, maximized; kondisi R1 tetap tidak siap karena
+  Edge sendiri tidak terlihat.
+- **Kesiapan kondisi:** R1 tidak siap (tidak ada jendela Edge terlihat); R2 tidak siap
+  (5 HWND Edge, tetapi 0 target visible/minimized yang aman untuk diminimalkan); R3 tidak
+  diuji karena tidak ada cara API publik yang aman untuk mengondisikan desktop virtual
+  lain secara otomatis. R4 A/B/C tidak dijalankan karena akan menghentikan Edge dan izin
+  eksplisit untuk tindakan itu tidak diberikan.
+- **M3, tanpa menambah atau mengubah metode setelah kriteria:** untuk Edge dan Brave,
+  setiap metode (`launcher_explorer`, `os_startfile`, executable langsung,
+  `--new-window`, `--new-tab`, profil aktif, launcher+fokus) pada R1 dan R2 tercatat
+  `NOT_RUN_PRECONDITION`, `0/5 teramati`, komponen `visible`, `iconic`, `cloaked`,
+  `on-monitor`, `foreground`, z-order, dan `visible-in-front` bernilai `N/A`. Jumlah
+  28 sel; tidak ada tabel sukses/kegagalan per metode karena tidak ada peluncuran.
+  R3/R4 juga tidak menghasilkan percobaan.
+- **Keputusan M4:** tidak ada data terlihat-di-depan yang dapat diranking; karena itu
+  kriteria 5/5 pada R1 dan R2 **tidak dapat dievaluasi**. Tidak ada kandidat yang boleh
+  dipilih, tidak ada perubahan `open_in_browser`, dan tidak ada `browser_focus` config.
+  Ini bukan bukti bahwa metode gagal. Keputusan adalah keterbatasan lingkungan
+  pengukuran; jangan mengklaim perbaikan.
+- **Akar masalah:** **BELUM PASTI**. Snapshot menunjukkan proses Edge dan beberapa HWND
+  tak terlihat, tetapi tidak ada URL/tab yang dibuat oleh probe sehingga hipotesis
+  “tab dibuat tetapi jendela tidak terlihat” belum diuji atau dibuktikan pada run ini.
+  Perbedaan profil `Personal` vs `Default` juga belum terjelaskan.
+- **Mitigasi pengguna sementara:** periksa Alt+Tab dan desktop virtual Windows; buka
+  `edge://settings/system`, matikan Startup boost serta “Continue running background
+  extensions and apps when Microsoft Edge is closed”, lalu restart Edge/ENKI. Jika perlu,
+  pilih browser default lain yang Abid dapat verifikasi langsung. Ini saran mitigasi,
+  bukan akar masalah yang terbukti.
+- **Tes dan integritas:** tes detektor mock baru 6/6 dan tes launcher `/buka` terarah 5/5
+  berhasil. Suite `.\venv\Scripts\python -m unittest discover -s tests -v` terakhir dari
+  tree bersih pada HEAD `83db803d99e3f1b0f15d476f94eb482bcfc3e6ac`: 243 tes, 3 skip,
+  output `OK`. Sebelum itu satu run tree-bersih gagal pada uji prompt-injection LLM
+  stokastik, lalu diulang tanpa perubahan kode dan berhasil; run awal ketika Ollama belum
+  aktif juga gagal pada 2 test dengan 2 error. Semua output lengkap dicatat di
+  `docs/evidence/tahap6_fix4_tests_*.txt`; payload model yang memuat perintah destruktif
+  disunting pada salinan evidence, kegagalannya tetap dicatat.
+  Hash prompt dasar `6db1ac9a38b2045f7976cee71dfa60b4b9d7251489483faea49c6bfa7bfdb728`;
+  SHA router `48a03331881d8b611a4dbf940d6f08bbf804dc4740b1d6dbb1f359156d79d4a9`.
+  `validate_url`, SSRF, prompt konfirmasi, router, dan kode produksi `open_in_browser`
+  tidak diubah.
+- **Batas putaran:** karena pra-kondisi R1/R2 tidak terpenuhi, putaran M2/M3 pertama tidak
+  dijalankan; putaran kedua dan putaran perbaikan juga tidak dijalankan. Tidak ada browser
+  nyata yang dibuka oleh harness. Status akhir: **MENUNGGU VERIFIKASI LIVE ABID**.
+
 ---
 
 ### Tahap 7: Skills Folder (/skill) (SELESAI DIIMPLEMENTASI, MENUNGGU AUDIT LEAD)
@@ -1816,4 +1878,3 @@ Memenuhi audit menyeluruh penguji atas Tahap 7-FIX:
 * Deteksi bounding box window aktif.
 * Komparasi langsung Windows Media OCR vs RapidOCR pada layar VS Code.
 * Integrasi tool `screen_inspect`.
-
