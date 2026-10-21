@@ -414,12 +414,12 @@ def edge_profile_inventory() -> Dict[str, Any]:
         return {"available": False, "reason": "LOCALAPPDATA tidak tersedia"}
     local_state = Path(local_app_data) / "Microsoft" / "Edge" / "User Data" / "Local State"
     if not local_state.is_file():
-        return {"available": False, "path": str(local_state), "reason": "Local State tidak ditemukan"}
+        return {"available": False, "reason": "Local State tidak ditemukan"}
     try:
         with local_state.open("r", encoding="utf-8") as state_file:
             state = json.load(state_file)
     except (OSError, json.JSONDecodeError) as exc:
-        return {"available": False, "path": str(local_state), "reason": f"{type(exc).__name__}: {exc}"}
+        return {"available": False, "reason": f"{type(exc).__name__}: {exc}"}
 
     profile_state = state.get("profile", {})
     active = profile_state.get("last_used")
@@ -436,7 +436,6 @@ def edge_profile_inventory() -> Dict[str, Any]:
         "available": True,
         "last_used": active,
         "profiles": profiles,
-        "local_state_path": str(local_state),
     }
 
 
@@ -479,25 +478,23 @@ def capture_visibility_report() -> Dict[str, Any]:
     ]
     foreground_hwnd = int(user32.GetForegroundWindow() or 0) if sys.platform == "win32" else 0
     foreground_pid = wintypes.DWORD()
-    foreground_title = ""
     foreground_maximized: Optional[bool] = None
     foreground_process = None
     if foreground_hwnd:
         user32.GetWindowThreadProcessId(
             wintypes.HWND(foreground_hwnd), ctypes.byref(foreground_pid)
         )
-        title_len = user32.GetWindowTextLengthW(wintypes.HWND(foreground_hwnd))
-        if title_len:
-            title_buf = ctypes.create_unicode_buffer(title_len + 1)
-            user32.GetWindowTextW(
-                wintypes.HWND(foreground_hwnd), title_buf, title_len + 1
-            )
-            foreground_title = title_buf.value
         foreground_maximized = bool(user32.IsZoomed(wintypes.HWND(foreground_hwnd)))
         try:
             foreground_process = psutil.Process(foreground_pid.value).name()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             foreground_process = "unavailable"
+    for window in windows:
+        title = window.get("title") or ""
+        if title and title not in ("Default IME", "MSCTFIME UI") and "Example Domain" not in title:
+            window["title"] = "[unrelated browser title redacted]"
+        window.pop("monitor_rects", None)
+    browser_paths = {"edge": find_msedge_path(), "brave": find_brave_path()}
 
     readiness = {
         "R1": {
@@ -522,7 +519,6 @@ def capture_visibility_report() -> Dict[str, Any]:
             "reason": "Tidak dijalankan: reset A/B/C akan menghentikan Edge dan belum ada izin eksplisit untuk taskkill",
         },
     }
-    browser_paths = {"edge": find_msedge_path(), "brave": find_brave_path()}
     methods = [
         "launcher_explorer",
         "os_startfile",
@@ -565,15 +561,18 @@ def capture_visibility_report() -> Dict[str, Any]:
         "harness_session_id": session_id(os.getpid()),
         "explorer_session_ids": explorer_sessions(),
         "default_https_progid": default_https_progid(),
-        "edge_processes": _browser_process_inventory("msedge.exe"),
+        "edge_process_count": len(edge_pids()),
+        "brave_process_count": count_browser_processes("brave.exe"),
         "edge_profiles": edge_profile_inventory(),
-        "browser_paths": browser_paths,
+        "browser_available": {
+            "edge": browser_paths["edge"] is not None,
+            "brave": browser_paths["brave"] is not None,
+        },
         "foreground": {
-            "hwnd": foreground_hwnd or None,
             "pid": foreground_pid.value or None,
             "process": foreground_process,
-            "title": foreground_title,
             "maximized": foreground_maximized,
+            "is_browser": foreground_process in ("msedge.exe", "brave.exe"),
         },
         "condition_readiness": readiness,
         "method_order": methods,
@@ -582,19 +581,15 @@ def capture_visibility_report() -> Dict[str, Any]:
     }
 
 
-def _browser_process_inventory(browser_name: str) -> List[Dict[str, Any]]:
-    processes: List[Dict[str, Any]] = []
-    for process in psutil.process_iter(["name", "cmdline"]):
+def count_browser_processes(browser_name: str) -> int:
+    count = 0
+    for process in psutil.process_iter(["name"]):
         try:
             if (process.info.get("name") or "").lower() == browser_name:
-                processes.append({
-                    "pid": process.pid,
-                    "name": process.info.get("name"),
-                    "cmdline": process.info.get("cmdline"),
-                })
+                count += 1
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-    return processes
+    return count
 
 
 # ----------------------------------------------------------------------------- kontrol Edge
@@ -730,6 +725,7 @@ def main() -> None:
     ap.add_argument("--resume", action="store_true", help="Lanjutkan dari percobaan yang sudah tercatat di evidence.")
     ap.add_argument("--list", action="store_true", help="Hanya cetak jendela Edge saat ini (tanpa taskkill).")
     ap.add_argument("--visibility-list", action="store_true", help="Catat metrik keterlihatan tanpa meluncurkan browser.")
+    ap.add_argument("--visibility-note", default="", help="Catatan run yang dicantumkan di evidence snapshot.")
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--conds", default="A,B,C")
     ap.add_argument("--methods", default="")
@@ -746,6 +742,7 @@ def main() -> None:
         return
     if args.visibility_list:
         report = capture_visibility_report()
+        report["run_note"] = args.visibility_note
         with VISIBILITY_EVIDENCE_JSON.open("w", encoding="utf-8") as evidence_file:
             json.dump(report, evidence_file, ensure_ascii=False, indent=2)
             evidence_file.write("\n")
@@ -753,7 +750,8 @@ def main() -> None:
             f"Git HEAD: {report['git_head']}\n"
             f"Git Dirty={report['git_dirty']}\n"
             f"Dijalankan dari tree bersih: {not report['git_dirty']}\n"
-            "Run: snapshot diagnostik, bukan resume; script tidak diedit di tengah run.\n\n"
+            "Run: snapshot diagnostik, bukan resume; script tidak diedit di tengah run.\n"
+            f"Catatan: {report['run_note'] or '(tidak ada)'}\n\n"
         )
         with VISIBILITY_EVIDENCE.open("w", encoding="utf-8") as evidence_file:
             evidence_file.write(header)
