@@ -13,6 +13,7 @@ jendela Edge di layar. Simpan pekerjaan di Edge sebelum menjalankan.
 
 Pemakaian:
     .\\venv\\Scripts\\python scripts\\probe_open_url.py --list        # hanya daftar jendela Edge (aman)
+    .\\venv\\Scripts\\python scripts\\probe_open_url.py --visibility-list  # snapshot M1, tanpa membuka browser
     .\\venv\\Scripts\\python scripts\\probe_open_url.py               # matriks penuh (minta konfirmasi)
     .\\venv\\Scripts\\python scripts\\probe_open_url.py --yes         # matriks tanpa prompt (setelah izin)
 """
@@ -25,6 +26,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 import webbrowser
 from ctypes import wintypes
 from pathlib import Path
@@ -35,6 +37,8 @@ import psutil
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EVIDENCE_TXT = REPO_ROOT / "docs" / "evidence" / "tahap6_open_url_matrix.txt"
 EVIDENCE_JSON = REPO_ROOT / "docs" / "evidence" / "tahap6_open_url_matrix.json"
+VISIBILITY_EVIDENCE = REPO_ROOT / "docs" / "evidence" / "tahap6_fix4_visibility.txt"
+VISIBILITY_EVIDENCE_JSON = REPO_ROOT / "docs" / "evidence" / "tahap6_fix4_visibility.json"
 
 TEST_URL = "https://example.com/"
 MARKER = "Example Domain"
@@ -46,6 +50,235 @@ WM_CLOSE = 0x0010
 user32 = ctypes.WinDLL("user32", use_last_error=True) if sys.platform == "win32" else None
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True) if sys.platform == "win32" else None
 _EnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM) if sys.platform == "win32" else None
+
+
+def _intersects(a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> bool:
+    return a[0] < b[2] and a[2] > b[0] and a[1] < b[3] and a[3] > b[1]
+
+
+def evaluate_window_visibility(hwnd: int, windows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Calculate user-visible/front metrics from mocked or collected top-level window data."""
+    own = next(w for w in windows if w["hwnd"] == hwnd)
+    rect = own.get("rect")
+    monitor_rects = own.get("monitor_rects") or []
+    on_monitor = bool(
+        rect
+        and any(
+            rect[0] >= monitor[0] and rect[1] >= monitor[1]
+            and rect[2] <= monitor[2] and rect[3] <= monitor[3]
+            for monitor in monitor_rects
+        )
+    )
+    overlaps = [
+        w for w in windows
+        if w["hwnd"] != hwnd
+        and w.get("visible")
+        and not w.get("iconic")
+        and w.get("cloaked") is False
+        and w.get("rect")
+        and rect
+        and _intersects(rect, w["rect"])
+    ]
+    topmost = all(
+        w.get("z_order") is not None
+        and own.get("z_order") is not None
+        and own["z_order"] < w["z_order"]
+        for w in overlaps
+    )
+    visible = bool(
+        own.get("visible")
+        and not own.get("iconic")
+        and own.get("cloaked") is False
+        and on_monitor
+    )
+    foreground = own.get("foreground") is True
+    in_front = bool(visible and (foreground or topmost))
+    return {
+        **own,
+        "on_monitor": on_monitor,
+        "foreground": foreground,
+        "overlapping_hwnds": [w["hwnd"] for w in overlaps],
+        "z_order_topmost_intersecting": topmost,
+        "visible_according_to_criteria": visible,
+        "visible_in_front": in_front,
+    }
+
+
+class _Rect(ctypes.Structure):
+    _fields_ = [
+        ("left", wintypes.LONG),
+        ("top", wintypes.LONG),
+        ("right", wintypes.LONG),
+        ("bottom", wintypes.LONG),
+    ]
+
+
+class _MonitorInfo(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.DWORD),
+        ("rcMonitor", _Rect),
+        ("rcWork", _Rect),
+        ("dwFlags", wintypes.DWORD),
+    ]
+
+
+class _GUID(ctypes.Structure):
+    _fields_ = [
+        ("Data1", wintypes.DWORD),
+        ("Data2", wintypes.WORD),
+        ("Data3", wintypes.WORD),
+        ("Data4", wintypes.BYTE * 8),
+    ]
+
+
+def _rect_tuple(rect: _Rect) -> Tuple[int, int, int, int]:
+    return int(rect.left), int(rect.top), int(rect.right), int(rect.bottom)
+
+
+def _monitor_rectangles() -> List[Tuple[int, int, int, int]]:
+    if sys.platform != "win32":
+        return []
+    monitor_enum = ctypes.WINFUNCTYPE(
+        wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
+        ctypes.POINTER(_Rect), wintypes.LPARAM,
+    )
+    rects: List[Tuple[int, int, int, int]] = []
+
+    def _cb(monitor, _dc, _rect, _data):
+        info = _MonitorInfo()
+        info.cbSize = ctypes.sizeof(info)
+        if user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+            rects.append(_rect_tuple(info.rcMonitor))
+        return True
+
+    user32.EnumDisplayMonitors(None, None, monitor_enum(_cb), 0)
+    return rects
+
+
+def _is_on_current_virtual_desktop(hwnd: int) -> Tuple[Optional[bool], Optional[str]]:
+    if sys.platform != "win32":
+        return None, "Windows API unavailable"
+    ole32 = ctypes.WinDLL("ole32", use_last_error=True)
+    initialized = False
+    instance = ctypes.c_void_p()
+    try:
+        hr = ole32.CoInitializeEx(None, 0x2)
+        initialized = hr in (0, 1)
+        clsid = _GUID.from_buffer_copy(
+            uuid.UUID("AA509086-5CA9-4C25-8F95-589D3C07B48A").bytes_le
+        )
+        iid = _GUID.from_buffer_copy(
+            uuid.UUID("A5CD92FF-29BE-454C-8D04-D82879FB3F1B").bytes_le
+        )
+        hr = ole32.CoCreateInstance(
+            ctypes.byref(clsid), None, 1, ctypes.byref(iid), ctypes.byref(instance)
+        )
+        if hr != 0 or not instance.value:
+            return None, f"CoCreateInstance HRESULT=0x{hr & 0xFFFFFFFF:08X}"
+        vtable = ctypes.cast(
+            instance, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))
+        ).contents
+        check = ctypes.WINFUNCTYPE(
+            ctypes.c_long, ctypes.c_void_p, wintypes.HWND, ctypes.POINTER(wintypes.BOOL)
+        )(vtable[3])
+        result = wintypes.BOOL()
+        hr = check(instance, wintypes.HWND(hwnd), ctypes.byref(result))
+        if hr != 0:
+            return None, f"IsWindowOnCurrentVirtualDesktop HRESULT=0x{hr & 0xFFFFFFFF:08X}"
+        return bool(result.value), None
+    except Exception as exc:
+        return None, f"{type(exc).__name__}: {exc}"
+    finally:
+        if instance.value:
+            try:
+                vtable = ctypes.cast(
+                    instance, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))
+                ).contents
+                release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
+                release(instance)
+            except Exception:
+                pass
+        if initialized:
+            ole32.CoUninitialize()
+
+
+def list_all_windows_with_visibility(browser_names: Tuple[str, ...] = ("msedge.exe",)) -> List[Dict[str, Any]]:
+    """Return top-level window visibility and z-order data for selected browser processes."""
+    if sys.platform != "win32":
+        return []
+    browser_pids: Dict[int, str] = {}
+    for proc in psutil.process_iter(["pid", "name"]):
+        try:
+            name = (proc.info.get("name") or "").lower()
+            if name in browser_names:
+                browser_pids[int(proc.info["pid"])] = name
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    monitor_rects = _monitor_rectangles()
+    foreground_hwnd = int(user32.GetForegroundWindow() or 0)
+    all_rows: List[Dict[str, Any]] = []
+
+    def _cb(hwnd, _lp):
+        hwnd_int = int(hwnd or 0)
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        rect = _Rect()
+        has_rect = bool(user32.GetWindowRect(hwnd, ctypes.byref(rect)))
+        title_len = user32.GetWindowTextLengthW(hwnd)
+        title = ""
+        if title_len:
+            title_buf = ctypes.create_unicode_buffer(title_len + 1)
+            user32.GetWindowTextW(hwnd, title_buf, title_len + 1)
+            title = title_buf.value
+        cloaked_value = wintypes.DWORD()
+        try:
+            hr = ctypes.WinDLL("dwmapi", use_last_error=True).DwmGetWindowAttribute(
+                hwnd, 14, ctypes.byref(cloaked_value), ctypes.sizeof(cloaked_value)
+            )
+            cloaked: Optional[bool] = bool(cloaked_value.value) if hr == 0 else None
+            cloaked_error = None if hr == 0 else f"HRESULT=0x{hr & 0xFFFFFFFF:08X}"
+        except Exception as exc:
+            cloaked = None
+            cloaked_error = f"{type(exc).__name__}: {exc}"
+        row = {
+            "hwnd": hwnd_int,
+            "pid": int(pid.value),
+            "process": browser_pids.get(int(pid.value)),
+            "title": title,
+            "visible": bool(user32.IsWindowVisible(hwnd)),
+            "iconic": bool(user32.IsIconic(hwnd)),
+            "cloaked": cloaked,
+            "cloaked_error": cloaked_error,
+            "rect": _rect_tuple(rect) if has_rect else None,
+            "monitor_rects": monitor_rects,
+            "foreground": hwnd_int == foreground_hwnd,
+            "current_virtual_desktop": None,
+            "virtual_desktop_error": None,
+        }
+        if row["process"] is not None:
+            row["current_virtual_desktop"], row["virtual_desktop_error"] = (
+                _is_on_current_virtual_desktop(hwnd_int)
+            )
+        all_rows.append(row)
+        return True
+
+    user32.EnumWindows(_EnumProc(_cb), 0)
+
+    hwnd = user32.GetTopWindow(None)
+    z_order = 0
+    while hwnd:
+        hwnd_int = int(hwnd)
+        for row in all_rows:
+            if row["hwnd"] == hwnd_int:
+                row["z_order"] = z_order
+        hwnd = user32.GetWindow(hwnd, 2)  # GW_HWNDNEXT
+        z_order += 1
+
+    browser_rows = [row for row in all_rows if row["process"] is not None]
+    for row in browser_rows:
+        row.update(evaluate_window_visibility(row["hwnd"], all_rows))
+    return browser_rows
 
 
 # ----------------------------------------------------------------------------- detektor K1
@@ -141,6 +374,29 @@ def find_msedge_path() -> Optional[str]:
     return None
 
 
+def find_brave_path() -> Optional[str]:
+    candidates = [
+        Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"))
+        / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe",
+        Path(os.environ.get("PROGRAMFILES", "C:\\Program Files"))
+        / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe",
+        Path(os.environ.get("LOCALAPPDATA", ""))
+        / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe",
+    ]
+    if sys.platform == "win32":
+        import winreg
+        sub = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe"
+        for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            try:
+                with winreg.OpenKey(hive, sub) as key:
+                    value, _ = winreg.QueryValueEx(key, "")
+                    if value and os.path.exists(value):
+                        return value
+            except OSError:
+                continue
+    return next((str(path) for path in candidates if path.is_file()), None)
+
+
 def default_https_progid() -> Optional[str]:
     import winreg
     sub = r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice"
@@ -150,6 +406,38 @@ def default_https_progid() -> Optional[str]:
             return val
     except OSError:
         return None
+
+
+def edge_profile_inventory() -> Dict[str, Any]:
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if not local_app_data:
+        return {"available": False, "reason": "LOCALAPPDATA tidak tersedia"}
+    local_state = Path(local_app_data) / "Microsoft" / "Edge" / "User Data" / "Local State"
+    if not local_state.is_file():
+        return {"available": False, "path": str(local_state), "reason": "Local State tidak ditemukan"}
+    try:
+        with local_state.open("r", encoding="utf-8") as state_file:
+            state = json.load(state_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"available": False, "path": str(local_state), "reason": f"{type(exc).__name__}: {exc}"}
+
+    profile_state = state.get("profile", {})
+    active = profile_state.get("last_used")
+    info_cache = profile_state.get("info_cache", {})
+    profiles = [
+        {
+            "directory": directory,
+            "display_name": details.get("name"),
+            "active_last_used": directory == active,
+        }
+        for directory, details in sorted(info_cache.items())
+    ]
+    return {
+        "available": True,
+        "last_used": active,
+        "profiles": profiles,
+        "local_state_path": str(local_state),
+    }
 
 
 def get_git_info() -> Tuple[str, bool]:
@@ -164,6 +452,149 @@ def get_git_info() -> Tuple[str, bool]:
     except Exception:
         dirty = True
     return head, dirty
+
+
+def get_strict_git_info() -> Tuple[str, bool, List[str]]:
+    try:
+        head = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=str(REPO_ROOT), text=True
+        ).strip()
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain=v1"], cwd=str(REPO_ROOT), text=True
+        )
+        entries = status.splitlines()
+        return head, bool(entries), entries
+    except Exception as exc:
+        return f"ERROR: {exc}", True, [f"ERROR: {type(exc).__name__}: {exc}"]
+
+
+def capture_visibility_report() -> Dict[str, Any]:
+    head, dirty, status_entries = get_strict_git_info()
+    windows = list_all_windows_with_visibility(("msedge.exe", "brave.exe"))
+    edge_windows = [
+        window for window in windows
+        if window["process"] == "msedge.exe"
+        and window["title"]
+        and (window["visible"] or window["iconic"])
+    ]
+    foreground_hwnd = int(user32.GetForegroundWindow() or 0) if sys.platform == "win32" else 0
+    foreground_pid = wintypes.DWORD()
+    foreground_title = ""
+    foreground_maximized: Optional[bool] = None
+    foreground_process = None
+    if foreground_hwnd:
+        user32.GetWindowThreadProcessId(
+            wintypes.HWND(foreground_hwnd), ctypes.byref(foreground_pid)
+        )
+        title_len = user32.GetWindowTextLengthW(wintypes.HWND(foreground_hwnd))
+        if title_len:
+            title_buf = ctypes.create_unicode_buffer(title_len + 1)
+            user32.GetWindowTextW(
+                wintypes.HWND(foreground_hwnd), title_buf, title_len + 1
+            )
+            foreground_title = title_buf.value
+        foreground_maximized = bool(user32.IsZoomed(wintypes.HWND(foreground_hwnd)))
+        try:
+            foreground_process = psutil.Process(foreground_pid.value).name()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            foreground_process = "unavailable"
+
+    readiness = {
+        "R1": {
+            "ready": bool(edge_windows and foreground_process and foreground_process.lower() != "msedge.exe"
+                          and foreground_maximized),
+            "reason": "Edge window visible, non-Edge foreground maximized"
+            if edge_windows and foreground_process and foreground_process.lower() != "msedge.exe"
+            and foreground_maximized
+            else "R1 tidak dikondisikan: perlu Edge visible dan aplikasi non-Edge maximized di foreground",
+        },
+        "R2": {
+            "ready": bool(edge_windows),
+            "reason": "Ada HWND Edge yang dapat diminimalkan untuk pengujian"
+            if edge_windows else "Tidak ada HWND Edge; proses background saja tidak bisa menjadi target minimize",
+        },
+        "R3": {
+            "ready": False,
+            "reason": "Tidak diuji: tidak tersedia enumerasi/pembuatan desktop virtual yang aman dengan API publik ini",
+        },
+        "R4": {
+            "ready": False,
+            "reason": "Tidak dijalankan: reset A/B/C akan menghentikan Edge dan belum ada izin eksplisit untuk taskkill",
+        },
+    }
+    browser_paths = {"edge": find_msedge_path(), "brave": find_brave_path()}
+    methods = [
+        "launcher_explorer",
+        "os_startfile",
+        "browser_direct",
+        "browser_new_window",
+        "browser_new_tab",
+        "browser_active_profile",
+        "launcher_explorer_focus",
+    ]
+    matrix = [
+        {
+            "browser": browser,
+            "condition": condition,
+            "method": method,
+            "n_requested": 5,
+            "n_observed": 0,
+            "status": "NOT_RUN_PRECONDITION",
+            "reason": readiness[condition]["reason"],
+            "components": {
+                "visible": None,
+                "iconic": None,
+                "cloaked": None,
+                "on_monitor": None,
+                "foreground": None,
+                "z_order_topmost_intersecting": None,
+                "visible_in_front": None,
+            },
+        }
+        for browser in ("edge", "brave")
+        if browser_paths[browser] is not None or browser == "edge"
+        for condition in ("R1", "R2")
+        for method in methods
+    ]
+    return {
+        "time": datetime.datetime.now().isoformat(),
+        "git_head": head,
+        "git_dirty": dirty,
+        "git_status_entries": status_entries,
+        "python": sys.executable,
+        "harness_session_id": session_id(os.getpid()),
+        "explorer_session_ids": explorer_sessions(),
+        "default_https_progid": default_https_progid(),
+        "edge_processes": _browser_process_inventory("msedge.exe"),
+        "edge_profiles": edge_profile_inventory(),
+        "browser_paths": browser_paths,
+        "foreground": {
+            "hwnd": foreground_hwnd or None,
+            "pid": foreground_pid.value or None,
+            "process": foreground_process,
+            "title": foreground_title,
+            "maximized": foreground_maximized,
+        },
+        "condition_readiness": readiness,
+        "method_order": methods,
+        "matrix": matrix,
+        "windows": windows,
+    }
+
+
+def _browser_process_inventory(browser_name: str) -> List[Dict[str, Any]]:
+    processes: List[Dict[str, Any]] = []
+    for process in psutil.process_iter(["name", "cmdline"]):
+        try:
+            if (process.info.get("name") or "").lower() == browser_name:
+                processes.append({
+                    "pid": process.pid,
+                    "name": process.info.get("name"),
+                    "cmdline": process.info.get("cmdline"),
+                })
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return processes
 
 
 # ----------------------------------------------------------------------------- kontrol Edge
@@ -298,6 +729,7 @@ def main() -> None:
     ap.add_argument("--yes", action="store_true")
     ap.add_argument("--resume", action="store_true", help="Lanjutkan dari percobaan yang sudah tercatat di evidence.")
     ap.add_argument("--list", action="store_true", help="Hanya cetak jendela Edge saat ini (tanpa taskkill).")
+    ap.add_argument("--visibility-list", action="store_true", help="Catat metrik keterlihatan tanpa meluncurkan browser.")
     ap.add_argument("--n", type=int, default=5)
     ap.add_argument("--conds", default="A,B,C")
     ap.add_argument("--methods", default="")
@@ -311,6 +743,24 @@ def main() -> None:
         snap = snapshot()
         print(json.dumps({k: v for k, v in snap.items() if k != "_keys"}, ensure_ascii=False, indent=2))
         print("session harness:", session_id(os.getpid()), "| session explorer:", explorer_sessions())
+        return
+    if args.visibility_list:
+        report = capture_visibility_report()
+        with VISIBILITY_EVIDENCE_JSON.open("w", encoding="utf-8") as evidence_file:
+            json.dump(report, evidence_file, ensure_ascii=False, indent=2)
+            evidence_file.write("\n")
+        header = (
+            f"Git HEAD: {report['git_head']}\n"
+            f"Git Dirty={report['git_dirty']}\n"
+            f"Dijalankan dari tree bersih: {not report['git_dirty']}\n"
+            "Run: snapshot diagnostik, bukan resume; script tidak diedit di tengah run.\n\n"
+        )
+        with VISIBILITY_EVIDENCE.open("w", encoding="utf-8") as evidence_file:
+            evidence_file.write(header)
+            json.dump(report, evidence_file, ensure_ascii=False, indent=2)
+            evidence_file.write("\n")
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        print(f"Evidence: {VISIBILITY_EVIDENCE.relative_to(REPO_ROOT)}")
         return
 
     edge_path = find_msedge_path()
