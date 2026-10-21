@@ -8,6 +8,8 @@ ENKI dibangun di sekeliling keterbatasan nyata model kecil (3B), bukan dengan be
 
 ## Fitur
 
+
+
 - **Chat lokal** dengan `qwen2.5:3b` lewat [Ollama](https://ollama.com) (context 8192, suhu 0.2). Tidak ada data yang keluar dari komputer, kecuali perintah web yang kamu konfirmasi sendiri.
 - **Memori jangka panjang**
   - Riwayat sesi di SQLite (FTS5) dengan pemanggilan ulang aktif lewat kata pemicu ("kemarin", "pernah", "ingat", ...).
